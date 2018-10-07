@@ -6,77 +6,81 @@ import (
 
 	"github.com/scottshotgg/express-ast"
 	"github.com/scottshotgg/express-lex"
-	"github.com/scottshotgg/express-token"
 )
 
 var (
 	simpleTest = `
 	function something() {
-		ay()
+		stuff := "woah"
+		var thing = "yeah"
+	}
 
-		int something = 3 - 89
+	ay()
 
-		some := 1 + i < 0
+	int something = 3 - 89
 
-		for i := 0, i < 10, i++ {
-			something := "here"
-		}
+	some := 1 + i < 0
 
-		for i in something {
-			something := "here"
-			return true
-		}
+	for i := 0, i < 10, i++ {
+		something := "here"
+	}
 
-		{
-			woah := "random string"
-		}
+	for i in something {
+		something := "here"
+		return true
+	}
 
-		if something {
-			int i = 0
-		} else {
-			int i = 1
-		}
-	}`
+	{
+		woah := "random string"
+	}
+
+	if something {
+		int i = 0
+	} else {
+		int i = 1
+	}
+	
+	char[] me`
 )
 
-func CompressTokens(lexTokens []token.Token) ([]token.Token, error) {
-	compressedTokens := []token.Token{}
+// func CompressTokens(lexTokens []token.Token) ([]token.Token, error) {
+// 	compressedTokens := []token.Token{}
 
-	alreadyChecked := false
+// 	alreadyChecked := false
 
-	for i := 0; i < len(lexTokens)-1; i++ {
-		// This needs to be simplified
-		if lexTokens[i].Type == "ASSIGN" || lexTokens[i].Type == "SEC_OP" || lexTokens[i].Type == "PRI_OP" && lexTokens[i+1].Type == "ASSIGN" || lexTokens[i+1].Type == "SEC_OP" || lexTokens[i+1].Type == "PRI_OP" {
-			compressedToken, ok := token.TokenMap[lexTokens[i].Value.String+lexTokens[i+1].Value.String]
-			// fmt.Println("added \"" + lexTokens[i].Value.String + lexTokens[i+1].Value.String + "\"")
-			if ok {
-				compressedTokens = append(compressedTokens, compressedToken)
-				i++
+// 	for i := 0; i < len(lexTokens)-1; i++ {
+// 		// This needs to be simplified
+// 		if lexTokens[i].Type == "ASSIGN" || lexTokens[i].Type == "SEC_OP" || lexTokens[i].Type == "PRI_OP" && lexTokens[i+1].Type == "ASSIGN" || lexTokens[i+1].Type == "SEC_OP" || lexTokens[i+1].Type == "PRI_OP" {
+// 			compressedToken, ok := token.TokenMap[lexTokens[i].Value.String+lexTokens[i+1].Value.String]
+// 			// fmt.Println("added \"" + lexTokens[i].Value.String + lexTokens[i+1].Value.String + "\"")
+// 			if ok {
+// 				compressedTokens = append(compressedTokens, compressedToken)
+// 				i++
 
-				// If we were able to combine the last two tokens and make a new one, mark it
-				if i == len(lexTokens)-1 {
-					alreadyChecked = true
-				}
+// 				// If we were able to combine the last two tokens and make a new one, mark it
+// 				if i == len(lexTokens)-1 {
+// 					alreadyChecked = true
+// 				}
 
-				continue
-			}
-		}
+// 				continue
+// 			}
+// 		}
 
-		// Filter out the white space
-		if lexTokens[i].Type == "WS" {
-			continue
-		}
+// 		// Filter out the white space
+// 		if lexTokens[i].Type == "WS" {
+// 			continue
+// 		}
 
-		compressedTokens = append(compressedTokens, lexTokens[i])
-	}
+// 		compressedTokens = append(compressedTokens, lexTokens[i])
+// 	}
 
-	// If it hasn't been already checked and the last token is not a white space, then append it
-	if !alreadyChecked && lexTokens[len(lexTokens)-1].Type != "WS" {
-		compressedTokens = append(compressedTokens, lexTokens[len(lexTokens)-1])
-	}
+// 	// If it hasn't been already checked and the last token is not a white space, then append it
+// 	if !alreadyChecked && lexTokens[len(lexTokens)-1].Type != "WS" {
+// 		compressedTokens = append(compressedTokens, lexTokens[len(lexTokens)-1])
+// 	}
 
-	return compressedTokens, nil
-}
+// 	return compressedTokens, nil
+// }
 
 func main() {
 	// Lex the source code
@@ -85,7 +89,7 @@ func main() {
 		fmt.Println("err", err)
 	}
 
-	tokens, err = CompressTokens(tokens)
+	tokens, err = ast.CompressTokens(tokens)
 	if err != nil {
 		fmt.Println("err", err)
 	}
