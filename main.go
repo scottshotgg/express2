@@ -42,7 +42,9 @@ var (
 		int i = 1
 	}
 	
-	char[] me`
+	char[] me
+	`
+	// There is a problem with adding the extra newline and tab tokens
 )
 
 // func CompressTokens(lexTokens []token.Token) ([]token.Token, error) {
