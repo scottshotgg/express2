@@ -1,6 +1,7 @@
 package transpiler
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 
@@ -29,26 +30,24 @@ func TranslateExpression(e ast.Expression) (string, error) {
 
 	// TODO: just return this for now as the default value of the function
 	fmt.Println(e.Kind())
-	return "couldnt determine", nil
+	return "", errors.New("couldnt determine")
 }
 
 func TranslateAssignmentStatement(a *ast.Assignment) (string, error) {
 	// TODO: Would be nice to have a type indication for array here ...
 
 	// Always put "=" because there is no ":=" in C++; we are just using it for the compiler
-	cString, err := TranslateExpression(a.LHS)
+	lhs, err := TranslateExpression(a.LHS)
 	if err != nil {
 		return "", err
 	}
-
-	cString += "="
 
 	rhs, err := TranslateExpression(a.RHS)
 	if err != nil {
 		return "", err
 	}
 
-	return cString + rhs + ";", nil
+	return lhs + "=" + rhs + ";", nil
 }
 
 func Transpile(p *ast.Program) (string, error) {
