@@ -30,6 +30,8 @@ var (
 		return true
 	}
 
+	{}
+
 	{
 		woah := "random string"
 	}
