@@ -3,9 +3,13 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"os"
+	"os/exec"
 
 	"github.com/scottshotgg/express-ast"
 	"github.com/scottshotgg/express-lex"
+	"github.com/scottshotgg/express2/transpiler"
 )
 
 var (
@@ -42,57 +46,20 @@ var (
 		int i = 1
 	}
 	
-	char[] me
-	`
+	char[] me`
 	// There is a problem with adding the extra newline and tab tokens
+
+	transpileTest = `int a = 5`
 )
 
-// func CompressTokens(lexTokens []token.Token) ([]token.Token, error) {
-// 	compressedTokens := []token.Token{}
-
-// 	alreadyChecked := false
-
-// 	for i := 0; i < len(lexTokens)-1; i++ {
-// 		// This needs to be simplified
-// 		if lexTokens[i].Type == "ASSIGN" || lexTokens[i].Type == "SEC_OP" || lexTokens[i].Type == "PRI_OP" && lexTokens[i+1].Type == "ASSIGN" || lexTokens[i+1].Type == "SEC_OP" || lexTokens[i+1].Type == "PRI_OP" {
-// 			compressedToken, ok := token.TokenMap[lexTokens[i].Value.String+lexTokens[i+1].Value.String]
-// 			// fmt.Println("added \"" + lexTokens[i].Value.String + lexTokens[i+1].Value.String + "\"")
-// 			if ok {
-// 				compressedTokens = append(compressedTokens, compressedToken)
-// 				i++
-
-// 				// If we were able to combine the last two tokens and make a new one, mark it
-// 				if i == len(lexTokens)-1 {
-// 					alreadyChecked = true
-// 				}
-
-// 				continue
-// 			}
-// 		}
-
-// 		// Filter out the white space
-// 		if lexTokens[i].Type == "WS" {
-// 			continue
-// 		}
-
-// 		compressedTokens = append(compressedTokens, lexTokens[i])
-// 	}
-
-// 	// If it hasn't been already checked and the last token is not a white space, then append it
-// 	if !alreadyChecked && lexTokens[len(lexTokens)-1].Type != "WS" {
-// 		compressedTokens = append(compressedTokens, lexTokens[len(lexTokens)-1])
-// 	}
-
-// 	return compressedTokens, nil
-// }
-
 func main() {
-	// Lex the source code
-	tokens, err := lex.New(simpleTest).Lex()
+	// Lex and tokenize the source code
+	tokens, err := lex.New(transpileTest).Lex()
 	if err != nil {
 		fmt.Println("err", err)
 	}
 
+	// Compress certain tokens; i.e: `:` and `=` compress into `:=`
 	tokens, err = ast.CompressTokens(tokens)
 	if err != nil {
 		fmt.Println("err", err)
@@ -102,17 +69,48 @@ func main() {
 		fmt.Println(t)
 	}
 
+	// Make a builder
 	builder := &ast.ASTBuilder{
 		Tokens: tokens,
 	}
 
+	// Build the AST
 	p, err := builder.BuildAST()
 	if err != nil {
 		fmt.Println("err", err)
+		os.Exit(9)
 	}
 
 	pJSON, _ := json.Marshal(p)
 	fmt.Println()
 	fmt.Println(string(pJSON))
+	fmt.Println()
 
+	// Transpile the AST into C++
+	t, err := transpiler.Transpile(p)
+	if err != nil {
+		fmt.Println("err", err)
+		os.Exit(9)
+	}
+
+	// Write the C++ code to a file named `main.cpp`
+	err = ioutil.WriteFile("main.cpp", []byte(t), 0755)
+	if err != nil {
+		fmt.Println("err", err)
+		os.Exit(9)
+	}
+
+	// Run `clang-format` in-place to format the file for human-readability
+	_, err = exec.Command("clang-format", "-i", "main.cpp").CombinedOutput()
+	if err != nil {
+		fmt.Println("err", err)
+		os.Exit(9)
+	}
+
+	// Compile the file with Clang to produce a binary
+	_, err = exec.Command("clang++", "main.cpp", "-o", "main").CombinedOutput()
+	if err != nil {
+		fmt.Println("err", err)
+		os.Exit(9)
+	}
 }
