@@ -17,6 +17,9 @@ Known stages that we will need
 
 Add-on stages: (between `buildAST` and `transpile`)
 
+- cpp-imports
+<br>
+
 - type-resolution
   <br>
 

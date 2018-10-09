@@ -53,6 +53,8 @@ func TranslateAssignmentStatement(a *ast.Assignment) (string, error) {
 func Transpile(p *ast.Program) (string, error) {
 	fmt.Println(p)
 
+	cProgramJargon := ""
+
 	for _, file := range p.Files {
 		return file.String(), nil
 
@@ -68,13 +70,13 @@ func Transpile(p *ast.Program) (string, error) {
 		// 		fmt.Println("I got an assignment")
 		// 		cStmt, err := TranslateAssignmentStatement(stmt.(*ast.Assignment))
 		// 		if err != nil {
-		// 			return "", nil
+		// 			return "", err
 		// 		}
 
-		// 	cProgramJargon += cStmt
-		// }
+		// 		cProgramJargon += cStmt
+		// 	}
 		// }
 	}
 
-	return "}", nil
+	return cProgramJargon + "}", nil
 }
