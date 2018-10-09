@@ -50,7 +50,10 @@ var (
 	// There is a problem with adding the extra newline and tab tokens
 
 	transpileTest = `int a = 5
-	string hey = "its me"`
+	string hey = "its me"
+	function something() {
+		int i = 5
+	}`
 )
 
 func main() {
