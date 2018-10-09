@@ -49,7 +49,8 @@ var (
 	char[] me`
 	// There is a problem with adding the extra newline and tab tokens
 
-	transpileTest = `int a = 5`
+	transpileTest = `int a = 5
+	string hey = "its me"`
 )
 
 func main() {
@@ -77,7 +78,7 @@ func main() {
 	// Build the AST
 	p, err := builder.BuildAST()
 	if err != nil {
-		fmt.Println("err", err)
+		fmt.Printf("err %+v\n", err)
 		os.Exit(9)
 	}
 
@@ -89,28 +90,28 @@ func main() {
 	// Transpile the AST into C++
 	t, err := transpiler.Transpile(p)
 	if err != nil {
-		fmt.Println("err", err)
+		fmt.Printf("err %+v\n", err)
 		os.Exit(9)
 	}
 
 	// Write the C++ code to a file named `main.cpp`
 	err = ioutil.WriteFile("main.cpp", []byte(t), 0755)
 	if err != nil {
-		fmt.Println("err", err)
+		fmt.Printf("err %+v\n", err)
 		os.Exit(9)
 	}
 
 	// Run `clang-format` in-place to format the file for human-readability
-	_, err = exec.Command("clang-format", "-i", "main.cpp").CombinedOutput()
+	output, err := exec.Command("clang-format", "-i", "main.cpp").CombinedOutput()
 	if err != nil {
-		fmt.Println("err", err)
+		fmt.Printf("%s\n%+v\n", output, err)
 		os.Exit(9)
 	}
 
 	// Compile the file with Clang to produce a binary
-	_, err = exec.Command("clang++", "main.cpp", "-o", "main").CombinedOutput()
+	output, err = exec.Command("clang++", "main.cpp", "-o", "main").CombinedOutput()
 	if err != nil {
-		fmt.Println("err", err)
+		fmt.Printf("%s\n%+v\n", output, err)
 		os.Exit(9)
 	}
 }
