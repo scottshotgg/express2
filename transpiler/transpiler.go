@@ -35,6 +35,7 @@ func TranslateExpression(e ast.Expression) (string, error) {
 
 func TranslateAssignmentStatement(a *ast.Assignment) (string, error) {
 	// TODO: Would be nice to have a type indication for array here ...
+	fmt.Println(a)
 
 	// Always put "=" because there is no ":=" in C++; we are just using it for the compiler
 	lhs, err := TranslateExpression(a.LHS)
