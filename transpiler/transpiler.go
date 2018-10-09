@@ -35,7 +35,6 @@ func TranslateExpression(e ast.Expression) (string, error) {
 
 func TranslateAssignmentStatement(a *ast.Assignment) (string, error) {
 	// TODO: Would be nice to have a type indication for array here ...
-	fmt.Println(a)
 
 	// Always put "=" because there is no ":=" in C++; we are just using it for the compiler
 	lhs, err := TranslateExpression(a.LHS)
@@ -52,30 +51,30 @@ func TranslateAssignmentStatement(a *ast.Assignment) (string, error) {
 }
 
 func Transpile(p *ast.Program) (string, error) {
-	cProgramJargon := "int main() {"
+	fmt.Println(p)
 
 	for _, file := range p.Files {
-		fmt.Println("file", file)
+		return file.String(), nil
 
-		// FIXME: make an array the size of the statements
-		// this should really transpile a 'BLOCK'
-		// scatter/gather the statements
-		// - do a parallelize the statement parsing after that and then recombine
-		for _, stmt := range file.Statements {
-			fmt.Println("stmt", stmt)
+		// // FIXME: make an array the size of the statements
+		// // this should really transpile a 'BLOCK'
+		// // scatter/gather the statements
+		// // - do a parallelize the statement parsing after that and then recombine
+		// for _, stmt := range file.Statements {
+		// 	fmt.Println("stmt", stmt)
 
-			switch stmt.Kind() {
-			case ast.AssignmentNode:
-				fmt.Println("I got an assignment")
-				cStmt, err := TranslateAssignmentStatement(stmt.(*ast.Assignment))
-				if err != nil {
-					return "", nil
-				}
+		// 	switch stmt.Kind() {
+		// 	case ast.AssignmentNode:
+		// 		fmt.Println("I got an assignment")
+		// 		cStmt, err := TranslateAssignmentStatement(stmt.(*ast.Assignment))
+		// 		if err != nil {
+		// 			return "", nil
+		// 		}
 
-				cProgramJargon += cStmt
-			}
-		}
+		// 	cProgramJargon += cStmt
+		// }
+		// }
 	}
 
-	return cProgramJargon + "}", nil
+	return "}", nil
 }
