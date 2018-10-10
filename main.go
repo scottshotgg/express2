@@ -10,6 +10,7 @@ import (
 	"github.com/scottshotgg/express-ast"
 	"github.com/scottshotgg/express-lex"
 	"github.com/scottshotgg/express2/transpiler"
+	"github.com/scottshotgg/express2/typeCheck"
 )
 
 var (
@@ -40,20 +41,41 @@ var (
 		woah := "random string"
 	}
 
+
 	if something {
 		int i = 0
 	} else {
 		int i = 1
 	}
 	
-	char[] me`
+	char[] me
+	`
 	// There is a problem with adding the extra newline and tab tokens
 
-	transpileTest = `int a = 5
-	string hey = "its me"
-	function something() {
-		int i = 5
-	}`
+	transpileTest = `
+	a := 5
+	a = 0.5
+	
+	// // semicolons have to take on a different semantic meaning than end statement
+	// // int i, j = 5
+	// // int a, b
+
+	// string hey = "its me"
+
+	// function something() {
+	// 	int i = 5
+	// }
+
+	// {
+	// 	a = 9
+
+	// 	// function something() {
+	// 	// int i = 5
+	// 	// }
+
+	// 	something()
+	// }
+	`
 )
 
 func main() {
@@ -63,7 +85,8 @@ func main() {
 		fmt.Println("err", err)
 	}
 
-	// Compress certain tokens; i.e: `:` and `=` compress into `:=`
+	// Compress certain tokens;
+	// i.e: `:` and `=` compress into `:=`
 	tokens, err = ast.CompressTokens(tokens)
 	if err != nil {
 		fmt.Println("err", err)
@@ -79,19 +102,25 @@ func main() {
 	}
 
 	// Build the AST
-	p, err := builder.BuildAST()
+	programAST, err := builder.BuildAST()
 	if err != nil {
 		fmt.Printf("err %+v\n", err)
 		os.Exit(9)
 	}
 
-	pJSON, _ := json.Marshal(p)
+	pJSON, _ := json.Marshal(programAST)
 	fmt.Println()
 	fmt.Println(string(pJSON))
 	fmt.Println()
 
+	err = typeCheck.TypeCheck(programAST)
+	if err != nil {
+		fmt.Printf("err %+v\n", err)
+		os.Exit(9)
+	}
+
 	// Transpile the AST into C++
-	t, err := transpiler.Transpile(p)
+	t, err := transpiler.Transpile(programAST)
 	if err != nil {
 		fmt.Printf("err %+v\n", err)
 		os.Exit(9)
