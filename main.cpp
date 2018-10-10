@@ -1,7 +1,5 @@
-#include <string>
-
+#include <>
 int main() {
   int a = 5;
-  std::string hey = "its me";
-  void something() { int i = 5; }; 
+  a = 0.5;
 }

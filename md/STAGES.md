@@ -17,14 +17,18 @@ Known stages that we will need
 
 Add-on stages: (between `buildAST` and `transpile`)
 
-- cpp-imports
-<br>
-
 - type-resolution
+  <br>
+
+- default-resolution
   <br>
 
 - thats-so-statically-var
   <br>
+
+// Not sure if this should be a stage or not
+- cpp-imports
+<br>
 
 - unused-\*
   - variables
