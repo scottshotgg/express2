@@ -17,10 +17,12 @@ func TranslateExpression(e ast.Expression) (string, error) {
 		// FIXME: need to check ok on all of these
 		i := e.(*ast.Ident)
 
-		if i.TypeOf.Name == token.StringType {
-			fmt.Println("adding string type")
+		switch i.TypeOf.Name {
+		case token.StringType:
 			includes["string"] = true
 			return "std::" + i.TypeOf.Name + " " + i.Name, nil
+		case token.VarType:
+			includes["lib/var.cpp"] = true
 		}
 
 		// TODO: make a TranslateIdent node
@@ -105,14 +107,18 @@ func Transpile(p *ast.Program) (string, error) {
 
 	includesArray := []string{}
 	for include := range includes {
-		includesArray = append(includesArray, include)
+		if strings.Contains(include, ".cpp") || strings.Contains(include, ".h") {
+			includesArray = append(includesArray, "#include \""+include+"\"")
+		} else {
+			includesArray = append(includesArray, "#include <"+include+">")
+		}
 	}
 
 	if len(includesArray) > 0 {
-		return "#include<" + strings.Join(includesArray, ">\n#include<") + ">\n" + strings.Join(functions, "\n") + "int main() {" + cProgramJargon + "}", nil
+		return strings.Join(includesArray, "\n") + strings.Join(functions, "\n") + "\nint main() {" + cProgramJargon + "}", nil
 	}
 
-	return strings.Join(functions, "\n") + "int main() {" + cProgramJargon + "}", nil
+	return strings.Join(functions, "\n") + "\nint main() {" + cProgramJargon + "}", nil
 
 }
 
