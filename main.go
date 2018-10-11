@@ -53,8 +53,15 @@ var (
 	// There is a problem with adding the extra newline and tab tokens
 
 	transpileTest = `
+	function something() {
+		stuff := "woah"
+		var thing = "yeah"
+	}
+
 	a := 6.6
 	a = 7
+
+	var thing = 0
 	
 	float f
 	string s
