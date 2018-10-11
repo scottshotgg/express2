@@ -1,5 +1,12 @@
-#include <>
+#include <string>
 int main() {
-  int a = 5;
-  a = 0.5;
+  float a = 6.6;
+  a = 7;
+  float f = 0;
+  std::string s = "";
+  {
+    std::string s = "scott";
+    a = 9;
+  };
+  s = "me";
 }

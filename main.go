@@ -41,11 +41,11 @@ var (
 		woah := "random string"
 	}
 
-
+	int i
 	if something {
-		int i = 0
+		i = 0
 	} else {
-		int i = 1
+		i = 1
 	}
 	
 	char[] me
@@ -53,28 +53,18 @@ var (
 	// There is a problem with adding the extra newline and tab tokens
 
 	transpileTest = `
-	a := 5
-	a = 0.5
+	a := 6.6
+	a = 7
 	
-	// // semicolons have to take on a different semantic meaning than end statement
-	// // int i, j = 5
-	// // int a, b
+	float f
+	string s
+	
+	{
+		string s = "scott"
+		a = 9
+	}
 
-	// string hey = "its me"
-
-	// function something() {
-	// 	int i = 5
-	// }
-
-	// {
-	// 	a = 9
-
-	// 	// function something() {
-	// 	// int i = 5
-	// 	// }
-
-	// 	something()
-	// }
+	s = "me"
 	`
 )
 
@@ -112,6 +102,13 @@ func main() {
 	fmt.Println()
 	fmt.Println(string(pJSON))
 	fmt.Println()
+
+	// p2 := *ast.Program{}
+	// err = json.Unmarshal(pJSON, p2)
+	// if err != nil {
+	// 	fmt.Printf("err %+v\n", err)
+	// 	os.Exit(9)
+	// }
 
 	err = typeCheck.TypeCheck(programAST)
 	if err != nil {
