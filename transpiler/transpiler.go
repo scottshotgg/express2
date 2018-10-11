@@ -108,8 +108,12 @@ func Transpile(p *ast.Program) (string, error) {
 		includesArray = append(includesArray, include)
 	}
 
-	// return "#include<" + strings.Join(includesArray, ">\n#include<") + ">\n" + strings.Join(functions, "\n") + "int main() {" + cProgramJargon + "}", nil
-	return "#include<" + strings.Join(includesArray, ">\n#include<") + ">\n" + strings.Join(functions, "\n") + "int main() {" + cProgramJargon + "}", nil
+	if len(includesArray) > 0 {
+		return "#include<" + strings.Join(includesArray, ">\n#include<") + ">\n" + strings.Join(functions, "\n") + "int main() {" + cProgramJargon + "}", nil
+	}
+
+	return strings.Join(functions, "\n") + "int main() {" + cProgramJargon + "}", nil
+
 }
 
 /*
