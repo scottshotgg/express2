@@ -359,6 +359,8 @@ public:
   }
 };
 
+typedef var object;
+
 // TODO: for right now, instead of doing the map[string]function to figure out
 // the value
 // https://stackoverflow.com/questions/4972795/how-do-i-typecast-with-type-info

@@ -22,6 +22,9 @@ func TranslateExpression(e ast.Expression) (string, error) {
 			includes["string"] = true
 			return "std::" + i.TypeOf.Name + " " + i.Name, nil
 
+		case token.ObjectType:
+			fallthrough
+
 		case token.VarType:
 			includes["lib/var.cpp"] = true
 		}
@@ -42,6 +45,14 @@ func TranslateExpression(e ast.Expression) (string, error) {
 		default:
 			return l.String(), nil
 		}
+
+	case ast.BlockNode:
+		// FIXME: this needs to translate a different way if it is going to be an expression
+		// TODO: create a separate TranslateObject function
+		// return TranspileBlock(e.(*ast.Block).Statements)
+		// TODO: if we added the ident to the block too ... ??
+		// return TranspileObject(e.(*ast.Block).Statements, e.(*ast.Block).Ident.Name)
+		return TranspileObject(e.(*ast.Block).Statements)
 	}
 
 	// TODO: just return this for now as the default value of the function
@@ -63,13 +74,34 @@ func TranslateAssignmentStatement(a *ast.Assignment) (string, error) {
 		return "", err
 	}
 
+	fmt.Println("lhs", lhs)
 	return lhs + "=" + rhs + ";", nil
 }
 
 var genMain = true
 
+func TranspileObject(statements []ast.Statement) (string, error) {
+	// TODO: implement all object logic here for the assignments and stuff; would like to keep it in the same function but w/e
+
+	objectString := "{}"
+
+	// for _, stmt := range statements {
+	// 	switch stmt.Kind() {
+	// 	case ast.AssignmentNode:
+	// 		cStmt, err := TranslateAssignmentStatement(stmt.(*ast.Assignment))
+	// 		if err != nil {
+	// 			return "", err
+	// 		}
+
+	// 		objectString += cStmt
+	// 	}
+	// }
+
+	return objectString, nil
+}
+
 func TranspileBlock(statements []ast.Statement) (string, error) {
-	cProgramJargon := ""
+	cProgramJargon := "{"
 
 	for _, stmt := range statements {
 		switch stmt.Kind() {
@@ -116,10 +148,10 @@ func TranspileBlock(statements []ast.Statement) (string, error) {
 		}
 	}
 
-	if len(cProgramJargon) > 0 {
-		cProgramJargon = "{" + cProgramJargon + "}"
-	}
-	return cProgramJargon, nil
+	// if len(cProgramJargon) > 0 {
+	// 	cProgramJargon = cProgramJargon + "}"
+	// }
+	return cProgramJargon + "}", nil
 }
 
 var functions []string
@@ -164,7 +196,6 @@ func Transpile(p *ast.Program) (string, error) {
 	}
 
 	return strings.Join(functions, "\n") + cProgramJargon, nil
-
 }
 
 /*

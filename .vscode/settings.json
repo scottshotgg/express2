@@ -26,6 +26,15 @@
     "__nullptr": "cpp",
     "initializer_list": "cpp",
     "new": "cpp",
-    "stdexcept": "cpp"
+    "stdexcept": "cpp",
+    "cwctype": "cpp",
+    "iomanip": "cpp",
+    "iostream": "cpp",
+    "istream": "cpp",
+    "ostream": "cpp",
+    "sstream": "cpp",
+    "streambuf": "cpp",
+    "cstdint": "cpp",
+    "valarray": "cpp"
   }
 }
