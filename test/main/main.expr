@@ -9,12 +9,18 @@ function main() {
   a = 7
 
   // TODO: need to wipe out unused variables
-  var v
   int i
   bool b
   float f
   char c
   string s
+
+  object o = {
+    string me = "s"
+    me = "7"
+  }
+
+  var v
 
   string scott
 

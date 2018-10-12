@@ -101,7 +101,7 @@ func TranspileObject(statements []ast.Statement) (string, error) {
 }
 
 func TranspileBlock(statements []ast.Statement) (string, error) {
-	cProgramJargon := "{"
+	cProgramJargon := ""
 
 	for _, stmt := range statements {
 		switch stmt.Kind() {
@@ -148,10 +148,10 @@ func TranspileBlock(statements []ast.Statement) (string, error) {
 		}
 	}
 
-	// if len(cProgramJargon) > 0 {
-	// 	cProgramJargon = cProgramJargon + "}"
-	// }
-	return cProgramJargon + "}", nil
+	if len(cProgramJargon) > 0 {
+		cProgramJargon = "{" + cProgramJargon + "}"
+	}
+	return cProgramJargon, nil
 }
 
 var functions []string
