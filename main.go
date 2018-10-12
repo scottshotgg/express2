@@ -51,44 +51,19 @@ var (
 	char[] me
 	`
 	// There is a problem with adding the extra newline and tab tokens
-
-	transpileTest = `
-	// FIXME: generating std::function is preventing us from implementing recursion
-
-	function something() {
-		stuff := "woah"
-		var thing = "yeah"
-	}
-
-	function main() {
-		// TODO: need to make this collapse
-		a := 6.6
-		a = 7
-	
-		// TODO: need to wipe out unused variables
-		var v
-		int i
-		bool b
-		float f
-		char c
-		string s
-	
-		string scott
-		
-		// TODO: need to optimize unused blocks
-		{
-			string scott = "scott"
-			a = 9
-		}
-	
-		scott = "me"
-	}
-	`
 )
 
 func main() {
+	file := "test/nomain/main.expr"
+
+	lexer, err := lex.NewFromFile(file)
+	if err != nil {
+		fmt.Println("Could not find file:", file)
+		os.Exit(9)
+	}
+
 	// Lex and tokenize the source code
-	tokens, err := lex.New(transpileTest).Lex()
+	tokens, err := lexer.Lex()
 	if err != nil {
 		fmt.Println("err", err)
 	}
@@ -142,7 +117,7 @@ func main() {
 	}
 
 	// Write the C++ code to a file named `main.cpp`
-	err = ioutil.WriteFile("main.cpp", []byte(t), 0755)
+	err = ioutil.WriteFile("main.cpp", []byte(t), 0644)
 	if err != nil {
 		fmt.Printf("err %+v\n", err)
 		os.Exit(9)

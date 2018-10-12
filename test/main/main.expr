@@ -1,0 +1,28 @@
+function something() {
+  stuff := "woah"
+  var thing = "yeah"
+}
+
+function main() {
+  // TODO: need to make this collapse
+  a := 6.6
+  a = 7
+
+  // TODO: need to wipe out unused variables
+  var v
+  int i
+  bool b
+  float f
+  char c
+  string s
+
+  string scott
+
+  // TODO: need to optimize unused blocks
+  {
+    string scott = "scott"
+    a = 9
+  }
+
+  scott = "me"
+}

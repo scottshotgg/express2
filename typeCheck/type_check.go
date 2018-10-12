@@ -24,16 +24,26 @@ func getTypeOfExpression(e ast.Expression) (*ast.Type, error) {
 	case ast.LiteralNode:
 		return e.(ast.Literal).Type(), nil
 
-		// // FIXME: fill out the switch statement
-		// switch l.Type().Type {
-		// // case ast.IntType:
-		// // 	// FIXME: this def needs to be checked
-		// // 	return strconv.Itoa(l.(*ast.IntLiteral).Value), nil
+	// // FIXME: fill out the switch statement
+	// switch l.Type().Type {
+	// // case ast.IntType:
+	// // 	// FIXME: this def needs to be checked
+	// // 	return strconv.Itoa(l.(*ast.IntLiteral).Value), nil
 
-		// // case ast.StringType:
-		// default:
-		// 	return l.Type(), nil
-		// }
+	// // case ast.StringType:
+	// default:
+	// 	return l.Type(), nil
+	// }
+
+	case ast.BlockNode:
+		fmt.Println("it is me", e)
+		// Need to check the block
+		_, err := CheckStatements(e.(*ast.Block).Statements)
+		if err != nil {
+			return nil, err
+		}
+
+		return e.(*ast.Block).Type(), nil
 	}
 
 	// TODO: just return this for now as the default value of the function
@@ -42,10 +52,7 @@ func getTypeOfExpression(e ast.Expression) (*ast.Type, error) {
 	return nil, errors.New("could not determine expression type")
 }
 
-func setTypeOfExpression(e1 ast.Expression, e2 ast.Expression) error {
-
-	return nil
-}
+func setTypeOfExpression(e1 ast.Expression, e2 ast.Expression) error { return nil }
 
 // TODO: need to have a map of variables that are used to track the type checking
 // Port over the variable mapping algorithm/scheme from the first Express
@@ -143,8 +150,13 @@ func CheckStatements(statements []ast.Statement) ([]ast.Statement, error) {
 							return nil, errors.New("variable already declared")
 						}
 
+						type2, err := getTypeOfExpression(as.RHS)
+						if err != nil {
+							return nil, err
+						}
+
 						if as.Inferred {
-							as.LHS.(*ast.Ident).TypeOf = as.RHS.(ast.Literal).Type()
+							as.LHS.(*ast.Ident).TypeOf = type2
 						}
 
 						m.CurrentScope[as.LHS.(*ast.Ident).Name] = &VariableNode{
@@ -167,8 +179,6 @@ func CheckStatements(statements []ast.Statement) ([]ast.Statement, error) {
 				if !ok {
 					return nil, errors.New("Use of undeclared variable")
 				}
-
-				// as.LHS = variable.Ident
 
 				type2, err := getTypeOfExpression(as.RHS)
 				if err != nil {
@@ -194,6 +204,7 @@ func CheckStatements(statements []ast.Statement) ([]ast.Statement, error) {
 
 		case ast.BlockNode:
 			m.NewScope()
+
 			_, err := CheckStatements(stmt.(*ast.Block).Statements)
 			if err != nil {
 				return nil, err
@@ -207,6 +218,7 @@ func CheckStatements(statements []ast.Statement) ([]ast.Statement, error) {
 		case ast.FunctionNode:
 			// TODO: need to look into local scoping
 			m.NewScope()
+
 			_, err := CheckStatements(stmt.(*ast.Function).Body.Statements)
 			if err != nil {
 				return nil, err
