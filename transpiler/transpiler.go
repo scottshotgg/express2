@@ -21,6 +21,7 @@ func TranslateExpression(e ast.Expression) (string, error) {
 		case token.StringType:
 			includes["string"] = true
 			return "std::" + i.TypeOf.Name + " " + i.Name, nil
+
 		case token.VarType:
 			includes["lib/var.cpp"] = true
 		}

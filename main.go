@@ -61,9 +61,11 @@ var (
 	a := 6.6
 	a = 7
 
-	var thing = 0
-	
+	var thing
+	int i
+	bool t
 	float f
+	char c
 	string s
 	
 	{
