@@ -53,27 +53,36 @@ var (
 	// There is a problem with adding the extra newline and tab tokens
 
 	transpileTest = `
+	// FIXME: generating std::function is preventing us from implementing recursion
+
 	function something() {
 		stuff := "woah"
 		var thing = "yeah"
 	}
 
-	a := 6.6
-	a = 7
-
-	var thing
-	int i
-	bool t
-	float f
-	char c
-	string s
+	function main() {
+		// TODO: need to make this collapse
+		a := 6.6
+		a = 7
 	
-	{
-		string s = "scott"
-		a = 9
+		// TODO: need to wipe out unused variables
+		var v
+		int i
+		bool b
+		float f
+		char c
+		string s
+	
+		string scott
+		
+		// TODO: need to optimize unused blocks
+		{
+			string scott = "scott"
+			a = 9
+		}
+	
+		scott = "me"
 	}
-
-	s = "me"
 	`
 )
 
