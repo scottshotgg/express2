@@ -1,22 +1,23 @@
 #include "lib/var.cpp"
 #include <functional>
 #include <string>
+void something() {
+  std::string stuff = "woah";
+  var thing = "yeah";
+}
 int main() {
-  std::function<void()> something = []() {
-    std::string stuff = "woah";
-    var thing = "yeah";
-  };
   float a = 6.6;
   a = 7;
-  var thing = 0;
+  var v = 0;
   int i = 0;
-  bool t = false;
+  bool b = false;
   float f = 0;
   char c = 0;
   std::string s = "";
+  std::string scott = "";
   {
-    std::string s = "scott";
+    std::string scott = "scott";
     a = 9;
   };
-  s = "me";
+  scott = "me";
 }

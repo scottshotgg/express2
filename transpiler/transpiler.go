@@ -66,14 +66,70 @@ func TranslateAssignmentStatement(a *ast.Assignment) (string, error) {
 	return lhs + "=" + rhs + ";", nil
 }
 
+var genMain = true
+
+func TranspileBlock(statements []ast.Statement) (string, error) {
+	cProgramJargon := ""
+
+	for _, stmt := range statements {
+		switch stmt.Kind() {
+		case ast.AssignmentNode:
+			cStmt, err := TranslateAssignmentStatement(stmt.(*ast.Assignment))
+			if err != nil {
+				return "", err
+			}
+
+			cProgramJargon += cStmt
+
+		case ast.FunctionNode:
+			includes["functional"] = true
+
+			f := stmt.(*ast.Function)
+			blockString, err := TranspileBlock(f.Body.Statements)
+			if err != nil {
+				return "", err
+			}
+			return1 := "void"
+
+			// Don't know if we need this, just being cautious rn
+			if f.Returns != nil && f.Returns.Elements[0] != nil {
+				return1 = f.Returns.Elements[0].(*ast.Ident).Name
+			}
+
+			functionString := ""
+			if f.Ident.Name == "main" {
+				if genMain == false {
+					return "", errors.New("Cannot have two main functions")
+				}
+
+				genMain = false
+				functionString = "int main()" + blockString
+			} else {
+				// FIXME: put all the functions at the top of the C++ file
+				functionString = return1 + " " + f.Ident.Name + f.Arguments.String() + blockString
+			}
+
+			functions = append(functions, functionString)
+
+		default:
+			cProgramJargon += stmt.String()
+		}
+	}
+
+	if len(cProgramJargon) > 0 {
+		cProgramJargon = "{" + cProgramJargon + "}"
+	}
+	return cProgramJargon, nil
+}
+
+var functions []string
+
 func Transpile(p *ast.Program) (string, error) {
 	fmt.Println(p)
 
 	// Put all these functions and crap into a struct that has channels/readers, etc
 
 	cProgramJargon := ""
-
-	functions := []string{}
 
 	for _, file := range p.Files {
 		// return file.String(), nil
@@ -82,28 +138,12 @@ func Transpile(p *ast.Program) (string, error) {
 		// this should really transpile a 'BLOCK'
 		// scatter/gather the statements
 		// - do a parallelize the statement parsing after that and then recombine
-		for _, stmt := range file.Statements {
-			fmt.Println("stmt", stmt)
-
-			switch stmt.Kind() {
-			case ast.AssignmentNode:
-				cStmt, err := TranslateAssignmentStatement(stmt.(*ast.Assignment))
-				if err != nil {
-					return "", err
-				}
-
-				cProgramJargon += cStmt
-
-			case ast.FunctionNode:
-				includes["functional"] = true
-				// functions = append(functions, stmt.String())
-				// cStmt += stmt.String()
-				fallthrough
-
-			default:
-				cProgramJargon += stmt.String()
-			}
+		blockString, err := TranspileBlock(file.Statements)
+		if err != nil {
+			return "", err
 		}
+
+		cProgramJargon += blockString
 	}
 
 	includesArray := []string{}
@@ -115,11 +155,15 @@ func Transpile(p *ast.Program) (string, error) {
 		}
 	}
 
-	if len(includesArray) > 0 {
-		return strings.Join(includesArray, "\n") + strings.Join(functions, "\n") + "\nint main() {" + cProgramJargon + "}", nil
+	if genMain {
+		cProgramJargon = "\nint main() " + cProgramJargon
 	}
 
-	return strings.Join(functions, "\n") + "\nint main() {" + cProgramJargon + "}", nil
+	if len(includesArray) > 0 {
+		return strings.Join(includesArray, "\n") + "\n" + strings.Join(functions, "\n") + cProgramJargon, nil
+	}
+
+	return strings.Join(functions, "\n") + cProgramJargon, nil
 
 }
 

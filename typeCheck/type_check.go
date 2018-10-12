@@ -52,10 +52,10 @@ func setTypeOfExpression(e1 ast.Expression, e2 ast.Expression) error {
 // Might just do a monolithic type thing and then change the AST and output that
 
 type VariableNode struct {
-	Node    ast.Node
-	Ident   *ast.Ident
-	Type    *ast.Type
-	UsedYet bool
+	Statement ast.Statement
+	Ident     *ast.Ident
+	Type      *ast.Type
+	IsUsed    bool
 }
 
 type Meta struct {
@@ -108,31 +108,24 @@ var m = &Meta{
 	scopes:       NewStack(),
 }
 
-var something *ast.Statement
-
 func TypeCheck(p *ast.Program) error {
-
-	fmt.Println("typeCheck", p)
-
 	var err error
+
 	for _, file := range p.Files {
 		// TODO: solve this later
 		// Create a new scope for each file
 		// m.NewScope()
-		err = CheckStatements(file.Statements)
+		file.Statements, err = CheckStatements(file.Statements)
 		if err != nil {
 			return err
 		}
-
-		something = &file.Statements[3]
 	}
 
 	return nil
 }
 
-func CheckStatements(statements []ast.Statement) error {
-	for _, stmt := range statements {
-
+func CheckStatements(statements []ast.Statement) ([]ast.Statement, error) {
+	for i, stmt := range statements {
 		switch stmt.Kind() {
 		case ast.AssignmentNode:
 			// TODO: if it is a declaration then we need to check that the variable is not already in the variable map
@@ -145,26 +138,19 @@ func CheckStatements(statements []ast.Statement) error {
 					fmt.Println("checking")
 					// We should make an interface called Assignable
 					if as.LHS.Kind() == ast.IdentNode {
-						_, ok := m.GetVariable(as.LHS.(*ast.Ident).Name)
+						_, ok := m.CurrentScope[as.LHS.(*ast.Ident).Name]
 						if ok {
-							return errors.New("variable already declared")
+							return nil, errors.New("variable already declared")
 						}
 
 						if as.Inferred {
 							as.LHS.(*ast.Ident).TypeOf = as.RHS.(ast.Literal).Type()
 						}
 
-						// token := as.RHS.TokenLiteral()
-						// if token.Type == "DEFAULT" {
-						// 	as.RHS.(*ast.DefaultLiteral).Value = defaultsMap[as.RHS.(*ast.DefaultLiteral).Value]
-						// 	fmt.Println("hey", as.RHS.(*ast.DefaultLiteral).Value)
-						// 	stmt = as
-						// 	something = &stmt
-						// }
-
 						m.CurrentScope[as.LHS.(*ast.Ident).Name] = &VariableNode{
-							Ident: as.LHS.(*ast.Ident),
-							Type:  as.LHS.(*ast.Ident).TypeOf,
+							Statement: statements[i],
+							Ident:     as.LHS.(*ast.Ident),
+							Type:      as.LHS.(*ast.Ident).TypeOf,
 						}
 
 						continue
@@ -179,14 +165,14 @@ func CheckStatements(statements []ast.Statement) error {
 				// TODO: Port over the method of recursing up
 				variable, ok := m.GetVariable(as.LHS.(*ast.Ident).Name)
 				if !ok {
-					return errors.New("Use of undeclared variable")
+					return nil, errors.New("Use of undeclared variable")
 				}
 
 				// as.LHS = variable.Ident
 
 				type2, err := getTypeOfExpression(as.RHS)
 				if err != nil {
-					return err
+					return nil, err
 				}
 
 				fmt.Println("something", variable.Type, type2.Type, type2.UpgradesTo)
@@ -194,7 +180,7 @@ func CheckStatements(statements []ast.Statement) error {
 				// If the types are not directly the same then check whether the right hand side can upgrade
 				if variable.Type.Type != type2.Type {
 					if variable.Type.Type != type2.UpgradesTo { // || type2.UpgradesTo == 0 {
-						return errors.New("Types did not match")
+						return nil, errors.New("Types did not match")
 					}
 				}
 
@@ -208,27 +194,39 @@ func CheckStatements(statements []ast.Statement) error {
 
 		case ast.BlockNode:
 			m.NewScope()
-			CheckStatements(stmt.(*ast.Block).Statements)
-			_, err := m.ExitScope()
+			_, err := CheckStatements(stmt.(*ast.Block).Statements)
 			if err != nil {
-				return err
+				return nil, err
+			}
+
+			_, err = m.ExitScope()
+			if err != nil {
+				return nil, err
 			}
 
 		case ast.FunctionNode:
 			// TODO: need to look into local scoping
 			m.NewScope()
-			err := CheckStatements(stmt.(*ast.Function).Body.Statements)
+			_, err := CheckStatements(stmt.(*ast.Function).Body.Statements)
 			if err != nil {
-				return err
+				return nil, err
 			}
 
 			_, err = m.ExitScope()
 			if err != nil {
-				return err
+				return nil, err
 			}
-
 		}
 	}
 
-	return nil
+	// for _, variable := range m.CurrentScope {
+	// 	if !variable.IsUsed {
+	// 		// stmts = append(stmts, variable.Statement)
+	// 		variable.Ident = nil
+	// 	}
+
+	// 	// fmt.Println(variable)
+	// }
+
+	return statements, nil
 }
