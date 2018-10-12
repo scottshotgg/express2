@@ -217,8 +217,12 @@ func CheckStatements(statements []ast.Statement) error {
 		case ast.FunctionNode:
 			// TODO: need to look into local scoping
 			m.NewScope()
-			CheckStatements(stmt.(*ast.Function).Body.Statements)
-			_, err := m.ExitScope()
+			err := CheckStatements(stmt.(*ast.Function).Body.Statements)
+			if err != nil {
+				return err
+			}
+
+			_, err = m.ExitScope()
 			if err != nil {
 				return err
 			}
