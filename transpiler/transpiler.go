@@ -11,7 +11,7 @@ import (
 
 var includes = map[string]bool{}
 
-func TranslateExpression(e ast.Expression) (string, error) {
+func TranslateExpression(e ast.Expression, name string) (string, error) {
 	switch e.Kind() {
 	case ast.IdentNode:
 		// FIXME: need to check ok on all of these
@@ -29,7 +29,11 @@ func TranslateExpression(e ast.Expression) (string, error) {
 			includes["lib/var.cpp"] = true
 		}
 
-		// TODO: make a TranslateIdent node
+		// if name == "" {
+		// 	return i.TypeOf.Name + " " + i.Name, nil
+		// }
+
+		// return name + "[" + i.TypeOf.Name + "]"
 		return i.TypeOf.Name + " " + i.Name, nil
 
 	case ast.LiteralNode:
@@ -52,7 +56,7 @@ func TranslateExpression(e ast.Expression) (string, error) {
 		// return TranspileBlock(e.(*ast.Block).Statements)
 		// TODO: if we added the ident to the block too ... ??
 		// return TranspileObject(e.(*ast.Block).Statements, e.(*ast.Block).Ident.Name)
-		return TranspileObject(e.(*ast.Block).Statements)
+		return TranspileObject(e.(*ast.Block).Statements, name)
 	}
 
 	// TODO: just return this for now as the default value of the function
@@ -61,43 +65,70 @@ func TranslateExpression(e ast.Expression) (string, error) {
 }
 
 func TranslateAssignmentStatement(a *ast.Assignment) (string, error) {
-	// TODO: Would be nice to have a type indication for array here ...
+	var (
+		lhs, rhs string
+		err      error
+	)
+
+	lhs, err = TranslateExpression(a.LHS, "")
+	if err != nil {
+		return "", err
+	}
+
+	// switching on the type here will work if the assignment is not an inference
+	// we may need to do a deeper check to resolve the type if it is inferred
+	if a.LHS.Type().Type == ast.ObjectType || a.LHS.Type().Type == ast.StructType || a.LHS.Type().Type == ast.VarType {
+		ident, ok := a.LHS.(*ast.Ident)
+		if !ok {
+			// for some reason we have an assignment expression where the left side is not an ident
+			return "", errors.New("Left side of assignment was not an ident")
+		}
+
+		if ident.Name == "" {
+			// Somehow we processed an ident without a name ...
+			return "", errors.New("Left side ident did not have a name")
+		}
+
+		rhs, err = TranslateExpression(a.RHS, ident.Name)
+		if err != nil {
+			return "", err
+		}
+	} else {
+		rhs, err = TranslateExpression(a.RHS, "")
+		if err != nil {
+			return "", err
+		}
+	}
 
 	// Always put "=" because there is no ":=" in C++; we are just using it for the compiler
-	lhs, err := TranslateExpression(a.LHS)
-	if err != nil {
-		return "", err
-	}
-
-	rhs, err := TranslateExpression(a.RHS)
-	if err != nil {
-		return "", err
-	}
-
-	fmt.Println("lhs", lhs)
 	return lhs + "=" + rhs + ";", nil
 }
 
 var genMain = true
 
-func TranspileObject(statements []ast.Statement) (string, error) {
+func TranspileObject(statements []ast.Statement, name string) (string, error) {
 	// TODO: implement all object logic here for the assignments and stuff; would like to keep it in the same function but w/e
 
-	objectString := "{}"
+	objectString := "{};\n"
 
-	// for _, stmt := range statements {
-	// 	switch stmt.Kind() {
-	// 	case ast.AssignmentNode:
-	// 		cStmt, err := TranslateAssignmentStatement(stmt.(*ast.Assignment))
-	// 		if err != nil {
-	// 			return "", err
-	// 		}
+	for _, stmt := range statements {
+		switch stmt.Kind() {
+		case ast.AssignmentNode:
+			as := stmt.(*ast.Assignment)
 
-	// 		objectString += cStmt
-	// 	}
-	// }
+			// FIXME: for now lets just test objects with idents, can make literals later
+			// as.LHS.Type()
 
-	return objectString, nil
+			rhs, err := TranslateExpression(as.RHS, name)
+			if err != nil {
+				return "", err
+			}
+
+			objectString += name + "[\"" + as.LHS.(*ast.Ident).Name + "\"] = " + rhs + ";"
+		}
+	}
+
+	return objectString[:len(objectString)-1], nil
 }
 
 func TranspileBlock(statements []ast.Statement) (string, error) {
@@ -151,6 +182,7 @@ func TranspileBlock(statements []ast.Statement) (string, error) {
 	if len(cProgramJargon) > 0 {
 		cProgramJargon = "{" + cProgramJargon + "}"
 	}
+
 	return cProgramJargon, nil
 }
 

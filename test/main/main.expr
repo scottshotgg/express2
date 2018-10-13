@@ -16,9 +16,35 @@ function main() {
   string s
 
   object o = {
+    // Bind the "me" key to a string value
     string me = "s"
-    me = "7"
+
+    // Allow for an untyped value
+    thing: 8
+
+    me = "9"
+
+    // TODO: need to do integer/literal keys
+    // This will be fixed after we convert LHS literals to idents; do this in the builder
+    // 8: 9
   }
+
+  // TODO: need to add generic assignment statements so that they can be used in objects
+  // experiment with 
+  //  a) converting the string literal to an ident; this is more universal, chrome console also does this - just do this
+  //  b) removing this unless it is in an object; kinda hacky, requires extra object-specific logic
+  //  c) don't allow it; it is kinda stupid
+  // "k" = "l"
+
+  // JSON is accepted for an object declaration
+  var json = {
+    a: 1,
+    b: 2,
+    c: 3
+  }
+
+  // Declare an untyped variable
+  eight: 8
 
   var v
 
