@@ -18,6 +18,7 @@ string s
 object o = {
   string me = "s"
   me = "7"
+  thing = 8
 }
 
 var v

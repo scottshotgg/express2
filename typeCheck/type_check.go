@@ -36,9 +36,16 @@ func getTypeOfExpression(e ast.Expression) (*ast.Type, error) {
 	// }
 
 	case ast.BlockNode:
+		m.NewScope()
+
 		fmt.Println("it is me", e)
 		// Need to check the block
 		_, err := CheckStatements(e.(*ast.Block).Statements)
+		if err != nil {
+			return nil, err
+		}
+
+		_, err = m.ExitScope()
 		if err != nil {
 			return nil, err
 		}
