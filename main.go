@@ -54,7 +54,7 @@ var (
 )
 
 func main() {
-	file := "test/main/main.expr"
+	file := "test/nomain/for.expr"
 
 	lexer, err := lex.NewFromFile(file)
 	if err != nil {

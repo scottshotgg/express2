@@ -1,9 +1,10 @@
 package transpiler
 
 import (
-	"errors"
 	"fmt"
 	"strings"
+
+	"github.com/pkg/errors"
 
 	"github.com/scottshotgg/express-ast"
 	"github.com/scottshotgg/express-token"
@@ -57,11 +58,71 @@ func TranslateExpression(e ast.Expression, name string) (string, error) {
 		// TODO: if we added the ident to the block too ... ??
 		// return TranspileObject(e.(*ast.Block).Statements, e.(*ast.Block).Ident.Name)
 		return TranspileObject(e.(*ast.Block).Statements, name)
+
+	case ast.BinaryOperationNode:
+		bo := e.(*ast.BinaryOperation)
+
+		op := ""
+		switch bo.Op {
+		case ast.AdditionBinaryOp:
+			op = "+"
+
+		case ast.SubtractionBinaryOp:
+			op = "-"
+
+		case ast.MultiplicationBinaryOp:
+			op = "*"
+
+		case ast.DivisionBinaryOp:
+			op = "/"
+
+		default:
+			return "", errors.Errorf("Binary operation not defined: %v", bo.Op)
+		}
+
+		lhs, err := TranslateExpression(bo.LeftNode, name)
+		if err != nil {
+			return "", err
+		}
+
+		rhs, err := TranslateExpression(bo.RightNode, name)
+		if err != nil {
+			return "", err
+		}
+
+		return lhs + op + rhs, nil
+
+	case ast.ConditionNode:
+		c := e.(*ast.Condition)
+
+		// TODO: switch on this later
+		op := "<"
+
+		lhs, err := TranslateExpression(c.Left, name)
+		if err != nil {
+			return "", err
+		}
+
+		rhs, err := TranslateExpression(c.Right, name)
+		if err != nil {
+			return "", err
+		}
+
+		return lhs + op + rhs, nil
+
+	case ast.UnaryNode:
+		uo := e.(*ast.UnaryOp)
+
+		rhs, err := TranslateExpression(uo.Value, name)
+		if err != nil {
+			return "", err
+		}
+
+		return rhs + "++", nil
 	}
 
 	// TODO: just return this for now as the default value of the function
-	fmt.Println(e.Kind())
-	return "", errors.New("could not determine expression type")
+	return "", errors.Errorf("could not determine expression type: %v", e)
 }
 
 func TranslateAssignmentStatement(a *ast.Assignment) (string, error) {
@@ -131,6 +192,40 @@ func TranspileObject(statements []ast.Statement, name string) (string, error) {
 	return objectString[:len(objectString)-1], nil
 }
 
+func TranspileLoop(f *ast.Loop) (string, error) {
+	// FIXME: this is a hack to get around the body not generating the right {}
+	if len(f.Body.Statements) < 1 {
+		return "", nil
+	}
+
+	switch f.Type {
+	case ast.StdFor:
+		as, err := TranslateAssignmentStatement(f.Init)
+		if err != nil {
+			return "", err
+		}
+
+		cond, err := TranslateExpression(f.Cond, "")
+		if err != nil {
+			return "", err
+		}
+
+		post, err := TranslateExpression(f.Post, "")
+		if err != nil {
+			return "", err
+		}
+
+		body, err := TranspileBlock(f.Body.Statements)
+		if err != nil {
+			return "", err
+		}
+
+		return "for (" + as + cond + ";" + post + ")" + body, nil
+	}
+
+	return "", nil
+}
+
 func TranspileBlock(statements []ast.Statement) (string, error) {
 	cProgramJargon := ""
 
@@ -145,9 +240,13 @@ func TranspileBlock(statements []ast.Statement) (string, error) {
 			cProgramJargon += cStmt
 
 		case ast.FunctionNode:
-			includes["functional"] = true
-
 			f := stmt.(*ast.Function)
+			// Technically don't have to do this since clang will probably
+			// optimize out the '#include<functional>' anyways if it isn't used
+			if f.Ident.Name != "main" {
+				includes["functional"] = true
+			}
+
 			blockString, err := TranspileBlock(f.Body.Statements)
 			if err != nil {
 				return "", err
@@ -174,8 +273,16 @@ func TranspileBlock(statements []ast.Statement) (string, error) {
 
 			functions = append(functions, functionString)
 
+		case ast.LoopNode:
+			cStmt, err := TranspileLoop(stmt.(*ast.Loop))
+			if err != nil {
+				return "", err
+			}
+
+			cProgramJargon += cStmt
+
 		default:
-			cProgramJargon += stmt.String()
+			return "", errors.Errorf("Transpilation for statement has not been implemented %v", stmt.String())
 		}
 	}
 
@@ -220,7 +327,11 @@ func Transpile(p *ast.Program) (string, error) {
 	}
 
 	if genMain {
-		cProgramJargon = "\nint main() " + cProgramJargon
+		// TODO: this is kinda a hack to get around the double block in main
+		if len(cProgramJargon) < 1 {
+			cProgramJargon = "{" + cProgramJargon + "}"
+		}
+		cProgramJargon = "int main() " + cProgramJargon
 	}
 
 	if len(includesArray) > 0 {
