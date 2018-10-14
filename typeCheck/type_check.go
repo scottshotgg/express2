@@ -1,9 +1,10 @@
 package typeCheck
 
 import (
-	"errors"
 	"fmt"
 	"os"
+
+	"github.com/pkg/errors"
 
 	"github.com/scottshotgg/express-ast"
 )
@@ -38,7 +39,6 @@ func getTypeOfExpression(e ast.Expression) (*ast.Type, error) {
 	case ast.BlockNode:
 		m.NewScope()
 
-		fmt.Println("it is me", e)
 		// Need to check the block
 		_, err := CheckStatements(e.(*ast.Block).Statements)
 		if err != nil {
@@ -194,10 +194,11 @@ func CheckStatements(statements []ast.Statement) ([]ast.Statement, error) {
 
 				fmt.Println("something", variable.Type, type2.Type, type2.UpgradesTo)
 
+				fmt.Println("checking types ", variable, type2)
 				// If the types are not directly the same then check whether the right hand side can upgrade
-				if variable.Type.Type != type2.Type {
+				if variable.Type.Type != ast.VarType && variable.Type.Type != type2.Type {
 					if variable.Type.Type != type2.UpgradesTo { // || type2.UpgradesTo == 0 {
-						return nil, errors.New("Types did not match")
+						return nil, errors.Errorf("Types did not match %v %v", as.LHS, as.RHS)
 					}
 				}
 
@@ -232,6 +233,18 @@ func CheckStatements(statements []ast.Statement) ([]ast.Statement, error) {
 			}
 
 			_, err = m.ExitScope()
+			if err != nil {
+				return nil, err
+			}
+
+		case ast.LoopNode:
+			loop := stmt.(*ast.Loop)
+			_, err := CheckStatements([]ast.Statement{loop.Init})
+			if err != nil {
+				return nil, err
+			}
+
+			_, err = CheckStatements(loop.Body.Statements)
 			if err != nil {
 				return nil, err
 			}

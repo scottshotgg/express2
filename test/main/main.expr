@@ -4,6 +4,13 @@ function something() {
 }
 
 function main() {
+  // FIXME: need to change the object generation nesting
+  object o = {
+    ohh: {
+      something: "else"
+    }
+  }
+
   // TODO: need to make this collapse
   a := 6.6
   a = 7
@@ -12,17 +19,31 @@ function main() {
   int i
   bool b
   float f
-  char c
-  string s
+  // I think we should remove the char type; there is not much usefulness to it
+  // unless we do a lot of work behind the scenes
+  // char c
+
+  // TODO: could just make everything (including types) just attributes of
+  // the ident and then evaluate based on that
+  string s = "something"
+
+  something: {
+    hey: "its me"
+  }
 
   object o = {
-    // Bind the "me" key to a string value
+    // Bind the type of the "me" key to string
     string me = "s"
 
     // Allow for an untyped value
     thing: 8
 
     me = "9"
+
+    bn: 9
+    bn = "thing"
+    bn = true
+    bn = 55.55555555
 
     // TODO: need to do integer/literal keys
     // This will be fixed after we convert LHS literals to idents; do this in the builder
