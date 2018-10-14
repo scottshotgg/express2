@@ -238,13 +238,22 @@ func CheckStatements(statements []ast.Statement) ([]ast.Statement, error) {
 			}
 
 		case ast.LoopNode:
+			m.NewScope()
+
+			// TODO: add , ok around these
 			loop := stmt.(*ast.Loop)
+
 			_, err := CheckStatements([]ast.Statement{loop.Init})
 			if err != nil {
 				return nil, err
 			}
 
 			_, err = CheckStatements(loop.Body.Statements)
+			if err != nil {
+				return nil, err
+			}
+
+			_, err = m.ExitScope()
 			if err != nil {
 				return nil, err
 			}
