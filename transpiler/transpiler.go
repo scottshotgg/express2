@@ -18,10 +18,11 @@ func TranslateExpression(e ast.Expression, name string) (string, error) {
 		// FIXME: need to check ok on all of these
 		i := e.(*ast.Ident)
 
+		typeOfString := i.TypeOf.Name
 		switch i.TypeOf.Name {
 		case token.StringType:
 			includes["string"] = true
-			return "std::" + i.TypeOf.Name + " " + i.Name, nil
+			typeOfString = "std::" + typeOfString
 
 		case token.ObjectType:
 			fallthrough
@@ -30,26 +31,14 @@ func TranslateExpression(e ast.Expression, name string) (string, error) {
 			includes["lib/var.cpp"] = true
 		}
 
-		// if name == "" {
-		// 	return i.TypeOf.Name + " " + i.Name, nil
-		// }
+		if i.TypeOf.Array {
+			i.Name += "[]"
+		}
 
-		// return name + "[" + i.TypeOf.Name + "]"
-		return i.TypeOf.Name + " " + i.Name, nil
+		return typeOfString + " " + i.Name, nil
 
 	case ast.LiteralNode:
-		l := e.(ast.Literal)
-
-		// FIXME: fill out the switch statement
-		switch l.Type().Type {
-		// case ast.IntType:
-		// 	// FIXME: this def needs to be checked
-		// 	return strconv.Itoa(l.(*ast.IntLiteral).Value), nil
-
-		// case ast.StringType:
-		default:
-			return l.String(), nil
-		}
+		return e.(ast.Literal).String(), nil
 
 	case ast.BlockNode:
 		// FIXME: this needs to translate a different way if it is going to be an expression
@@ -119,6 +108,22 @@ func TranslateExpression(e ast.Expression, name string) (string, error) {
 		}
 
 		return rhs + "++", nil
+
+	case ast.ArrayNode:
+		var (
+			a        = e.(*ast.Array)
+			elements = make([]string, len(a.Elements))
+			err      error
+		)
+
+		for i, elem := range a.Elements {
+			elements[i], err = TranslateExpression(elem, name)
+			if err != nil {
+				return "", err
+			}
+		}
+
+		return "{ " + strings.Join(elements, ", ") + " }", nil
 	}
 
 	// TODO: just return this for now as the default value of the function
@@ -228,6 +233,32 @@ func TranspileLoop(f *ast.Loop) (string, error) {
 		fallthrough
 	case ast.ForOver:
 		return "", errors.New("Preposition loops are not implemented")
+
+		// get the ident
+		//	this is used as a temp variable, name it something random
+		// get the keyword
+		//	this will determine whether you want i or array[i]
+		// get the expression
+		//	make sure its an array
+		//	insert an array node so that the transpiler will generate the array
+		// get the block
+		// dump all of the aforementioned in another block
+
+		/*
+			{
+				array = [ARRAY]
+				i_random = 0
+					or
+				i = 0
+				while i_random < len(array) {
+					i = array[i_random]
+						or
+					i = i_random
+
+					i_random++
+				}
+			}
+		*/
 	}
 
 	return "", errors.Errorf("Could not transpile loop type: %v", f)

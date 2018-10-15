@@ -2,23 +2,63 @@ function main() {
   something: "crazy"
   for i := 0, i < 10, i++ {
     something = i
+    // TODO: The statement below causes an error because of either odd initalizer
+    // list and the non-string keys. Both of these will be fixed with changing the
+    // runtime to use an initalizer list for an array
+    j: [ 3, 2.3456789, 1.123456789, 8 ]
+    /*
+      j = 3
+      j = "string"
+      j = false
+      j = 66.66
+    */
   }
 
-/*
-  for i in [ 1, 2, 3 ] {
-    something: i
-  }
-*/
+  // TODO: change runtime to accept an initalizer list as an array
+  // TODO: need to fill out the rest of the types
+  // TODO: need to work on nested arrays
+  // TODO: need to work on `i: [ ... ]` type declarations; essentially var's holding arrays
+
+  
+  // FIXME: this is not working; not putting the `i` in front of `["a"]` after transpilation
+  /*
+    i = {
+      a: 1,
+      b: 2,
+      c: 3
+    }
+  */
+
+  // TODO: need to make type declarations for array
+  // int[] i = [ 3, 2.3456789, 1.123456789 ]
 
   // TODO: add all other loop types
   // TODO: add support for preposition loops
   /*
-    for i in [ 1, 2, 3 ] {}
-    for i of [ 1, 2, 3 ] {}
+    // key
+    for i in [ 1, 2, 3 ] {
+      something: i
+    }
+
+    // value
+    for i of [ 1, 2, 3 ] {
+      something: i
+    }
+
+    // key, value as an object/tuple
+    for i over [ 1, 2, 3 ] {
+      something: i
+    }
+
+    // key, value as separate values
+    for i, j over [ 1, 2, 3 ] {
+      something: i
+    }
   */
 
-  /* TODO: need to add increment and define out the less/more than
-           operators but this will require a runtime change so later
+  /* TODO: need to enable vars to be used like this but that requires adding increment
+           and defining out the less/more than operators but this will require a runtime 
+           change so later
     for i: 0, i < 10, i++ {
       something: "crazy"
     }
