@@ -144,8 +144,8 @@ func CheckStatements(statements []ast.Statement) ([]ast.Statement, error) {
 		case ast.AssignmentNode:
 			// TODO: if it is a declaration then we need to check that the variable is not already in the variable map
 			//
-			fmt.Println("got an assignment")
 			as := stmt.(*ast.Assignment)
+			fmt.Println("got an assignment", as)
 
 			if as.LHS.Kind() == ast.IdentNode {
 				if as.Declaration {
@@ -243,12 +243,9 @@ func CheckStatements(statements []ast.Statement) ([]ast.Statement, error) {
 			// TODO: add , ok around these
 			loop := stmt.(*ast.Loop)
 
-			_, err := CheckStatements([]ast.Statement{loop.Init})
-			if err != nil {
-				return nil, err
-			}
-
-			_, err = CheckStatements(loop.Body.Statements)
+			// FIXME: this is where it is erroring out at
+			// loop.Init is nil for preposition type loops
+			_, err := CheckStatements(append([]ast.Statement{loop.Init}, loop.Body.Statements...))
 			if err != nil {
 				return nil, err
 			}

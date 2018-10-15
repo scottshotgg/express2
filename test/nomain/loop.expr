@@ -1,12 +1,10 @@
-
-
 function main() {
   something: "crazy"
   for i := 0, i < 10, i++ {
     something = i
   }
 
-  //string something = "me"
+  for i in [ 1, 2, 3 ] {}
 
   // TODO: add all other loop types
   // TODO: add support for preposition loops
