@@ -152,4 +152,6 @@ func main() {
 		fmt.Printf("%s\n%+v\n", output, err)
 		os.Exit(9)
 	}
+
+	fmt.Println("Done!")
 }

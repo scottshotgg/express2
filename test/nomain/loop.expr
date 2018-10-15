@@ -1,33 +1,38 @@
 function main() {
   something: "crazy"
+  k: {}
+
   for i := 0, i < 10, i++ {
     something = i
-    // TODO: The statement below causes an error because of either odd initalizer
-    // list and the non-string keys. Both of these will be fixed with changing the
-    // runtime to use an initalizer list for an array
-    j: [ 3, 2.3456789, 1.123456789, 8 ]
+    /* TODO: The statement below causes an error because of either odd initalizer
+        list and the non-string keys. Both of these will be fixed with changing the
+        runtime to use an initalizer list for an array - I think we should just change
+        it to be an initializer_list<initializer_list> for objects, while initializer_list
+        would be left for arrays
+    */
+    j: [ "3", 2.3456789, "1.123456789", 8 ]
     /*
       j = 3
       j = "string"
       j = false
       j = 66.66
     */
+
+    // TODO: this is causing a `k = {};` to be generated again even if it is already an object; should try to remove this
+    k = {
+      a: i,
+      b: j,
+      c: 3
+    }
   }
 
   // TODO: change runtime to accept an initalizer list as an array
   // TODO: need to fill out the rest of the types
   // TODO: need to work on nested arrays
   // TODO: need to work on `i: [ ... ]` type declarations; essentially var's holding arrays
-
   
   // FIXME: this is not working; not putting the `i` in front of `["a"]` after transpilation
-  /*
-    i = {
-      a: 1,
-      b: 2,
-      c: 3
-    }
-  */
+  
 
   // TODO: need to make type declarations for array
   // int[] i = [ 3, 2.3456789, 1.123456789 ]

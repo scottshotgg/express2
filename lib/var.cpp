@@ -359,6 +359,7 @@ public:
   }
 };
 
+// This is so `object` can be used in the code
 typedef var object;
 
 // TODO: for right now, instead of doing the map[string]function to figure out
