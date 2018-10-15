@@ -62,7 +62,7 @@ func main() {
 		os.Exit(9)
 	}
 
-	fmt.Println("Lexing file: %s", file)
+	fmt.Println("\nLexing file: %s", file)
 
 	// Lex and tokenize the source code
 	tokens, err := lexer.Lex()
@@ -70,7 +70,7 @@ func main() {
 		fmt.Println("err", err)
 	}
 
-	fmt.Println("Compressing tokens ...")
+	fmt.Println("\nCompressing tokens ...")
 
 	// Compress certain tokens;
 	// i.e: `:` and `=` compress into `:=`
@@ -88,7 +88,7 @@ func main() {
 		Tokens: tokens,
 	}
 
-	fmt.Println("Building AST ...")
+	fmt.Println("\nBuilding AST ...")
 
 	// Build the AST
 	programAST, err := builder.BuildAST()
@@ -113,7 +113,7 @@ func main() {
 
 	err = typeCheck.TypeCheck(programAST)
 	if err != nil {
-		fmt.Printf("err %+v\n", err)
+		fmt.Printf("\nerr %+v\n", err)
 		os.Exit(9)
 	}
 
@@ -122,7 +122,7 @@ func main() {
 	// Transpile the AST into C++
 	t, err := transpiler.Transpile(programAST)
 	if err != nil {
-		fmt.Printf("err %+v\n", err)
+		fmt.Printf("\nerr %+v\n", err)
 		os.Exit(9)
 	}
 
@@ -131,11 +131,11 @@ func main() {
 	// Write the C++ code to a file named `main.cpp`
 	err = ioutil.WriteFile("main.cpp", []byte(t), 0644)
 	if err != nil {
-		fmt.Printf("err %+v\n", err)
+		fmt.Printf("\nerr %+v\n", err)
 		os.Exit(9)
 	}
 
-	fmt.Println("Formatting C++ code ...")
+	fmt.Println("\nFormatting C++ code ...")
 
 	// Run `clang-format` in-place to format the file for human-readability
 	output, err := exec.Command("clang-format", "-i", "main.cpp").CombinedOutput()
@@ -144,7 +144,7 @@ func main() {
 		os.Exit(9)
 	}
 
-	fmt.Println("Compiling C++ code ...")
+	fmt.Println("\nCompiling C++ code ...")
 
 	// Compile the file with Clang to produce a binary
 	output, err = exec.Command("clang++", "main.cpp", "-o", "main").CombinedOutput()
