@@ -4,9 +4,11 @@ function main() {
     something = i
   }
 
+/*
   for i in [ 1, 2, 3 ] {
     something: i
   }
+*/
 
   // TODO: add all other loop types
   // TODO: add support for preposition loops
