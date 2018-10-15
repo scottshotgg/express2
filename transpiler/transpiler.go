@@ -136,6 +136,10 @@ func TranslateAssignmentStatement(a *ast.Assignment) (string, error) {
 		err      error
 	)
 
+	if a.LHS.Kind() != ast.IdentNode {
+		return "", errors.Errorf("LHS was not an ident: %v", lhs)
+	}
+
 	lhs, err = TranslateExpression(a.LHS, "")
 	if err != nil {
 		return "", err
@@ -145,12 +149,12 @@ func TranslateAssignmentStatement(a *ast.Assignment) (string, error) {
 	ident, ok := a.LHS.(*ast.Ident)
 	if !ok {
 		// for some reason we have an assignment expression where the left side is not an ident
-		return "", errors.New("Left side of assignment was not an ident")
+		return "", errors.Errorf("Left side of assignment was not an ident somehow... : %v", a.LHS)
 	}
 
 	// switching on the type here will work if the assignment is not an inference
 	// we may need to do a deeper check to resolve the type if it is inferred
-	if a.LHS.Type().Type == ast.ObjectType || a.LHS.Type().Type == ast.StructType || a.LHS.Type().Type == ast.VarType {
+	if ident.Type().Type == ast.ObjectType || ident.Type().Type == ast.StructType || ident.Type().Type == ast.VarType {
 		if ident.Name == "" {
 			// Somehow we processed an ident without a name ...
 			return "", errors.New("Left side ident did not have a name")
