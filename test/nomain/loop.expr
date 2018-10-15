@@ -18,22 +18,23 @@ function main() {
       j = 66.66
     */
 
-    // TODO: this is causing a `k = {};` to be generated again even if it is already an object; should try to remove this
-    k = {
-      a: i,
-      b: j,
-      c: 3
-    }
+    // FIXME: this is causing a `k = {};` to be generated again even if it is already an object; should try to remove this
+    // FIXME: need to fix nested objects
+    /*
+      k = {
+        a: {
+          hey: "its me",
+        },
+        b: j,
+        c: 3
+      }
+    */
   }
 
   // TODO: change runtime to accept an initalizer list as an array
   // TODO: need to fill out the rest of the types
   // TODO: need to work on nested arrays
   // TODO: need to work on `i: [ ... ]` type declarations; essentially var's holding arrays
-  
-  // FIXME: this is not working; not putting the `i` in front of `["a"]` after transpilation
-  
-
   // TODO: need to make type declarations for array
   // int[] i = [ 3, 2.3456789, 1.123456789 ]
 
