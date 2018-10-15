@@ -51,12 +51,17 @@ func getTypeOfExpression(e ast.Expression) (*ast.Type, error) {
 		}
 
 		return e.(*ast.Block).Type(), nil
+
+	case ast.ArrayNode:
+		// FIXME: actually check the type
+		// TODO: This is going to need to be determined by whether or not it is homogenous
+		return e.(*ast.Array).Type(), nil
 	}
 
 	// TODO: just return this for now as the default value of the function
 	fmt.Println(e.Kind())
 	// FIXME: This should be able to return nil
-	return nil, errors.New("could not determine expression type")
+	return nil, errors.Errorf("could not determine expression type in type checker %v", e)
 }
 
 func setTypeOfExpression(e1 ast.Expression, e2 ast.Expression) error { return nil }
@@ -197,7 +202,7 @@ func CheckStatements(statements []ast.Statement) ([]ast.Statement, error) {
 				fmt.Println("checking types ", variable, type2)
 				// If the types are not directly the same then check whether the right hand side can upgrade
 				if variable.Type.Type != ast.VarType && variable.Type.Type != type2.Type {
-					if variable.Type.Type != type2.UpgradesTo { // || type2.UpgradesTo == 0 {
+					if variable.Type.Type != type2.UpgradesTo {
 						return nil, errors.Errorf("Types did not match %v %v", as.LHS, as.RHS)
 					}
 				}
