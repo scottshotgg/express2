@@ -221,9 +221,16 @@ func TranspileLoop(f *ast.Loop) (string, error) {
 		}
 
 		return "for (" + as + cond + ";" + post + ")" + body, nil
+
+	case ast.ForIn:
+		fallthrough
+	case ast.ForOf:
+		fallthrough
+	case ast.ForOver:
+		return "", errors.New("Preposition loops are not implemented")
 	}
 
-	return "", nil
+	return "", errors.Errorf("Could not transpile loop type: %v", f)
 }
 
 func TranspileBlock(statements []ast.Statement) (string, error) {

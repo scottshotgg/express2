@@ -243,14 +243,23 @@ func CheckStatements(statements []ast.Statement) ([]ast.Statement, error) {
 			// TODO: add , ok around these
 			loop := stmt.(*ast.Loop)
 
-			// FIXME: this is where it is erroring out at
-			// loop.Init is nil for preposition type loops
-			_, err := CheckStatements(append([]ast.Statement{loop.Init}, loop.Body.Statements...))
-			if err != nil {
-				return nil, err
+			// if loop.Type == ast.ForIn || ast.Type == ast.ForOf || ast.Type == ast.ForOver {
+
+			// }
+
+			if loop.Type == ast.StdFor {
+				_, err := CheckStatements(append([]ast.Statement{loop.Init}, loop.Body.Statements...))
+				if err != nil {
+					return nil, err
+				}
+			} else {
+				_, err := CheckStatements(loop.Body.Statements)
+				if err != nil {
+					return nil, err
+				}
 			}
 
-			_, err = m.ExitScope()
+			_, err := m.ExitScope()
 			if err != nil {
 				return nil, err
 			}
