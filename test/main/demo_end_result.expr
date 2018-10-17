@@ -1,0 +1,50 @@
+/*
+  No need to import C like you do in Go; the compiler is smart
+  enough to figure this out:
+  import c
+*/
+
+import os
+include "cl/opencl.h"
+
+function handler(error err) -> err {
+  println("error:", err.Message, err.Code, err.Stack)
+  os.Exit(9)
+}
+
+function main() {
+  // Set the default error handler; this could also be
+  // set by just naming the function `_handleError`
+  _handleError = handler
+
+  for i in [ 1 2 3 4 5 ] {
+    println(i)
+  }
+
+  c.Vector<cl.Platorm> platforms
+  cl.Platform.Get(&platforms)
+
+  c {
+    std::vector<cl::Platform> platforms;
+    cl::Platform::get(&platforms);
+  }
+
+  file := os.NewFile("something_here")
+
+  file.Write("woah i made a file") -> (err error) {
+    println("something went wrong", err)
+  }
+
+  platforms.size() -> {
+    println("Could not detect any platforms")
+  }
+
+  for i of platforms {
+    c.Vector<cl.Device> pldev
+    p.GetDevices(cl.CL_DEVICE_TYPE_GPU, &pldev)
+
+    println("Device:", pldev)
+  }
+}
+
+
