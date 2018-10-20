@@ -1,10 +1,16 @@
 #include "lib/var.cpp"
 int main() {
-  var something[] = {};
-  something[0] = "5";
-  something[1] = 9.9;
-  something[2] = 9;
-  something[3] = 5;
-  something[4] = 5;
+  int its = 6;
+  object something = {};
+  something["hey"] = "hey";
+  something["its"] = its;
+  something["me"] = {};
+  something["me"]["woah"] = {};
+  something["me"]["woah"]["another"] = "one";
+  ;
+  something["me"]["what"] = "yeah";
+  something["me"]["yeah"] = {6, 6, 6};
+  something["me"]["yeah"] = 87;
+  ;
   ;
 }

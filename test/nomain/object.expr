@@ -8,8 +8,10 @@ something := {
       another: "one"
     }
     what: "yeah"
-    yeah: 666
+    yeah := [6,6,6]
+    
+    // FIXME: the type checker needs to realize that this 
+    // is an ident and take care of that somehow
+    // yeah = [its]
   }
-
-  an_array := [ 7, 8, 9 ]
 }

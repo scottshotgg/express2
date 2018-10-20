@@ -142,6 +142,10 @@ func TypeCheck(p *ast.Program) error {
 	return nil
 }
 
+func isCompatibleType() error {
+	return nil
+}
+
 func CheckStatements(statements []ast.Statement) ([]ast.Statement, error) {
 	for i, stmt := range statements {
 		switch stmt.Kind() {
@@ -155,33 +159,33 @@ func CheckStatements(statements []ast.Statement) ([]ast.Statement, error) {
 				if as.Declaration {
 					fmt.Println("checking")
 					// We should make an interface called Assignable
-					if as.LHS.Kind() == ast.IdentNode {
-						_, ok := m.CurrentScope[as.LHS.(*ast.Ident).Name]
-						if ok {
-							return nil, errors.New("variable already declared")
-						}
-
-						type2, err := getTypeOfExpression(as.RHS)
-						if err != nil {
-							return nil, err
-						}
-
-						if as.Inferred {
-							as.LHS.(*ast.Ident).TypeOf = type2
-						}
-
-						m.CurrentScope[as.LHS.(*ast.Ident).Name] = &VariableNode{
-							Statement: statements[i],
-							Ident:     as.LHS.(*ast.Ident),
-							Type:      as.LHS.(*ast.Ident).TypeOf,
-						}
-
-						continue
-
-					} else {
-						fmt.Println("change this to be an assignable")
-						os.Exit(9)
+					_, ok := m.CurrentScope[as.LHS.(*ast.Ident).Name]
+					if ok {
+						return nil, errors.New("variable already declared")
 					}
+
+					type2, err := getTypeOfExpression(as.RHS)
+					if err != nil {
+						return nil, err
+					}
+
+					if as.Inferred {
+						as.LHS.(*ast.Ident).TypeOf = type2
+
+						// FIXME: this needs to check for upgradable types
+					} else if as.LHS.Type().Array != type2.Array || as.LHS.Type().Type != ast.VarType && as.LHS.Type().Type != type2.Type {
+						if as.LHS.Type().Type != type2.UpgradesTo {
+							return nil, errors.Errorf("Types did not match %v %v", as.LHS, as.RHS)
+						}
+					}
+
+					m.CurrentScope[as.LHS.(*ast.Ident).Name] = &VariableNode{
+						Statement: statements[i],
+						Ident:     as.LHS.(*ast.Ident),
+						Type:      as.LHS.(*ast.Ident).TypeOf,
+					}
+
+					continue
 				}
 
 				// We should make an interface called Assignable
@@ -200,7 +204,7 @@ func CheckStatements(statements []ast.Statement) ([]ast.Statement, error) {
 
 				fmt.Println("checking types ", variable, type2)
 				// If the types are not directly the same then check whether the right hand side can upgrade
-				if variable.Type.Type != ast.VarType && variable.Type.Type != type2.Type {
+				if variable.Type.Array != type2.Array || variable.Type.Type != ast.VarType && variable.Type.Type != type2.Type {
 					if variable.Type.Type != type2.UpgradesTo {
 						return nil, errors.Errorf("Types did not match %v %v", as.LHS, as.RHS)
 					}
