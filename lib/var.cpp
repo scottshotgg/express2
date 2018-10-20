@@ -1,7 +1,9 @@
 #include <iostream>
+#include <iomanip>
 #include <list>
 #include <map>
 #include <string>
+#include <limits>
 
 using namespace std;
 
@@ -21,6 +23,7 @@ class var {
 private:
   varType type;
   void* data;
+  int precision;
 
 public:
   void deallocate() {
@@ -32,18 +35,17 @@ public:
       break;
     }
 
-    case stringType: {
-      // cout << "string decons; Type: " << type << " Value: " << *(string
-      // *)data
-      //    << " Pointer: " << data << endl;
-      // delete (string *)data;
-      break;
-    }
-
     case boolType: {
       // cout << "bool decons; Type: " << type << " Value: " << *(bool *)data
       //    << " Pointer: " << data << endl;
       delete (bool *)data;
+      break;
+    }
+
+    case floatType: {
+      // cout << "float decons; Type: " << type << " Value: " << *(float *)data
+      //    << " Pointer: " << data << endl;
+      delete (double *)data;
       break;
     }
 
@@ -54,10 +56,11 @@ public:
       break;
     }
 
-    case floatType: {
-      // cout << "float decons; Type: " << type << " Value: " << *(float *)data
+    case stringType: {
+      // cout << "string decons; Type: " << type << " Value: " << *(string
+      // *)data
       //    << " Pointer: " << data << endl;
-      delete (float *)data;
+      // delete (string *)data;
       break;
     }
 
@@ -101,12 +104,13 @@ public:
 
   var(char value) : type(charType), data(new char(value)) {}
 
-  var(float value) : type(floatType), data(new float(value)) {
+  var(float value) : type(floatType), data(new double(value)) {
     // cout << "float cons; Type: " << type << " Value: " << value
     //    << " Pointer: " << data << endl;
   }
 
-  var(double value) : type(floatType), data(new float(value)) {
+  var(double value) : type(floatType), data(new double(value)) {
+
     // cout << "float cons; Type: " << type << " Value: " << value
     //    << " Pointer: " << data << endl;
   }
@@ -173,16 +177,16 @@ public:
 
   void *Value(void) const { return data; }
 
-  var &operator[](string attribute) {
+  var &operator[](var attribute) {
     if (type == objectType) {
-      return (*(map<string, var> *)data)[attribute];
+      return (*(map<var, var> *)data)[attribute];
     } else {
       type = objectType;
-      map<string, var> object;
+      map<var, var> object;
       object[attribute] = 0;
 
       data = (void *)&object;
-      return (*(map<string, var> *)data)[attribute];
+      return (*(map<var, var> *)data)[attribute];
     }
   }
 
@@ -193,7 +197,7 @@ public:
 
   void operator+=(const double right) {
     // printf("+= var int\n");
-    *(float *)data += right;
+    *(double *)data += right;
   }
 
   void operator+=(const string right) {
@@ -218,7 +222,7 @@ public:
 
   void operator-=(const double right) {
     // //printf("+= var int\n");
-    *(float *)data -= right;
+    *(double *)data -= right;
   }
 
   void operator-=(const string right) {
@@ -261,13 +265,13 @@ public:
 
   void operator=(const double right) {
     if (type == floatType) {
-      *(float *)data = right;
+      *(double *)data = right;
     } else {
       // var::~var();
       deallocate();
       // printf("float cons; Type: %u Value: %p\n", type, data);
       type = floatType;
-      data = new float(right);
+      data = new double(right);
       // *(float*)data = right;
     }
   }
@@ -285,6 +289,10 @@ public:
       // *(string*)data = right;
     }
   }
+  
+  
+  friend bool operator>(const var &left, const var &right);
+  friend bool operator<(const var &left, const var &right);
 
   void operator=(const bool right) {
     if (type == boolType) {
@@ -328,7 +336,9 @@ public:
       return stream << "\"" << *(char *)v.data << "\"";
 
     case floatType:
-      return stream << *(float *)v.data;
+      return stream
+        << std::setprecision (std::numeric_limits<double>::digits10 + 1)
+        << *(double *)v.data;
 
     case stringType:
       // //cout << "printing string" << endl;;
@@ -336,7 +346,7 @@ public:
 
     case objectType: {
       int counter = 0;
-      map<string, var> objectMap = *(map<string, var> *)v.data;
+      map<var, var> objectMap = *(map<var, var> *)v.data;
       stream << "{ ";
       for (auto property : objectMap) {
         // stream << property.first << property.second.first <<
@@ -359,13 +369,114 @@ public:
   }
 };
 
-// This is so `object` can be used in the code
 typedef var object;
 
 // TODO: for right now, instead of doing the map[string]function to figure out
 // the value
 // https://stackoverflow.com/questions/4972795/how-do-i-typecast-with-type-info
 // https://stackoverflow.com/questions/2136998/using-a-stl-map-of-function-pointer
+
+// FIXME: for some reason this is already working
+bool operator>(const var &left, const var &right) {
+  // FIXME: gotta switch on the type here
+  // if they're the same type
+  //    compare the data values
+  // if they're different
+  //    compare using the 'upgrade-able types' formula
+
+    // If the types are the same ...
+  if (left.type == right.type) {
+    // Determine the type of comparison based on the type
+    switch (left.type) {
+      case intType: {
+        cout << "intType" << endl;
+        cout << *(int *)left.data << " " << *(int *)right.data << endl;
+        return *(int *)left.data > *(int *)right.data;
+      }
+
+      case boolType: {
+        cout << "boolType" << endl;
+        return *(bool *)left.data > *(bool *)right.data;
+      }
+
+      case floatType: {
+        cout << "floatType" << endl;
+        return *(double *)left.data > *(double *)right.data;
+      }
+
+      case charType: {
+        cout << "charType" << endl;
+        return *(char *)left.data > *(char *)right.data;
+      }
+
+      case stringType: {
+        cout << "stringType" << endl;
+        return *(int *)left.data > *(int *)right.data;
+      }
+
+      // case objectType: {
+      //   cout << "objectType" << endl;
+      //   return *(map<var, var> *)left.data > *(map<var, var> *)right.data;
+      // }
+    }
+  }
+  
+  return *(int *)left.data > *(int *)right.data;
+}
+
+// FIXME: for some reason this is already working
+bool operator<(const var &left, const var &right) {
+  // FIXME: gotta switch on the type here
+  // if they're the same type
+  //    compare the data values
+  // if they're different
+  //    compare using the 'upgrade-able types' formula
+
+  // If the types are the same ...
+  if (left.type == right.type) {
+    // Determine the type of comparison based on the type
+    switch (left.type) {
+      case intType: {
+        // cout << "intType" << endl;
+        // cout << *(int *)left.data << " " << *(int *)right.data << endl;
+        return *(int *)left.data < *(int *)right.data;
+      }
+
+      case boolType: {
+        // cout << "boolType" << endl;
+        return *(bool *)left.data < *(bool *)right.data;
+      }
+
+      case floatType: {
+        // cout << "floatType" << endl;
+        return *(double *)left.data < *(double *)right.data;
+      }
+
+      case charType: {
+        // cout << "charType" << endl;
+        return *(int *)left.data < *(int *)right.data;
+      }
+
+      case stringType: {
+        // cout << "stringType" << endl;
+        return *(string *)left.data < *(string *)right.data;
+      }
+
+      case objectType: {
+        // cout << "objectType" << endl;
+        // *(map<var, var> *)left.data < *(map<var, var> *)right.data;
+        // cout << "hey its me " << endl;
+        return *(map<var, var> *)left.data < *(map<var, var> *)right.data;
+      }
+    }
+  }
+
+  // TODO: got to do something if htere is a bool type becuase of the weak typing
+  if (left.type == boolType || right.type == boolType)
+    return true;
+
+  return *(int *)left.data < *(int *)right.data;
+}
 
 // Integer operations
 int operator+(const int left, const var &right) {
@@ -409,11 +520,11 @@ bool operator+(const bool left, const var &right) {
 // }
 
 float operator+(const float left, const var &right) {
-  return left + *(float *)right.Value();
+  return (double)(left) + *(double *)right.Value();
 }
 
-float operator+(const double left, const var &right) {
-  return left + *(float *)right.Value();
+double operator+(const double left, const var &right) {
+  return left + *(double *)right.Value();
 }
 
 // String/Char* operations: convert char* to string with all of these functions
