@@ -54,7 +54,7 @@ var (
 )
 
 func main() {
-	file := "test/nomain/loop.expr"
+	file := "test/nomain/array.expr"
 
 	lexer, err := lex.NewFromFile(file)
 	if err != nil {
@@ -126,7 +126,7 @@ func main() {
 		os.Exit(9)
 	}
 
-	fmt.Println("Writing transpilied C++ code to main.cpp ...")
+	fmt.Println("\nWriting transpilied C++ code to main.cpp ...")
 
 	// Write the C++ code to a file named `main.cpp`
 	err = ioutil.WriteFile("main.cpp", []byte(t), 0644)
@@ -153,5 +153,5 @@ func main() {
 		os.Exit(9)
 	}
 
-	fmt.Println("Done!")
+	fmt.Println("\nDone!")
 }

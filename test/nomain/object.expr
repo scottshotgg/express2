@@ -1,0 +1,15 @@
+its := 6
+
+something := {
+  string hey = "hey"
+  its := its
+  me := {
+    woah: {
+      another: "one"
+    }
+    what: "yeah"
+    yeah: 666
+  }
+
+  an_array := [ 7, 8, 9 ]
+}

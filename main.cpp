@@ -1,10 +1,10 @@
 #include "lib/var.cpp"
 int main() {
-  var something = "crazy";
-  var k = {};
+  var something[] = {};
+  something[0] = "5";
+  something[1] = 9.9;
+  something[2] = 9;
+  something[3] = 5;
+  something[4] = 5;
   ;
-  for (int i = 0; i < 10; i++) {
-    something = i;
-    var j = {"3", 2.3456789, "1.123456789", 8};
-  }
 }
