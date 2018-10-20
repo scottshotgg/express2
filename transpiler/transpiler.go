@@ -120,7 +120,7 @@ func TranslateExpression(e ast.Expression, name string) (string, error) {
 			arrayString = "{};"
 		)
 
-		if a.Homogenous {
+		if a.Homogenous && a.Type().Type != ast.VarType {
 			var (
 				err      error
 				elements = make([]string, len(a.Elements))
@@ -205,6 +205,8 @@ func TranslateAssignmentStatement(a *ast.Assignment, name string) (string, error
 			return "", errors.New("Left side ident did not have a name")
 		}
 
+		// a.RHS.Type().Array = true
+
 		rhs, err = TranslateExpression(a.RHS, name+ident.Name)
 		if err != nil {
 			return "", err
@@ -216,7 +218,9 @@ func TranslateAssignmentStatement(a *ast.Assignment, name string) (string, error
 		}
 	}
 
-	if a.LHS.Type().Array {
+	// Check if the array type is a var or not; we don't need to have an
+	// array of vars on the backend
+	if a.LHS.Type().Array && a.LHS.Type().Type != ast.VarType {
 		lhs += "[]"
 	}
 
