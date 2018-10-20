@@ -1,11 +1,10 @@
-package typeCheck
+package typecheck
 
 import (
 	"fmt"
 	"os"
 
 	"github.com/pkg/errors"
-
 	"github.com/scottshotgg/express-ast"
 )
 
