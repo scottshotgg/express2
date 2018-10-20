@@ -10,7 +10,7 @@ import (
 	"github.com/scottshotgg/express-ast"
 	"github.com/scottshotgg/express-lex"
 	"github.com/scottshotgg/express2/transpiler"
-	"github.com/scottshotgg/express2/typeCheck"
+	"github.com/scottshotgg/express2/typecheck"
 )
 
 var (
@@ -111,7 +111,7 @@ func main() {
 
 	fmt.Println("Type checking Express code ...")
 
-	err = typeCheck.TypeCheck(programAST)
+	err = typecheck.TypeCheck(programAST)
 	if err != nil {
 		fmt.Printf("\nerr %+v\n", err)
 		os.Exit(9)

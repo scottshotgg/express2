@@ -1,4 +1,4 @@
-package typeCheck
+package typecheck
 
 import (
 	"errors"
