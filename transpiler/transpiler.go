@@ -122,22 +122,35 @@ func TranslateExpression(e ast.Expression, name string) (string, error) {
 			arrayString = "{};"
 		)
 
-		if a.Homogenous && a.Type().Type != ast.VarType {
+		if !a.Homogenous || a.Type().Type != ast.VarType {
 			var (
 				err      error
 				elements = make([]string, len(a.Elements))
 			)
 
 			for i, elem := range a.Elements {
-				elements[i], err = TranslateExpression(elem, "temp_name_here")
+				if elem.Type().Type == ast.ObjectType {
+					arrayString += name + "[" + strconv.Itoa(i) + "] = {};"
+					elements[i], err = TranslateExpression(elem, name+"["+strconv.Itoa(i)+"]")
+				} else {
+					elements[i], err = TranslateExpression(elem, name)
+				}
+
 				if err != nil {
 					return "", err
 				}
 			}
 
-			return "{ " + strings.Join(elements, ", ") + " }", nil
+			if a.Type().Type == ast.ObjectType {
+				arrayString += strings.Join(elements, "")
+			} else {
+				arrayString = "{" + strings.Join(elements, ", ") + "}"
+			}
+
+			return arrayString, nil
 		}
 
+		// FIXME: rewrite this shit for non-homogenous stuff and var stuff
 		for i, elem := range a.Elements {
 			// if elem.Type().Type == ast.ObjectType {
 			// FIXME: grab the random string thing from express
@@ -147,10 +160,10 @@ func TranslateExpression(e ast.Expression, name string) (string, error) {
 			}
 
 			if elem.Type().Array {
-				arrayString += "\n" + "var temp_name_here = "
+				// arrayString += "\n" + "var temp_name_here = "
 				arrayString += element + "\n" + name + "[" + strconv.Itoa(i) + "]" + "= temp_name_here;"
 			} else if elem.Type().Type == ast.ObjectType {
-				arrayString += "\n" + "var temp_name_here = "
+				// arrayString += "\n" + "var temp_name_here = "
 				arrayString += element + "\n" + name + "[" + strconv.Itoa(i) + "]" + "= temp_name_here;"
 			} else {
 
@@ -220,9 +233,9 @@ func TranslateAssignmentStatement(a *ast.Assignment, name string) (string, error
 		}
 	}
 
-	// Check if the array type is a var or not; we don't need to have an
-	// array of vars on the backend
-	if a.LHS.Type().Array && a.LHS.Type().Type != ast.VarType {
+	fmt.Println("waddup", a.LHS)
+	// Check if the array type is a var or not; we don't need to have an array of vars on the backend
+	if a.LHS.Type().Array && a.LHS.Type().Type != ast.VarType && a.LHS.Type().Type != ast.ObjectType {
 		lhs += "[]"
 	}
 
@@ -247,7 +260,7 @@ func TranspileObject(statements []ast.Statement, name string) (string, error) {
 			// FIXME: for now lets just test objects with idents, can make literals later
 			// as.LHS.Type()
 			fmt.Println("hi", as.RHS.Type())
-			if as.LHS.Type().Type == ast.ObjectType {
+			if as.RHS.Type().Type == ast.ObjectType {
 				rhs, err = TranslateExpression(as.RHS, name+"[\""+as.LHS.(*ast.Ident).Name+"\"]")
 			} else {
 				rhs, err = TranslateExpression(as.RHS, name)
