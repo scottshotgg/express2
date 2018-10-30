@@ -1,22 +1,22 @@
-package typeCheck_test
+package typecheck_test
 
 import (
 	"fmt"
 	"testing"
 
-	"github.com/scottshotgg/express/parse"
+	"github.com/scottshotgg/express2/typecheck"
 )
 
 var (
-	stack     *parse.Stack
-	testScope = parse.Scope{
-		"i": parse.NewVariable("i", 6, parse.INT),
-		// "a": parse.NewVariable("a", "hey its me", parse.STRING),
+	stack     *typecheck.Stack
+	testScope = typecheck.Scope{
+		"i": NewVariable("i", 6, typecheck.INT),
+		// "a": typecheck.NewVariable("a", "hey its me", typecheck.STRING),
 	}
 )
 
 func TestNewStack(t *testing.T) {
-	stack = parse.NewStack()
+	stack = typecheck.NewStack()
 	fmt.Printf("Stack: %+v\n", stack)
 	fmt.Println()
 }
@@ -25,8 +25,8 @@ func TestPush(t *testing.T) {
 	TestNewStack(t)
 
 	for k, v := range []string{"a", "b", "c"} {
-		stack.Push(parse.Scope{
-			v: parse.NewVariable(v, k, parse.INT),
+		stack.Push(typecheck.Scope{
+			v: typecheck.NewVariable(v, k, typecheck.INT),
 		})
 	}
 	// stack.Push(testScope)

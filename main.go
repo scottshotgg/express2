@@ -10,7 +10,7 @@ import (
 	"github.com/scottshotgg/express-ast"
 	"github.com/scottshotgg/express-lex"
 	"github.com/scottshotgg/express2/transpiler"
-	"github.com/scottshotgg/express2/typeCheck"
+	"github.com/scottshotgg/express2/typecheck"
 )
 
 var (
@@ -111,7 +111,7 @@ func main() {
 
 	fmt.Println("Type checking Express code ...")
 
-	err = typeCheck.TypeCheck(programAST)
+	err = typecheck.TypeCheck(programAST)
 	if err != nil {
 		fmt.Printf("\nerr %+v\n", err)
 		os.Exit(9)
@@ -126,7 +126,7 @@ func main() {
 		os.Exit(9)
 	}
 
-	fmt.Println("Writing transpilied C++ code to main.cpp ...")
+	fmt.Println("\nWriting transpilied C++ code to main.cpp ...")
 
 	// Write the C++ code to a file named `main.cpp`
 	err = ioutil.WriteFile("main.cpp", []byte(t), 0644)
@@ -153,5 +153,5 @@ func main() {
 		os.Exit(9)
 	}
 
-	fmt.Println("Done!")
+	fmt.Println("\nDone!")
 }

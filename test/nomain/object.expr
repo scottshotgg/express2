@@ -1,0 +1,17 @@
+its := 6
+
+something := {
+  string hey = "hey"
+  its := its
+  me := {
+    woah: {
+      another: "one"
+    }
+    what: "yeah"
+    yeah := [6,6,6]
+    
+    // FIXME: the type checker needs to realize that this 
+    // is an ident and take care of that somehow
+    // yeah = [its]
+  }
+}

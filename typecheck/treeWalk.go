@@ -1,10 +1,10 @@
-package typeCheck
+package typecheck
 
 import (
 	"errors"
 	"fmt"
 
-	ast "github.com/scottshotgg/express-ast"
+	"github.com/scottshotgg/express-ast"
 )
 
 type WalkerFunc func(n ast.Node) error
