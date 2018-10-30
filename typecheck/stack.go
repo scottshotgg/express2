@@ -1,6 +1,6 @@
 // This is a simple stack package used _specifically_ for the parser
 
-package typeCheck
+package typecheck
 
 import (
 	"errors"

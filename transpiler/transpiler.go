@@ -2,6 +2,7 @@ package transpiler
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -32,9 +33,9 @@ func TranslateExpression(e ast.Expression, name string) (string, error) {
 			includes["lib/var.cpp"] = true
 		}
 
-		if i.TypeOf.Array {
-			i.Name += "[]"
-		}
+		// if i.TypeOf.Array {
+		// 	i.Name += "[]"
+		// }
 
 		return typeOfString + " " + i.Name, nil
 
@@ -113,26 +114,70 @@ func TranslateExpression(e ast.Expression, name string) (string, error) {
 
 	case ast.ArrayNode:
 		var (
-			a        = e.(*ast.Array)
-			elements = make([]string, len(a.Elements))
-			err      error
+			a = e.(*ast.Array)
+			// elements = make([]string, len(a.Elements))
+			// elements = []string{}
+			// err      error
+
+			arrayString = "{};"
 		)
 
+		if a.Homogenous && a.Type().Type != ast.VarType {
+			var (
+				err      error
+				elements = make([]string, len(a.Elements))
+			)
+
+			for i, elem := range a.Elements {
+				elements[i], err = TranslateExpression(elem, "temp_name_here")
+				if err != nil {
+					return "", err
+				}
+			}
+
+			return "{ " + strings.Join(elements, ", ") + " }", nil
+		}
+
 		for i, elem := range a.Elements {
-			elements[i], err = TranslateExpression(elem, name)
+			// if elem.Type().Type == ast.ObjectType {
+			// FIXME: grab the random string thing from express
+			element, err := TranslateExpression(elem, "temp_name_here")
 			if err != nil {
 				return "", err
 			}
+
+			if elem.Type().Array {
+				arrayString += "\n" + "var temp_name_here = "
+				arrayString += element + "\n" + name + "[" + strconv.Itoa(i) + "]" + "= temp_name_here;"
+			} else if elem.Type().Type == ast.ObjectType {
+				arrayString += "\n" + "var temp_name_here = "
+				arrayString += element + "\n" + name + "[" + strconv.Itoa(i) + "]" + "= temp_name_here;"
+			} else {
+
+				// 	elements = append([]string{element}, elements...)
+				// } else {
+
+				// 	element, err := TranslateExpression(elem, name)
+				// 	if err != nil {
+				// 		return "", err
+				// 	}
+
+				// 	elements = append(elements, element)
+				// }
+
+				arrayString += "\n" + name + "[" + strconv.Itoa(i) + "]" + "=" + element + ";"
+			}
 		}
 
-		return "{ " + strings.Join(elements, ", ") + " }", nil
+		// return "{ " + strings.Join(elements, ", ") + " }", nil
+		return arrayString, nil
 	}
 
 	// TODO: just return this for now as the default value of the function
 	return "", errors.Errorf("could not determine expression type: %v", e)
 }
 
-func TranslateAssignmentStatement(a *ast.Assignment) (string, error) {
+func TranslateAssignmentStatement(a *ast.Assignment, name string) (string, error) {
 	var (
 		lhs, rhs string
 		err      error
@@ -142,7 +187,7 @@ func TranslateAssignmentStatement(a *ast.Assignment) (string, error) {
 		return "", errors.Errorf("LHS was not an ident: %v", lhs)
 	}
 
-	lhs, err = TranslateExpression(a.LHS, "")
+	lhs, err = TranslateExpression(a.LHS, name)
 	if err != nil {
 		return "", err
 	}
@@ -162,15 +207,23 @@ func TranslateAssignmentStatement(a *ast.Assignment) (string, error) {
 			return "", errors.New("Left side ident did not have a name")
 		}
 
-		rhs, err = TranslateExpression(a.RHS, ident.Name)
+		// a.RHS.Type().Array = true
+
+		rhs, err = TranslateExpression(a.RHS, name+ident.Name)
 		if err != nil {
 			return "", err
 		}
 	} else {
-		rhs, err = TranslateExpression(a.RHS, ident.Name)
+		rhs, err = TranslateExpression(a.RHS, name+ident.Name)
 		if err != nil {
 			return "", err
 		}
+	}
+
+	// Check if the array type is a var or not; we don't need to have an
+	// array of vars on the backend
+	if a.LHS.Type().Array && a.LHS.Type().Type != ast.VarType {
+		lhs += "[]"
 	}
 
 	// Always put "=" because there is no ":=" in C++; we are just using it for the compiler
@@ -208,7 +261,7 @@ func TranspileObject(statements []ast.Statement, name string) (string, error) {
 		}
 	}
 
-	return objectString[:len(objectString)-1], nil
+	return objectString, nil
 }
 
 func TranspileLoop(f *ast.Loop) (string, error) {
@@ -219,7 +272,7 @@ func TranspileLoop(f *ast.Loop) (string, error) {
 
 	switch f.Type {
 	case ast.StdFor:
-		as, err := TranslateAssignmentStatement(f.Init)
+		as, err := TranslateAssignmentStatement(f.Init, "")
 		if err != nil {
 			return "", err
 		}
@@ -284,7 +337,7 @@ func TranspileBlock(statements []ast.Statement) (string, error) {
 	for _, stmt := range statements {
 		switch stmt.Kind() {
 		case ast.AssignmentNode:
-			cStmt, err := TranslateAssignmentStatement(stmt.(*ast.Assignment))
+			cStmt, err := TranslateAssignmentStatement(stmt.(*ast.Assignment), "")
 			if err != nil {
 				return "", err
 			}
