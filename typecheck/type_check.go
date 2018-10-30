@@ -15,14 +15,14 @@ import (
 //		- this has to analyze return statements
 //	- change type inference to type assignment
 
-func getTypeOfExpression(e ast.Expression) (*ast.Type, error) {
-	switch e.Kind() {
+func getTypeOfExpression(expr ast.Expression) (*ast.Type, error) {
+	switch expr.Kind() {
 	case ast.IdentNode:
 		// TODO: make a TranslateIdent node
-		return e.(*ast.Ident).TypeOf, nil
+		return expr.(*ast.Ident).TypeOf, nil
 
 	case ast.LiteralNode:
-		return e.(ast.Literal).Type(), nil
+		return expr.(ast.Literal).Type(), nil
 
 	// // FIXME: fill out the switch statement
 	// switch l.Type().Type {
@@ -39,7 +39,7 @@ func getTypeOfExpression(e ast.Expression) (*ast.Type, error) {
 		m.NewScope()
 
 		// Need to check the block
-		_, err := CheckStatements(e.(*ast.Block).Statements)
+		_, err := CheckStatements(expr.(*ast.Block).Statements)
 		if err != nil {
 			return nil, err
 		}
@@ -49,18 +49,72 @@ func getTypeOfExpression(e ast.Expression) (*ast.Type, error) {
 			return nil, err
 		}
 
-		return e.(*ast.Block).Type(), nil
+		return expr.(*ast.Block).Type(), nil
 
 	case ast.ArrayNode:
 		// FIXME: actually check the type
 		// TODO: This is going to need to be determined by whether or not it is homogenous
-		return e.(*ast.Array).Type(), nil
+
+		// for _, e := range e.(*ast.Array).Elements {
+		// 	fmt.Println("element: ", e)
+		// 	if e.Kind() == ast.IdentNode {
+		// 		fmt.Println("got an ident")
+		// 	}
+		// }
+		var typeOf *ast.Type
+		elements := expr.(*ast.Array).Elements
+		expr.(*ast.Array).Homogenous = true
+
+		if len(elements) > 0 {
+			typeOf = elements[0].Type()
+			fmt.Println("elements", elements, len(elements))
+			for i, e := range elements {
+				fmt.Println("e::", e)
+				if e.Kind() == ast.IdentNode {
+					fmt.Println("something here")
+					variable, found := m.GetVariable(e.(*ast.Ident).Name)
+					if !found {
+						// TODO: some error here
+						os.Exit(9)
+					}
+
+					if variable == nil {
+						// TODO: some error here
+						os.Exit(9)
+					}
+
+					fmt.Printf("variable.Statement.Kind() %+v", variable.Statement.(*ast.Assignment).LHS.Type)
+					if variable.Statement.(*ast.Assignment).LHS.Type().Type == ast.ObjectType {
+						fmt.Println("an object!")
+						elements[i] = variable.Statement.(*ast.Assignment).RHS
+						e = variable.Statement.(*ast.Assignment).RHS
+					}
+				}
+
+				// Compare to figure out if we need to upgrade the array type or not
+				if e.Type().Type != typeOf.Type && e.Type().UpgradesTo != typeOf.Type {
+					// if the collected types can upgrade to the expression type
+					if e.Type().Type != typeOf.UpgradesTo {
+						expr.(*ast.Array).Homogenous = false
+						fmt.Println("i am break comrade")
+						break
+					}
+
+					typeOf = e.Type()
+				}
+			}
+		}
+
+		typeOf.Array = true
+		expr.(*ast.Array).TypeOf = typeOf
+
+		return expr.(*ast.Array).Type(), nil
 	}
 
 	// TODO: just return this for now as the default value of the function
-	fmt.Println(e.Kind())
+	fmt.Println(expr.Kind())
 	// FIXME: This should be able to return nil
-	return nil, errors.Errorf("could not determine expression type in type checker %v", e)
+	return nil, errors.Errorf("could not determine expression type in type checker %v", expr)
 }
 
 func setTypeOfExpression(e1 ast.Expression, e2 ast.Expression) error { return nil }

@@ -1,7 +1,8 @@
 function main() {
   something: "crazy"
   crazy := 7
-/*
+
+  /*
   k := {
     a := 7
     b := "hey"
@@ -15,6 +16,13 @@ function main() {
   }
 
   array_brah := [9,9,9]
+*/
+
+  var json = {
+    a: 1,
+    b: 2,
+    c: 3
+  }
 
   object a = {
     a: {
@@ -23,7 +31,13 @@ function main() {
     b: 0
     c: 3
   }
-*/
 
-  array_of_objects := [{ a: 8 }]
+  float_array := [ 9.9, 9, 5.5 ]
+
+  array_of_objects := [
+    { a: 8 }
+    { b: 7 }
+    a
+    a
+  ]
 }
