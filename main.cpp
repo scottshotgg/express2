@@ -1,10 +1,8 @@
 #include "lib/var.cpp"
 int main() {
   var something = "crazy";
-  var k = {};
-  ;
-  for (int i = 0; i < 10; i++) {
-    something = i;
-    var j = {"3", 2.3456789, "1.123456789", 8};
-  }
+  int crazy = 7;
+  object array_of_objects[] = { {};
+  array_of_objects[]["a"] = 8
+};
 }
