@@ -1,0 +1,29 @@
+function main() {
+  something: "crazy"
+  crazy := 7
+/*
+  k := {
+    a := 7
+    b := "hey"
+    c : {
+      a := 8
+      b : {
+        something: "here"
+      }
+      c := [8,8,8]
+    }
+  }
+
+  array_brah := [9,9,9]
+
+  object a = {
+    a: {
+      hey: "its me"
+    }
+    b: 0
+    c: 3
+  }
+*/
+
+  array_of_objects := [{ a: 8 }]
+}

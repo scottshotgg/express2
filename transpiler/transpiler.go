@@ -11,6 +11,7 @@ import (
 )
 
 var includes = map[string]bool{}
+var genMain = true
 
 func TranslateExpression(e ast.Expression, name string) (string, error) {
 	switch e.Kind() {
@@ -46,6 +47,7 @@ func TranslateExpression(e ast.Expression, name string) (string, error) {
 		// return TranspileBlock(e.(*ast.Block).Statements)
 		// TODO: if we added the ident to the block too ... ??
 		// return TranspileObject(e.(*ast.Block).Statements, e.(*ast.Block).Ident.Name)
+		fmt.Println("name is", name, e)
 		return TranspileObject(e.(*ast.Block).Statements, name)
 
 	case ast.BinaryOperationNode:
@@ -175,10 +177,10 @@ func TranslateAssignmentStatement(a *ast.Assignment) (string, error) {
 	return lhs + "=" + rhs + ";", nil
 }
 
-var genMain = true
-
 func TranspileObject(statements []ast.Statement, name string) (string, error) {
 	// TODO: implement all object logic here for the assignments and stuff; would like to keep it in the same function but w/e
+
+	fmt.Println("i am here", statements, name)
 
 	objectString := "{};\n"
 
@@ -187,10 +189,17 @@ func TranspileObject(statements []ast.Statement, name string) (string, error) {
 		case ast.AssignmentNode:
 			as := stmt.(*ast.Assignment)
 
+			var rhs string
+			var err error
 			// FIXME: for now lets just test objects with idents, can make literals later
 			// as.LHS.Type()
+			fmt.Println("hi", as.RHS.Type())
+			if as.LHS.Type().Type == ast.ObjectType {
+				rhs, err = TranslateExpression(as.RHS, name+"[\""+as.LHS.(*ast.Ident).Name+"\"]")
+			} else {
+				rhs, err = TranslateExpression(as.RHS, name)
+			}
 
-			rhs, err := TranslateExpression(as.RHS, name)
 			if err != nil {
 				return "", err
 			}

@@ -17,9 +17,8 @@ function main() {
       j = false
       j = 66.66
     */
-
-    // FIXME: this is causing a `k = {};` to be generated again even if it is already an object; should try to remove this
-    // FIXME: need to fix nested objects
+    
+    // FIXME: for some reason then comma after "its me" is messing it up
     /*
       k = {
         a: {
