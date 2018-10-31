@@ -14,8 +14,12 @@ int main() {
   a["b"] = 0;
   a["c"] = 3;
   ;
-  float float_array[] = {9.9, 9, 5.5};
-  object array_of_objects = {};
+  float float_array[] = {};
+  float_array[0] = 9.9;
+  float_array[1] = 9;
+  float_array[2] = 5.5;
+  ;
+  var array_of_objects = {};
   array_of_objects[0] = {};
   array_of_objects[1] = {};
   array_of_objects[2] = {};
@@ -36,5 +40,10 @@ int main() {
   ;
   array_of_objects[3]["b"] = 0;
   array_of_objects[3]["c"] = 3;
+  array_of_objects[4] = {};
+  array_of_objects[4][0] = 9.9;
+  array_of_objects[4][1] = 9;
+  array_of_objects[4][2] = 5.5;
+  ;
   ;
 }

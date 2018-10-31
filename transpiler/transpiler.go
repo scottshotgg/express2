@@ -122,67 +122,63 @@ func TranslateExpression(e ast.Expression, name string) (string, error) {
 			arrayString = "{};"
 		)
 
-		if !a.Homogenous || a.Type().Type != ast.VarType {
-			var (
-				err      error
-				elements = make([]string, len(a.Elements))
-			)
+		// if a.Homogenous && a.Type().Type != ast.VarType {
+		// 	var (
+		// 		err      error
+		// 		elements = make([]string, len(a.Elements))
+		// 	)
 
-			for i, elem := range a.Elements {
-				if elem.Type().Type == ast.ObjectType {
-					arrayString += name + "[" + strconv.Itoa(i) + "] = {};"
-					elements[i], err = TranslateExpression(elem, name+"["+strconv.Itoa(i)+"]")
-				} else {
-					elements[i], err = TranslateExpression(elem, name)
-				}
+		// 	for i, elem := range a.Elements {
+		// 		if elem.Type().Type == ast.ObjectType {
+		// 			arrayString += name + "[" + strconv.Itoa(i) + "] = {};"
+		// 			elements[i], err = TranslateExpression(elem, name+"["+strconv.Itoa(i)+"]")
+		// 		} else {
+		// 			elements[i], err = TranslateExpression(elem, name)
+		// 		}
 
-				if err != nil {
-					return "", err
-				}
-			}
+		// 		if err != nil {
+		// 			return "", err
+		// 		}
+		// 	}
 
-			if a.Type().Type == ast.ObjectType {
-				arrayString += strings.Join(elements, "")
-			} else {
-				arrayString = "{" + strings.Join(elements, ", ") + "}"
-			}
+		// 	if a.Type().Type == ast.ObjectType {
+		// 		arrayString += strings.Join(elements, "")
+		// 	} else {
+		// 		arrayString = "{" + strings.Join(elements, ", ") + "}"
+		// 	}
 
-			return arrayString, nil
-		}
+		// 	return arrayString, nil
+		// }
 
-		// FIXME: rewrite this shit for non-homogenous stuff and var stuff
+		var (
+			// err      error
+			elements = make([]string, len(a.Elements))
+		)
+
 		for i, elem := range a.Elements {
-			// if elem.Type().Type == ast.ObjectType {
-			// FIXME: grab the random string thing from express
-			element, err := TranslateExpression(elem, "temp_name_here")
+			fmt.Println("hey its me", elem)
+
+			thing, err := TranslateExpression(elem, name+"["+strconv.Itoa(i)+"]")
+			if elem.Type().Type == ast.ObjectType { //|| elem.Type().Type == ast.ArrayType {
+				arrayString += name + "[" + strconv.Itoa(i) + "] = {};"
+			} else {
+				fmt.Println(thing)
+				thing = name + "[" + strconv.Itoa(i) + "] = " + thing + ";"
+			}
+
+			elements[i] = thing
+
 			if err != nil {
 				return "", err
 			}
-
-			if elem.Type().Array {
-				// arrayString += "\n" + "var temp_name_here = "
-				arrayString += element + "\n" + name + "[" + strconv.Itoa(i) + "]" + "= temp_name_here;"
-			} else if elem.Type().Type == ast.ObjectType {
-				// arrayString += "\n" + "var temp_name_here = "
-				arrayString += element + "\n" + name + "[" + strconv.Itoa(i) + "]" + "= temp_name_here;"
-			} else {
-
-				// 	elements = append([]string{element}, elements...)
-				// } else {
-
-				// 	element, err := TranslateExpression(elem, name)
-				// 	if err != nil {
-				// 		return "", err
-				// 	}
-
-				// 	elements = append(elements, element)
-				// }
-
-				arrayString += "\n" + name + "[" + strconv.Itoa(i) + "]" + "=" + element + ";"
-			}
 		}
 
-		// return "{ " + strings.Join(elements, ", ") + " }", nil
+		// if !a.Homogenous {
+		arrayString += strings.Join(elements, "")
+		// } else {
+		// 	arrayString = "{" + strings.Join(elements, ", ") + "}"
+		// }
+
 		return arrayString, nil
 	}
 

@@ -67,7 +67,7 @@ public:
     case objectType: {
       // cout << "object decons; Type: " << type << " Value: " << *this
       //    << " Pointer: " << data << endl;
-      delete (map<string, var> *)data;
+      delete (map<var, var> *)data;
       break;
     }
 
@@ -89,7 +89,7 @@ public:
 
   // }
 
-  var(void) : type(objectType), data(new map<string, var>) {}
+  var(void) : type(objectType), data(new map<var, var>) {}
   var(void *value) : type(pointerType), data(value) {}
 
   var(int value) : type(intType), data(new int(value)) {
@@ -126,45 +126,35 @@ public:
     //    << "\" Pointer: " << data << endl;
   }
 
-  var(map<string, var> propMap)
-      : type(objectType), data(new map<string, var>(propMap)) {
+  var(map<var, var> propMap)
+      : type(objectType), data(new map<var, var>(propMap)) {
     // cout << "object cons; Type: " << type << " Value: \""
     //    << "\" Pointer: " << data << endl;
-    // data = new map<string,var>(propMap);
+    // data = new map<var,var>(propMap);
   }
 
   var(initializer_list<var> propList) : type(objectType) {
-    // if (propList.size() % 2 != 0) {
-    //   //cout << "ERROR: invalid amount of arguments to object" << endl;
-    //   exit(9);
-    // }
 
-    map<string, var> object;
+    // TODO: need to merge in the var changes
+    map<var, var> object;
 
     int i = 0;
-    var lastItem;
     for (auto prop : propList) {
-      if (i % 2 == 1) {
-        // TODO: could think about supporting more than string here but that
-        // will involve many more more checks
-        object[*(string *)lastItem.Value()] = prop;
-      } else {
-        lastItem = prop;
-      }
+      object[i] = prop;
 
       i++;
     }
 
     // something weird is happening here....
-    data = new map<string, var>(object);
+    data = &object;
     // FIXME: ... somehow this will work ...
-    // *(map<string, var>*)data = object;
+    // *(map<var, var>*)data = object;
   }
 
   // TODO: will have to do something special here, maybe code generation?
   // var(struct value) : type(structType), data(&value) {}
   // TODO: not sure if you can do this with a map, might have to copy everything
-  // over var(map<string, var> value) : type(objectType), data(new map<string,
+  // over var(map<var, var> value) : type(objectType), data(new map<var,
   // var>(value)) {
   //     ////printf("obj cons\n");
   // }
