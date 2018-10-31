@@ -84,11 +84,11 @@ func getTypeOfExpression(expr ast.Expression) (*ast.Type, error) {
 					}
 
 					fmt.Printf("variable.Statement.Kind() %+v", variable.Statement.(*ast.Assignment).LHS.Type)
-					if variable.Statement.(*ast.Assignment).LHS.Type().Type == ast.ObjectType {
-						fmt.Println("an object!")
-						elements[i] = variable.Statement.(*ast.Assignment).RHS
-						e = variable.Statement.(*ast.Assignment).RHS
-					}
+					// if variable.Statement.(*ast.Assignment).LHS.Type().Type == ast.ObjectType {
+					fmt.Println("an object!")
+					elements[i] = variable.Statement.(*ast.Assignment).RHS
+					e = variable.Statement.(*ast.Assignment).RHS
+					// }
 				}
 
 				// Compare to figure out if we need to upgrade the array type or not
@@ -97,10 +97,14 @@ func getTypeOfExpression(expr ast.Expression) (*ast.Type, error) {
 					if e.Type().Type != typeOf.UpgradesTo {
 						expr.(*ast.Array).Homogenous = false
 						fmt.Println("i am break comrade")
-						break
 					}
 
-					typeOf = e.Type()
+					// this is kinda hacky but works
+					if expr.(*ast.Array).Homogenous {
+						typeOf = e.Type()
+					} else {
+						typeOf = ast.NewVarType(ast.NoneType)
+					}
 				}
 			}
 		}
