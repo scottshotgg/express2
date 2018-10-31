@@ -2,6 +2,26 @@
 int main() {
   var something = "crazy";
   int crazy = 7;
+  object k = {};
+  k["a"] = 7;
+  k["b"] = "hey";
+  k["c"] = {};
+  k["c"]["a"] = 8;
+  k["c"]["b"] = {};
+  k["c"]["b"]["something"] = "here";
+  ;
+  k["c"]["c"] = {};
+  k["c"][0] = 8;
+  k["c"][1] = 8;
+  k["c"][2] = 8;
+  ;
+  ;
+  ;
+  int array_brah[3] = {};
+  array_brah[0] = 9;
+  array_brah[1] = 9;
+  array_brah[2] = 9;
+  ;
   var json = {};
   json["a"] = 1;
   json["b"] = 2;
@@ -44,6 +64,8 @@ int main() {
   array_of_objects[4][0] = 9.9;
   array_of_objects[4][1] = 9;
   array_of_objects[4][2] = 5.5;
+
+  std::cout << array_of_objects[4] << std::endl;
   ;
   ;
 }

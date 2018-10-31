@@ -3,14 +3,10 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
-	"os/exec"
 
 	"github.com/scottshotgg/express-ast"
 	"github.com/scottshotgg/express-lex"
-	"github.com/scottshotgg/express2/transpiler"
-	"github.com/scottshotgg/express2/typecheck"
 )
 
 var (
@@ -109,49 +105,49 @@ func main() {
 	// 	os.Exit(9)
 	// }
 
-	fmt.Println("Type checking Express code ...")
+	// fmt.Println("Type checking Express code ...")
 
-	err = typecheck.TypeCheck(programAST)
-	if err != nil {
-		fmt.Printf("\nerr %+v\n", err)
-		os.Exit(9)
-	}
+	// err = typecheck.TypeCheck(programAST)
+	// if err != nil {
+	// 	fmt.Printf("\nerr %+v\n", err)
+	// 	os.Exit(9)
+	// }
 
-	fmt.Println("Transpiling Express to C++ code ...")
+	// fmt.Println("Transpiling Express to C++ code ...")
 
-	// Transpile the AST into C++
-	t, err := transpiler.Transpile(programAST)
-	if err != nil {
-		fmt.Printf("\nerr %+v\n", err)
-		os.Exit(9)
-	}
+	// // Transpile the AST into C++
+	// t, err := transpiler.Transpile(programAST)
+	// if err != nil {
+	// 	fmt.Printf("\nerr %+v\n", err)
+	// 	os.Exit(9)
+	// }
 
-	fmt.Println("\nWriting transpilied C++ code to main.cpp ...")
+	// fmt.Println("\nWriting transpilied C++ code to main.cpp ...")
 
-	// Write the C++ code to a file named `main.cpp`
-	err = ioutil.WriteFile("main.cpp", []byte(t), 0644)
-	if err != nil {
-		fmt.Printf("\nerr %+v\n", err)
-		os.Exit(9)
-	}
+	// // Write the C++ code to a file named `main.cpp`
+	// err = ioutil.WriteFile("main.cpp", []byte(t), 0644)
+	// if err != nil {
+	// 	fmt.Printf("\nerr %+v\n", err)
+	// 	os.Exit(9)
+	// }
 
-	fmt.Println("\nFormatting C++ code ...")
+	// fmt.Println("\nFormatting C++ code ...")
 
-	// Run `clang-format` in-place to format the file for human-readability
-	output, err := exec.Command("clang-format", "-i", "main.cpp").CombinedOutput()
-	if err != nil {
-		fmt.Printf("%s\n%+v\n", output, err)
-		os.Exit(9)
-	}
+	// // Run `clang-format` in-place to format the file for human-readability
+	// output, err := exec.Command("clang-format", "-i", "main.cpp").CombinedOutput()
+	// if err != nil {
+	// 	fmt.Printf("%s\n%+v\n", output, err)
+	// 	os.Exit(9)
+	// }
 
-	fmt.Println("\nCompiling C++ code ...")
+	// fmt.Println("\nCompiling C++ code ...")
 
-	// Compile the file with Clang to produce a binary
-	output, err = exec.Command("clang++", "main.cpp", "-o", "main").CombinedOutput()
-	if err != nil {
-		fmt.Printf("%s\n%+v\n", output, err)
-		os.Exit(9)
-	}
+	// // Compile the file with Clang to produce a binary
+	// output, err = exec.Command("clang++", "main.cpp", "-o", "main").CombinedOutput()
+	// if err != nil {
+	// 	fmt.Printf("%s\n%+v\n", output, err)
+	// 	os.Exit(9)
+	// }
 
 	fmt.Println("\nDone!")
 }
