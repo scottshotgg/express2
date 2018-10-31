@@ -14,7 +14,7 @@ int main() {
   a["b"] = 0;
   a["c"] = 3;
   ;
-  float float_array[] = {};
+  float float_array[3] = {};
   float_array[0] = 9.9;
   float_array[1] = 9;
   float_array[2] = 5.5;
