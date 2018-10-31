@@ -232,7 +232,8 @@ func TranslateAssignmentStatement(a *ast.Assignment, name string) (string, error
 	fmt.Println("waddup", a.LHS)
 	// Check if the array type is a var or not; we don't need to have an array of vars on the backend
 	if a.LHS.Type().Array && a.LHS.Type().Type != ast.VarType && a.LHS.Type().Type != ast.ObjectType {
-		lhs += "[]"
+		lhs += "[" + strconv.Itoa(len(a.RHS.(*ast.Array).Elements)) + "]"
+		// lhs += "[]"
 	}
 
 	// Always put "=" because there is no ":=" in C++; we are just using it for the compiler
