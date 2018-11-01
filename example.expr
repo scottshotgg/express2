@@ -31,7 +31,7 @@ function echo(var i) -> var {
 
 function main() {
   package.handleError = fn(err error) {
-    if err != nil {
+    if err {
       println(err)
     }
   }
@@ -58,7 +58,5 @@ function main() {
   result.then(echo(thing string))
 
   // This will wait for the promise to resolve and then grab the value
-  let coResult = result.future
-
-
+  let coResult = result.future()
 }
