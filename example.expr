@@ -1,0 +1,64 @@
+package something
+
+import runtime
+include (
+  cl.h
+  std
+)
+
+// C/C++ code can be used through express
+std.vector<cl.Platform> platform
+cl.Platform.get(&platform)
+
+let obj = {
+  .isType = true
+  .isCallable = true
+
+  let (
+    a = "something w/e"
+    b = 55
+    c = true
+  )
+
+  if runtime.args.contains("a") {
+    a = runtime.args["a"]
+  }
+}
+
+function echo(var i) -> var {
+  return i + i
+}
+
+function main() {
+  package.handleError = fn(err error) {
+    if err != nil {
+      println(err)
+    }
+  }
+
+  // This will use the default handler
+  let something, _ = callThisFunction()
+
+  let result = echo(5)
+  var result = echo(obj(a: "something here", b: 54))
+
+  let string_thing = "hey look at me! im a stringy"
+
+  launch fn() -> string {
+    return "im an a-nony-moose lambda coroutine"
+  }
+
+  launch echo("hey its me")
+
+  let result = launch fn() -> string {
+    return "gimme da string"
+  }
+
+  // Pass a function that is _compatible_ with the return signature of the promise
+  result.then(echo(thing string))
+
+  // This will wait for the promise to resolve and then grab the value
+  let coResult = result.future
+
+
+}
