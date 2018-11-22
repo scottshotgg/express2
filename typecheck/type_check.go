@@ -67,11 +67,8 @@ func getTypeOfExpression(expr ast.Expression) (*ast.Type, error) {
 
 		if len(elements) > 0 {
 			typeOf = elements[0].Type()
-			fmt.Println("elements", elements, len(elements))
 			for i, e := range elements {
-				fmt.Println("e::", e)
 				if e.Kind() == ast.IdentNode {
-					fmt.Println("something here")
 					variable, found := m.GetVariable(e.(*ast.Ident).Name)
 					if !found {
 						// TODO: some error here
@@ -83,27 +80,24 @@ func getTypeOfExpression(expr ast.Expression) (*ast.Type, error) {
 						os.Exit(9)
 					}
 
-					fmt.Printf("variable.Statement.Kind() %+v", variable.Statement.(*ast.Assignment).LHS.Type)
 					// if variable.Statement.(*ast.Assignment).LHS.Type().Type == ast.ObjectType {
-					fmt.Println("an object!")
 					elements[i] = variable.Statement.(*ast.Assignment).RHS
 					e = variable.Statement.(*ast.Assignment).RHS
 					// }
 				}
 
-				// Compare to figure out if we need to upgrade the array type or not
-				if e.Type().Type != typeOf.Type && e.Type().UpgradesTo != typeOf.Type {
-					// if the collected types can upgrade to the expression type
-					if e.Type().Type != typeOf.UpgradesTo {
-						expr.(*ast.Array).Homogenous = false
-						fmt.Println("i am break comrade")
-					}
+				// only bother checking the type if homogenous is still true
+				if expr.(*ast.Array).Homogenous {
+					// Compare to figure out if we need to upgrade the array type or not
+					if e.Type().Type != typeOf.Type && e.Type().UpgradesTo != typeOf.Type {
+						// if the collected types can upgrade to the expression type
+						if e.Type().Type != typeOf.UpgradesTo {
+							expr.(*ast.Array).Homogenous = false
+							typeOf = ast.NewVarType(ast.NoneType)
+						}
 
-					// this is kinda hacky but works
-					if expr.(*ast.Array).Homogenous {
+						// this is kinda hacky but works
 						typeOf = e.Type()
-					} else {
-						typeOf = ast.NewVarType(ast.NoneType)
 					}
 				}
 			}
@@ -211,11 +205,9 @@ func CheckStatements(statements []ast.Statement) ([]ast.Statement, error) {
 			// TODO: if it is a declaration then we need to check that the variable is not already in the variable map
 			//
 			as := stmt.(*ast.Assignment)
-			fmt.Println("got an assignment", as)
 
 			if as.LHS.Kind() == ast.IdentNode {
 				if as.Declaration {
-					fmt.Println("checking")
 					// We should make an interface called Assignable
 					_, ok := m.CurrentScope[as.LHS.(*ast.Ident).Name]
 					if ok {
