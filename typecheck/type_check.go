@@ -229,11 +229,12 @@ func CheckStatements(statements []ast.Statement) ([]ast.Statement, error) {
 
 					if as.Inferred {
 						as.LHS.(*ast.Ident).TypeOf = type2
-
-						// FIXME: this needs to check for upgradable types
-					} else if as.LHS.Type().Array != type2.Array || as.LHS.Type().Type != ast.VarType && as.LHS.Type().Type != type2.Type {
+						fmt.Println("type2", type2)
+					} else if as.LHS.Type().Array != type2.Array ||
+						as.LHS.Type().Type != ast.VarType &&
+							as.LHS.Type().Type != type2.Type {
 						if as.LHS.Type().Type != type2.UpgradesTo {
-							return nil, errors.Errorf("Types did not match %v %v", as.LHS, as.RHS)
+							return nil, errors.Errorf("Types did not match: \n%#v\n%v", as.LHS.Type().Type, as.RHS.Type().Type)
 						}
 					}
 
