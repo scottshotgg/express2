@@ -1,51 +1,94 @@
-function main() {
-  something: "crazy"
-  crazy := 7
+// Use the runtime package from the Express stdlib
+import runtime
+
+func main() {
+  // Compile time constant; 
+  // this cannot be a dynamic variable or any container with dynamically typed properties
+  define person = 6
+
+  // Type infer x as an integer equal to 6
+  let x = 6
+
+  // Infer an object that is a callable type
+  let obj = {
+    .isCallable = true
+    .isType = true
+
+    var a float
+
+    // Read the arguments into the object at runtime
+    if runtime.args.contains("a") {
+      a = runtime.args["a"]
+    } else {
+      a = 1.34
+    }
+
+    var b = 99.9999
+  }
+
+  // isType is required for this usage
+  var something obj
+
+  // isCallable is required for this usage
+  let something = obj()
+
+  // Declare a string type variable
+  var b string = "something here"
+
+  // Type define thing to be an object with the enclosed properties
+  type thing = {
+    // Set a default value for the thing1 property in the struct
+    var thing1 int = 6
+
+    // Declare a string property; this will take the language defined default value for string: ""
+    var thing2 string
+
+    // Define a run time constant within the struct
+    const something_else = "hey its me"
+  }
+
+  // Make a thing
+  var thing3 thing
+
+  // Declare a named lambda function
+  let something = fn(arg1 string, arg2 int) -> int {
+    println("arg1:", arg1)
+    
+    // Range over the keys
+    for i in [ 0 .. arg2 ] {
+      println("i:", i)
+    }
+
+    // return some integer
+    return arg2 + 2
+  }
+
+  // Call the lambda
+  something(thing3.thing2, thing3.thing1)
+
+  // Launch an asynchronous coroutine; args are evaluated at launch-time
+  launch something(thing3.thing2, thing3.thing1)
+
+  defer println("world")
+  defer println("hello")
+
+  // return_value will be a thenable
+  // queue instead of launch for non-started coroutines
+  let return_value = launch fn() -> int[3] {
+    var values int[3]
+
+    for i in values {
+      values[i] = something(thing3.thing2 + i, thing3.thing1)
+    }
+
+    return values
+  }
 
   /*
-  k := {
-    a := 7
-    b := "hey"
-    c : {
-      a := 8
-      b : {
-        something: "here"
-      }
-      c := [8,8,8]
-    }
-  }
+    [_CR_OBJECT_].map(fn(cr CR_OBJECT) -> {
+      CR_OBJECT.stop()
+    })
+  */
 
-  array_brah := [9,9,9]
-*/
-
-  var json = {
-    a: 1,
-    b: 2,
-    c: 3
-  }
-
-  object a = {
-    a: {
-      hey: "its me"
-    }
-    b: 0
-    c: 3
-  }
-
-  float_array := [ 9.9, 9, 5.5 ]
-
-  array_of_objects := [
-    { a: 8 }
-    { b: 7 }
-    a
-    a
-
-    /*
-      For some reason this error occurs in the runtime:
-      main.cpp:39:25: warning: address of array 'float_array' ... 
-      will always evaluate to 'true' [-Wpointer-bool-conversion]
-    */
-
-    float_array
-  ]
+  return_value.then()
 }
