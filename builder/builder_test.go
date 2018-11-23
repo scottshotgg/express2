@@ -406,9 +406,60 @@ func TestParseLiteral(t *testing.T) {
 	fmt.Printf("programAST %+v\n", programAST)
 }
 
-// func TestParseIndexStatement(t *testing.T) {
-// 	test := "something[7] = \"hey its me\""
+// TODO: later
+// func TestParseIdent(t *testing.T) {
+// 	test := "something[7]"
+
+// 	b, err := getBuilderFromString(test)
+// 	if err != nil {
+// 		t.Errorf("err %+v\n", err)
+// 	}
+
+// 	programAST, err := b.ParseIdent()
+// 	if err != nil {
+// 		fmt.Printf("err %+v\n", err)
+// 		t.Fatal()
+// 	}
+
+// 	fmt.Printf("programAST %+v\n", programAST)
 // }
+
+func TestParseIndexAssignmentStatement(t *testing.T) {
+	test := "something[7] = \"hey its me\""
+
+	b, err := getBuilderFromString(test)
+	if err != nil {
+		t.Errorf("err %+v\n", err)
+	}
+
+	programAST, err := b.ParseAssignmentStatement()
+	if err != nil {
+		fmt.Printf("err %+v\n", err)
+		t.Fatal()
+	}
+
+	fmt.Printf("programAST %+v\n", programAST)
+}
+
+func TestParseAssignmentFromIndexExpression(t *testing.T) {
+	test := "something = something[9][0]"
+
+	b, err := getBuilderFromString(test)
+	if err != nil {
+		t.Errorf("err %+v\n", err)
+	}
+
+	programAST, err := b.ParseAssignmentStatement()
+	if err != nil {
+		fmt.Printf("err %+v\n", err)
+		t.Fatal()
+	}
+
+	// Use DFS for this
+	fmt.Printf("programAST %+v\n", programAST)
+	fmt.Printf("programAST %+v\n", programAST.Left)
+	fmt.Printf("programAST %+v\n", programAST.Right)
+}
 
 // func TestParseIndexExpression(t *testing.T) {
 // 	test := "[7]"
@@ -428,7 +479,7 @@ func TestParseLiteral(t *testing.T) {
 // }
 
 func TestParseIdentIndexExpression(t *testing.T) {
-	test := "something[7]"
+	test := "something[9][0]"
 
 	b, err := getBuilderFromString(test)
 	if err != nil {
@@ -441,7 +492,11 @@ func TestParseIdentIndexExpression(t *testing.T) {
 		t.Fatal()
 	}
 
+	// Use DFS for this
 	fmt.Printf("programAST %+v\n", programAST)
+	fmt.Printf("programAST %+v\n", programAST.Left.Left)
+	fmt.Printf("programAST %+v\n", programAST.Left.Right)
+	fmt.Printf("programAST %+v\n", programAST.Right)
 }
 
 // TODO: this is an expression too
@@ -452,7 +507,21 @@ func TestParseTypedefStatement(t *testing.T) {}
 // TODO: later
 func TestParseStructStatement(t *testing.T) {}
 
-func TestParseCallExpression(t *testing.T) {}
+func TestParseCallExpression(t *testing.T) {
+	test := "funcYou(6, 7)"
+
+	b, err := getBuilderFromString(test)
+	if err != nil {
+		t.Errorf("err %+v\n", err)
+	}
+
+	programAST, err := b.ParseCall()
+	if err != nil {
+		t.Errorf("err %+v\n", err)
+	}
+
+	fmt.Printf("\nprogramAST %+v\n", programAST)
+}
 
 // func TestParseAllowStatement(t *testing.T) {}
 
