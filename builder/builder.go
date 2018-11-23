@@ -34,6 +34,7 @@ func New(tokens []token.Token) *Builder {
 			token.Increment: b.ParseIncrement,
 			token.LThan:     b.ParseConditionExpression,
 			token.LBracket:  b.ParseIndexExpression,
+			token.LParen:    b.ParseCall,
 		},
 	}
 
@@ -76,19 +77,11 @@ func (b *Builder) ParseGroupOfExpressions() (*Node, error) {
 	}, nil
 }
 
-func (b *Builder) ParseCall() (*Node, error) {
+func (b *Builder) ParseCall(n *Node) (*Node, error) {
 	// Check ourselves ...
-	if b.Tokens[b.Index].Type != token.Ident {
-		return nil, errors.New("Could not get ident after type")
+	if b.Tokens[b.Index].Type != token.LParen {
+		return nil, errors.New("Could not get lparen in function call;")
 	}
-
-	ident, err := b.ParseExpression()
-	if err != nil {
-		return nil, err
-	}
-
-	// Skip over the ident token
-	b.Index++
 
 	// We are not allowing for named arguments right now
 	args, err := b.ParseGroupOfExpressions()
@@ -98,7 +91,7 @@ func (b *Builder) ParseCall() (*Node, error) {
 
 	return &Node{
 		Type:  "call",
-		Value: ident,
+		Value: n,
 		Metadata: map[string]interface{}{
 			"args": args,
 		},
@@ -799,6 +792,11 @@ func (b *Builder) ParseFactor() (*Node, error) {
 
 	// Variable identifier
 	case token.Ident:
+		// Look ahead
+		// if b.Index < len(b.Tokens)-1 && b.Tokens[b.Index+1].Type == token.LParen {
+		// 	return b.ParseCall()
+		// }
+
 		return &Node{
 			Type:  "ident",
 			Value: b.Tokens[b.Index].Value.String,
@@ -826,6 +824,10 @@ func (b *Builder) ParseFactor() (*Node, error) {
 	// Array expression
 	case token.LBracket:
 		return b.ParseArrayExpression()
+
+	// Named block
+	case token.LBrace:
+		return b.ParseBlockStatement()
 
 	default:
 		return nil, errors.Errorf("Could not parse expression from token; %+v", b.Tokens[b.Index])

@@ -183,15 +183,15 @@ func TestParseGroupOfExpressions(t *testing.T) {
 // TODO: put all strings into a map[string]string
 // and pull them out so that other tests can use them,
 // like ParseStatement
-func TestParseCallStatement(t *testing.T) {
-	test := "something(5, i, s)"
+func TestParseCallAssignmentStatement(t *testing.T) {
+	test := "something = something(5, i, s)"
 
 	b, err := getBuilderFromString(test)
 	if err != nil {
 		t.Errorf("err %+v\n", err)
 	}
 
-	programAST, err := b.ParseCall()
+	programAST, err := b.ParseAssignmentStatement()
 	if err != nil {
 		t.Errorf("err %+v\n", err)
 	}
@@ -499,24 +499,18 @@ func TestParseIdentIndexExpression(t *testing.T) {
 	fmt.Printf("programAST %+v\n", programAST.Right)
 }
 
-// TODO: this is an expression too
-func TestParseSelectionStatement(t *testing.T) {}
-
-func TestParseTypedefStatement(t *testing.T) {}
-
 // TODO: later
 func TestParseStructStatement(t *testing.T) {}
 
-// TODO:
 func TestParseCallExpression(t *testing.T) {
-	test := "something = funcYou(6, 7)"
+	test := "funcYou(6, 7)"
 
 	b, err := getBuilderFromString(test)
 	if err != nil {
 		t.Errorf("err %+v\n", err)
 	}
 
-	programAST, err := b.ParseCall()
+	programAST, err := b.ParseExpression()
 	if err != nil {
 		t.Errorf("err %+v\n", err)
 	}
@@ -524,8 +518,21 @@ func TestParseCallExpression(t *testing.T) {
 	fmt.Printf("\nprogramAST %+v\n", programAST)
 }
 
-// TODO:
-func TestParseBlockExpression(t *testing.T) {}
+func TestParseBlockExpression(t *testing.T) {
+	test := "something = { int i = 7 }"
+
+	b, err := getBuilderFromString(test)
+	if err != nil {
+		t.Errorf("err %+v\n", err)
+	}
+
+	programAST, err := b.ParseAssignmentStatement()
+	if err != nil {
+		t.Errorf("err %+v\n", err)
+	}
+
+	fmt.Printf("\nprogramAST %+v\n", programAST)
+}
 
 // func TestParseAllowStatement(t *testing.T) {}
 
@@ -551,6 +558,11 @@ func TestParseStatement(t *testing.T) {
 
 // Not sure if we need this because we have the group of statements thing
 // func TestParseMultipleStatements(t *testing.T) {}
+
+// TODO: this is an expression too
+func TestParseSelectionStatement(t *testing.T) {}
+
+func TestParseTypedefStatement(t *testing.T) {}
 
 func TestParseStructBlockExpression(t *testing.T) {}
 
