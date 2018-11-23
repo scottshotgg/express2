@@ -82,10 +82,9 @@ func (b *Builder) ParseCall() (*Node, error) {
 		return nil, errors.New("Could not get ident after type")
 	}
 
-	// Create the ident
-	ident := &Node{
-		Type:  "ident",
-		Value: b.Tokens[b.Index].Value.String,
+	ident, err := b.ParseExpression()
+	if err != nil {
+		return nil, err
 	}
 
 	// Skip over the ident token
@@ -508,34 +507,27 @@ func (b *Builder) ParseType() (*Node, error) {
 	}, nil
 }
 
-// TODO: implement this later
-func (b *Builder) ParseIdent() (*Node, error) { return nil, nil }
+// // TODO: implement this later
+// func (b *Builder) ParseIdent() (*Node, error) {
+// 	// Check ourselves ...
+// 	if b.Tokens[b.Index].Type != token.Ident {
+// 		return nil, errors.New("Could not get assignment statement without ident")
+// 	}
+
+// 	// ident := &Node{
+// 	// 	Type:  "ident",
+// 	// 	Value: b.Tokens[b.Index].Value.String,
+// 	// }
+
+// 	// switch b.Tokens[b.Index+1].Type {
+// 	// case token.LBracket:
+// 	// 	ident, err := b.Parse
+// 	// }
+
+// 	return b.ParseExpression()
+// }
 
 func (b *Builder) ParseIndexExpression(n *Node) (*Node, error) {
-	// // Check ourselves ...
-	// if b.Tokens[b.Index].Type != token.Ident {
-	// 	return nil, errors.New("Could not get ident; " + b.Tokens[b.Index].Value.String)
-	// }
-
-	// ident := &Node{
-	// 	Type:  "ident",
-	// 	Value: b.Tokens[b.Index].Value.String,
-	// }
-
-	// // TODO: make a function called "ParseIndexOperator"
-	// at, err := b.ParseArrayType("int")
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	// return &Node{
-	// 	Type:  "index",
-	// 	Value: ident,
-	// 	Metadata: map[string]interface{}{
-	// 		"dim": at.Metadata["dim"],
-	// 	},
-	// }, nil
-
 	if b.Index > len(b.Tokens)-1 {
 		return nil, errors.Errorf("Out of tokens")
 	}
@@ -544,24 +536,49 @@ func (b *Builder) ParseIndexExpression(n *Node) (*Node, error) {
 		return nil, errors.Errorf("Could not get LBracket")
 	}
 
+	b.Index++
+
 	expr, err := b.ParseExpression()
 	if err != nil {
 		return nil, err
 	}
 
-	// Step over the right bracket token
+	// Step over the expression
 	b.Index++
 
 	return &Node{
 		Type: "index",
-		// Value: ident,
-		// Metadata: map[string]interface{}{
-		// 	"dim": at.Metadata["dim"],
-		// },
+		// Value: n,
 		Left:  n,
 		Right: expr,
 	}, nil
 }
+
+// func (b *Builder) ParseIndexExpression(n *Node) (*Node, error) {
+// 	// Check ourselves ...
+// 	if b.Tokens[b.Index].Type != token.Ident {
+// 		return nil, errors.New("Could not get ident; " + b.Tokens[b.Index].Value.String)
+// 	}
+
+// 	ident := &Node{
+// 		Type:  "ident",
+// 		Value: b.Tokens[b.Index].Value.String,
+// 	}
+
+// 	// TODO: make a function called "ParseIndexOperator"
+// 	at, err := b.ParseArrayType("int")
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	return &Node{
+// 		Type:  "index",
+// 		Value: ident,
+// 		Metadata: map[string]interface{}{
+// 			"dim": at.Metadata["dim"],
+// 		},
+// 	}, nil
+// }
 
 func (b *Builder) ParseSelectionStatement() (*Node, error) { return nil, nil }
 
@@ -577,9 +594,9 @@ func (b *Builder) ParseDeclarationStatement() (*Node, error) {
 	}
 
 	// Create the ident
-	ident := &Node{
-		Type:  "ident",
-		Value: b.Tokens[b.Index].Value.String,
+	ident, err := b.ParseExpression()
+	if err != nil {
+		return nil, err
 	}
 
 	// Increment over the ident token
@@ -617,15 +634,16 @@ func (b *Builder) ParseDeclarationStatement() (*Node, error) {
 }
 
 func (b *Builder) ParseAssignmentStatement() (*Node, error) {
+	// TODO: this will need to change when statements like this are generalized
+	// into: [expr] = [expr]
 	// Check that the next token is an ident
 	if b.Tokens[b.Index].Type != token.Ident {
 		return nil, errors.New("Could not get assignment statement without ident")
 	}
 
-	// Create the ident
-	ident := &Node{
-		Type:  "ident",
-		Value: b.Tokens[b.Index].Value.String,
+	ident, err := b.ParseExpression()
+	if err != nil {
+		return nil, err
 	}
 
 	// Increment over the ident token
@@ -633,12 +651,8 @@ func (b *Builder) ParseAssignmentStatement() (*Node, error) {
 
 	// Check for the equals token
 	if b.Tokens[b.Index].Type != token.Assign {
-		// return &Node{
-		// 	Type: "decl",
-		// 	Left: ident,
-		// }, nil
-
-		// This is where we would implement variable declarations without values
+		// This is where we would implement variable declarations
+		// without values, other types of assignment, etc
 		// Leave it alone for now
 		return nil, errors.New("No equals found after ident")
 	}
@@ -740,14 +754,23 @@ func (b *Builder) ParseTerm() (*Node, error) {
 		return nil, err
 	}
 
-	// LOOKAHEAD performed to figure out whether the expression is done
-	if b.Index < len(b.Tokens)-1 {
-		opFunc, ok := b.OpFuncMap[1][b.Tokens[b.Index+1].Type]
-		if ok {
-			// Step over the factor
-			b.Index++
+	// var ok = true
+	// var opFunc func(n *Node) (*Node, error)
 
-			return opFunc(factor)
+	// LOOKAHEAD performed to figure out whether the expression is done
+	for b.Index < len(b.Tokens)-1 {
+		// Look for a tier1 operator in the func map
+		opFunc, ok := b.OpFuncMap[1][b.Tokens[b.Index+1].Type]
+		if !ok {
+			break
+		}
+
+		// Step over the factor
+		b.Index++
+
+		factor, err = opFunc(factor)
+		if err != nil {
+			return nil, err
 		}
 	}
 
@@ -774,7 +797,7 @@ func (b *Builder) ParseFactor() (*Node, error) {
 			Value: b.Tokens[b.Index].Value.True,
 		}, nil
 
-	// identifier
+	// Variable identifier
 	case token.Ident:
 		return &Node{
 			Type:  "ident",
