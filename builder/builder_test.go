@@ -10,15 +10,9 @@ import (
 	"github.com/scottshotgg/express2/builder"
 )
 
-// func getLexerFromString(s string) lex.Lexer {
-
-// }
-
 func getTokensFromString(s string) ([]token.Token, error) {
-	lexer := lex.New(s)
-
 	// Lex and tokenize the source code
-	tokens, err := lexer.Lex()
+	tokens, err := lex.New(s).Lex()
 	if err != nil {
 		fmt.Println("err", err)
 	}
@@ -36,7 +30,35 @@ func getBuilderFromString(test string) (*builder.Builder, error) {
 		return nil, err
 	}
 
+	for _, token := range tokens {
+		fmt.Println(token)
+	}
+
 	return builder.New(tokens), nil
+}
+
+func printTokensFromBuilder(b *builder.Builder) {
+	for _, token := range b.Tokens {
+		fmt.Println(token)
+	}
+}
+
+func TestParseTerm(t *testing.T) {
+	test := "i++"
+
+	b, err := getBuilderFromString(test)
+	if err != nil {
+		fmt.Println("err", err)
+		t.Fatal()
+	}
+
+	programAST, err := b.ParseExpression()
+	if err != nil {
+		fmt.Printf("err %+v\n", err)
+		t.Fatal()
+	}
+
+	fmt.Printf("programAST %+v\n", programAST)
 }
 
 func TestParseExpression(t *testing.T) {
@@ -229,9 +251,44 @@ func TestParseIncludeStatement(t *testing.T) {
 	fmt.Printf("programAST %+v\n", programAST)
 }
 
-// TODO:
+func TestParseConditionExpression(t *testing.T) {
+	test := "something < 10 < (7)"
+
+	b, err := getBuilderFromString(test)
+	if err != nil {
+		t.Errorf("err %+v\n", err)
+	}
+
+	programAST, err := b.ParseExpression()
+	if err != nil {
+		fmt.Printf("err %+v\n", err)
+		t.Fatal()
+	}
+
+	fmt.Printf("programAST %+v\n", programAST)
+}
+
+func TestParseIncrementExpression(t *testing.T) {
+	test := "i++"
+
+	b, err := getBuilderFromString(test)
+	if err != nil {
+		t.Errorf("err %+v\n", err)
+	}
+
+	programAST, err := b.ParseExpression()
+	if err != nil {
+		fmt.Printf("err %+v\n", err)
+		t.Fatal()
+	}
+
+	// fmt.Println(b.ParseBlockStatement())
+
+	fmt.Printf("programAST %+v\n", programAST)
+}
+
 func TestParseForStdStatement(t *testing.T) {
-	test := "for int i = 0; i < 10; i++ { }"
+	test := "for int i = 1; i < 10; i++ { }"
 
 	b, err := getBuilderFromString(test)
 	if err != nil {
@@ -247,16 +304,15 @@ func TestParseForStdStatement(t *testing.T) {
 	fmt.Printf("programAST %+v\n", programAST)
 }
 
-// TODO:
-func TestParseForInStatement(t *testing.T) {
-	test := "for i in [ 7, 8, 9 ] { }"
+func TestParseArrayExpression(t *testing.T) {
+	test := "[ \"something\", [8, 8], 9, i ]"
 
 	b, err := getBuilderFromString(test)
 	if err != nil {
 		t.Errorf("err %+v\n", err)
 	}
 
-	programAST, err := b.ParseForInStatement()
+	programAST, err := b.ParseArrayExpression()
 	if err != nil {
 		fmt.Printf("err %+v\n", err)
 		t.Fatal()
@@ -265,7 +321,57 @@ func TestParseForInStatement(t *testing.T) {
 	fmt.Printf("programAST %+v\n", programAST)
 }
 
-// TODO:
+func TestParseType(t *testing.T) {
+	test := "int[][5]"
+
+	b, err := getBuilderFromString(test)
+	if err != nil {
+		t.Errorf("err %+v\n", err)
+	}
+
+	programAST, err := b.ParseType()
+	if err != nil {
+		fmt.Printf("err %+v\n", err)
+		t.Fatal()
+	}
+
+	fmt.Printf("programAST %+v\n", programAST)
+}
+
+func TestParseArrayDeclaration(t *testing.T) {
+	test := "int[] i = [ 8, 9, 0 ]"
+
+	b, err := getBuilderFromString(test)
+	if err != nil {
+		t.Errorf("err %+v\n", err)
+	}
+
+	programAST, err := b.ParseStatement()
+	if err != nil {
+		fmt.Printf("err %+v\n", err)
+		t.Fatal()
+	}
+
+	fmt.Printf("programAST %+v\n", programAST)
+}
+
+func TestParseForInStatement(t *testing.T) {
+	test := "for i in [ 7, 8, 9 ] { }"
+
+	b, err := getBuilderFromString(test)
+	if err != nil {
+		t.Errorf("err %+v\n", err)
+	}
+
+	programAST, err := b.ParseForPrepositionStatement()
+	if err != nil {
+		fmt.Printf("err %+v\n", err)
+		t.Fatal()
+	}
+
+	fmt.Printf("programAST %+v\n", programAST)
+}
+
 func TestParseForOfStatement(t *testing.T) {
 	test := "for i of [ 7, 8, 9 ] { }"
 
@@ -274,7 +380,62 @@ func TestParseForOfStatement(t *testing.T) {
 		t.Errorf("err %+v\n", err)
 	}
 
-	programAST, err := b.ParseForOfStatement()
+	programAST, err := b.ParseForPrepositionStatement()
+	if err != nil {
+		fmt.Printf("err %+v\n", err)
+		t.Fatal()
+	}
+
+	fmt.Printf("programAST %+v\n", programAST)
+}
+
+func TestParseLiteral(t *testing.T) {
+	test := "7"
+
+	b, err := getBuilderFromString(test)
+	if err != nil {
+		t.Errorf("err %+v\n", err)
+	}
+
+	programAST, err := b.ParseExpression()
+	if err != nil {
+		fmt.Printf("err %+v\n", err)
+		t.Fatal()
+	}
+
+	fmt.Printf("programAST %+v\n", programAST)
+}
+
+// func TestParseIndexStatement(t *testing.T) {
+// 	test := "something[7] = \"hey its me\""
+// }
+
+// func TestParseIndexExpression(t *testing.T) {
+// 	test := "[7]"
+
+// 	b, err := getBuilderFromString(test)
+// 	if err != nil {
+// 		t.Errorf("err %+v\n", err)
+// 	}
+
+// 	programAST, err := b.ParseExpression()
+// 	if err != nil {
+// 		fmt.Printf("err %+v\n", err)
+// 		t.Fatal()
+// 	}
+
+// 	fmt.Printf("programAST %+v\n", programAST)
+// }
+
+func TestParseIdentIndexExpression(t *testing.T) {
+	test := "something[7]"
+
+	b, err := getBuilderFromString(test)
+	if err != nil {
+		t.Errorf("err %+v\n", err)
+	}
+
+	programAST, err := b.ParseExpression()
 	if err != nil {
 		fmt.Printf("err %+v\n", err)
 		t.Fatal()
@@ -286,8 +447,12 @@ func TestParseForOfStatement(t *testing.T) {
 // TODO: this is an expression too
 func TestParseSelectionStatement(t *testing.T) {}
 
-// TODO: this is an expression too
-func TestParseIndexStatement(t *testing.T) {}
+func TestParseTypedefStatement(t *testing.T) {}
+
+// TODO: later
+func TestParseStructStatement(t *testing.T) {}
+
+func TestParseCallExpression(t *testing.T) {}
 
 // func TestParseAllowStatement(t *testing.T) {}
 
@@ -314,12 +479,9 @@ func TestParseStatement(t *testing.T) {
 // Not sure if we need this because we have the group of statements thing
 // func TestParseMultipleStatements(t *testing.T) {}
 
-// TODO: later
-func TestParseStructStatement(t *testing.T) {}
-
 func TestParseStructBlockExpression(t *testing.T) {}
 
 // TODO: this is an object; wait till later to do it
 func TestParseBlockExpression(t *testing.T) {}
 
-func TestParseCallExpression(t *testing.T) {}
+func TestParseLetStatement(t *testing.T) {}
