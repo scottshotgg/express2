@@ -930,7 +930,7 @@ func (b *Builder) ParseNestedExpression() (*Node, error) {
 	b.Index++
 
 	if b.Tokens[b.Index].Type != token.RParen {
-		return b.AppendTokenToError("No rparen found at end of factor-expression")
+		return b.AppendTokenToError("No right paren found at end of nested expression")
 	}
 
 	// Skip over the right paren
