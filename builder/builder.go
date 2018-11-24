@@ -1,6 +1,8 @@
 package builder
 
 import (
+	"fmt"
+
 	"github.com/pkg/errors"
 
 	"github.com/scottshotgg/express-token"
@@ -31,6 +33,10 @@ type (
 	}
 )
 
+const (
+	formatString = "; %+v"
+)
+
 var (
 	ErrNotImplemented = errors.New("Not implemented")
 	ErrMultDimArrInit = errors.New("Cannot use multiple expression inside array type initializer")
@@ -49,15 +55,44 @@ func New(tokens []token.Token) *Builder {
 			token.LBracket:  b.ParseIndexExpression,
 			token.LParen:    b.ParseCall,
 			token.LThan:     b.ParseConditionExpression,
-			// token.PriOp: b.ParsePriOp,
+			token.PriOp:     b.ParseBinOp,
 		},
 
 		1: map[string]opCallbackFn{
-			// token.SecOp: b.ParseSecOp,
+			token.SecOp: b.ParseBinOp,
 		},
 	}
 
 	return &b
+}
+
+func (b *Builder) AppendTokenToError(errText string) (*Node, error) {
+	if b.Index < len(b.Tokens)-1 {
+		return nil, errors.Errorf(errText+formatString, b.Tokens[b.Index])
+	}
+
+	return nil, errors.New(errText)
+}
+
+func (b *Builder) ParseBinOp(n *Node) (*Node, error) {
+	op := b.Tokens[b.Index].Value.String
+
+	// Step over the operator token
+	b.Index++
+
+	right, err := b.ParseExpression()
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Println("b.", b.Tokens[b.Index])
+
+	return &Node{
+		Type:  "binop",
+		Value: op,
+		Left:  n,
+		Right: right,
+	}, nil
 }
 
 func (b *Builder) GetNextToken() (*token.Token, error) {
@@ -89,6 +124,7 @@ func (b *Builder) ParseGroupOfExpressions() (*Node, error) {
 			return nil, err
 		}
 
+		// Step over the expression token
 		b.Index++
 
 		exprs = append(exprs, expr)
@@ -99,8 +135,8 @@ func (b *Builder) ParseGroupOfExpressions() (*Node, error) {
 		}
 	}
 
-	// Step over the right brace token
-	b.Index++
+	// // Step over the right paren token
+	// b.Index++
 
 	return &Node{
 		Type:  "egroup",
@@ -335,14 +371,6 @@ func (b *Builder) ParseForStdStatement() (*Node, error) {
 	}
 
 	return &node, nil
-}
-
-func (b *Builder) AppendTokenToError(errText string) (*Node, error) {
-	if b.Index < len(b.Tokens)-1 {
-		return nil, errors.Errorf(errText+"; %+v", b.Tokens[b.Index])
-	}
-
-	return nil, errors.New(errText)
 }
 
 func (b *Builder) ParseForStatement() (*Node, error) {
@@ -805,12 +833,7 @@ func (b *Builder) ParseIncludeStatement() (*Node, error) {
 	}, nil
 }
 
-func (b *Builder) ParseExpression() (*Node, error) {
-	// This is where we will implement secondary tier operators (+ , -)
-	return b.ParseTerm()
-}
-
-func (b *Builder) ParseConditionExpression(expr *Node) (*Node, error) {
+func (b *Builder) ParseConditionExpression(n *Node) (*Node, error) {
 	// Step over the conditional operator token
 	b.Index++
 
@@ -822,7 +845,7 @@ func (b *Builder) ParseConditionExpression(expr *Node) (*Node, error) {
 	return &Node{
 		Type: "comp",
 		// Value: "",
-		Left:  expr,
+		Left:  n,
 		Right: right,
 	}, nil
 }
@@ -834,21 +857,52 @@ func (b *Builder) ParseIncrement(n *Node) (*Node, error) {
 	}, nil
 }
 
-func (b *Builder) ParseTerm() (*Node, error) {
-	// This is where we will implement primary tier operators (* , /)
+func (b *Builder) ParseExpression() (*Node, error) {
+	term, err := b.ParseTerm()
+	if err != nil {
+		return nil, err
+	}
 
+	var (
+		ok     bool
+		opFunc opCallbackFn
+	)
+
+	// LOOKAHEAD performed to figure out whether the expression is done
+	for b.Index < len(b.Tokens)-1 {
+		// Look for a tier1 operator in the func map
+		opFunc, ok = b.OpFuncMap[1][b.Tokens[b.Index+1].Type]
+		if !ok {
+			break
+		}
+
+		// Step over the factor
+		b.Index++
+
+		term, err = opFunc(term)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return term, nil
+}
+
+func (b *Builder) ParseTerm() (*Node, error) {
 	factor, err := b.ParseFactor()
 	if err != nil {
 		return nil, err
 	}
 
-	// var ok = true
-	// var opFunc func(n *Node) (*Node, error)
+	var (
+		ok     bool
+		opFunc opCallbackFn
+	)
 
 	// LOOKAHEAD performed to figure out whether the expression is done
 	for b.Index < len(b.Tokens)-1 {
 		// Look for a tier1 operator in the func map
-		opFunc, ok := b.OpFuncMap[0][b.Tokens[b.Index+1].Type]
+		opFunc, ok = b.OpFuncMap[0][b.Tokens[b.Index+1].Type]
 		if !ok {
 			break
 		}

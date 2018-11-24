@@ -5,80 +5,96 @@ import (
 	"testing"
 )
 
-func TestParseDeclarationStatement(t *testing.T) {
-	// TODO: we need the rest of the declaration types and stuff
-	b, err := getBuilderFromString(tests[StatementTest]["decl"])
+func TestParseBinOpAssignmentStatement(t *testing.T) {
+	b, err = getBuilderFromString(tests[StatementTest]["binop"])
 	if err != nil {
 		fmt.Println("err", err)
 		t.Fatal()
 	}
 
-	programAST, err := b.ParseDeclarationStatement()
+	programAST, err = b.ParseAssignmentStatement()
 	if err != nil {
 		fmt.Printf("err %+v\n", err)
 		t.Fatal()
 	}
 
-	fmt.Printf("programAST %+v\n", programAST)
+	fmt.Printf(programASTString, programAST)
+}
+
+func TestParseDeclarationStatement(t *testing.T) {
+	// TODO: we need the rest of the declaration types and stuff
+	b, err = getBuilderFromString(tests[StatementTest]["decl"])
+	if err != nil {
+		fmt.Println("err", err)
+		t.Fatal()
+	}
+
+	programAST, err = b.ParseDeclarationStatement()
+	if err != nil {
+		fmt.Printf("err %+v\n", err)
+		t.Fatal()
+	}
+
+	fmt.Printf(programASTString, programAST)
 }
 
 func TestParseAssignmentFromIndexStatement(t *testing.T) {
-	b, err := getBuilderFromString(tests[StatementTest]["assignFromIndex"])
+	b, err = getBuilderFromString(tests[StatementTest]["assignFromIndex"])
 	if err != nil {
 		t.Errorf("err %+v\n", err)
 	}
 
-	programAST, err := b.ParseAssignmentStatement()
+	programAST, err = b.ParseAssignmentStatement()
 	if err != nil {
 		fmt.Printf("err %+v\n", err)
 		t.Fatal()
 	}
 
 	// Use DFS for this
-	fmt.Printf("programAST %+v\n", programAST)
-	fmt.Printf("programAST %+v\n", programAST.Left)
-	fmt.Printf("programAST %+v\n", programAST.Right)
+	fmt.Printf(programASTString, programAST)
+	fmt.Printf(programASTString, programAST.Left)
+	fmt.Printf(programASTString, programAST.Right)
 }
 
 func TestParseAssignmentStatement(t *testing.T) {
-	b, err := getBuilderFromString(tests[StatementTest]["simpleAssign"])
+	b, err = getBuilderFromString(tests[StatementTest]["simpleAssign"])
 	if err != nil {
 		fmt.Println("err", err)
 		t.Fatal()
 	}
 
-	programAST, err := b.ParseAssignmentStatement()
+	programAST, err = b.ParseAssignmentStatement()
 	if err != nil {
 		fmt.Printf("err %+v\n", err)
 		t.Fatal()
 	}
 
-	fmt.Printf("programAST %+v\n", programAST)
+	fmt.Printf(programASTString, programAST)
 }
 
 func TestIfElseStatement(t *testing.T) {
-	b, err := getBuilderFromString(tests[StatementTest]["ifElse"])
+	b, err = getBuilderFromString(tests[StatementTest]["ifElse"])
 	if err != nil {
 		t.Errorf("err %+v\n", err)
 	}
 
-	programAST, err := b.ParseIfStatement()
+	programAST, err = b.ParseIfStatement()
 	if err != nil {
 		t.Errorf("err %+v\n", err)
 	}
 
-	fmt.Printf("programAST %+v\n", programAST)
+	fmt.Printf(programASTString, programAST)
 }
 
 func TestParseGroupOfStatements(t *testing.T) {
 	test := "(int i, string s)"
 
-	b, err := getBuilderFromString(test)
+	b, err = getBuilderFromString(test)
 	if err != nil {
 		t.Errorf("err %+v\n", err)
 	}
 
-	programAST, err := b.ParseGroupOfStatements()
+	programAST, err = b.ParseGroupOfStatements()
 	if err != nil {
 		t.Errorf("err %+v\n", err)
 	}
@@ -87,12 +103,12 @@ func TestParseGroupOfStatements(t *testing.T) {
 }
 
 func TestParseFunctionStatement(t *testing.T) {
-	b, err := getBuilderFromString(tests[StatementTest]["funcDef"])
+	b, err = getBuilderFromString(tests[StatementTest]["funcDef"])
 	if err != nil {
 		t.Errorf("err %+v\n", err)
 	}
 
-	programAST, err := b.ParseFunctionStatement()
+	programAST, err = b.ParseFunctionStatement()
 	if err != nil {
 		t.Errorf("err %+v\n", err)
 	}
@@ -101,12 +117,12 @@ func TestParseFunctionStatement(t *testing.T) {
 }
 
 func TestParseCallAssignmentStatement(t *testing.T) {
-	b, err := getBuilderFromString(tests[StatementTest]["callAssign"])
+	b, err = getBuilderFromString(tests[StatementTest]["callAssign"])
 	if err != nil {
 		t.Errorf("err %+v\n", err)
 	}
 
-	programAST, err := b.ParseAssignmentStatement()
+	programAST, err = b.ParseAssignmentStatement()
 	if err != nil {
 		t.Errorf("err %+v\n", err)
 	}
@@ -115,166 +131,166 @@ func TestParseCallAssignmentStatement(t *testing.T) {
 }
 
 func TestParseBlockStatement(t *testing.T) {
-	b, err := getBuilderFromString(tests[StatementTest]["block"])
+	b, err = getBuilderFromString(tests[StatementTest]["block"])
 	if err != nil {
 		t.Errorf("err %+v\n", err)
 	}
 
-	programAST, err := b.ParseBlockStatement()
+	programAST, err = b.ParseBlockStatement()
 	if err != nil {
 		fmt.Printf("err %+v\n", err)
 		t.Fatal()
 	}
 
-	fmt.Printf("programAST %+v\n", programAST)
+	fmt.Printf(programASTString, programAST)
 }
 
 func TestParseDerefAssignmentStatement(t *testing.T) {
-	b, err := getBuilderFromString(tests[StatementTest]["derefAssign"])
+	b, err = getBuilderFromString(tests[StatementTest]["derefAssign"])
 	if err != nil {
 		t.Errorf("err %+v\n", err)
 	}
 
-	programAST, err := b.ParseStatement()
+	programAST, err = b.ParseStatement()
 	if err != nil {
 		fmt.Printf("err %+v\n", err)
 		t.Fatal()
 	}
 
-	fmt.Printf("programAST %+v\n", programAST)
+	fmt.Printf(programASTString, programAST)
 }
 
 func TestParsePackageStatement(t *testing.T) {
-	b, err := getBuilderFromString(tests[StatementTest]["package"])
+	b, err = getBuilderFromString(tests[StatementTest]["package"])
 	if err != nil {
 		t.Errorf("err %+v\n", err)
 	}
 
-	programAST, err := b.ParsePackageStatement()
+	programAST, err = b.ParsePackageStatement()
 	if err != nil {
 		fmt.Printf("err %+v\n", err)
 		t.Fatal()
 	}
 
-	fmt.Printf("programAST %+v\n", programAST)
+	fmt.Printf(programASTString, programAST)
 }
 
 func TestParseImportStatement(t *testing.T) {
-	b, err := getBuilderFromString(tests[StatementTest]["import"])
+	b, err = getBuilderFromString(tests[StatementTest]["import"])
 	if err != nil {
 		t.Errorf("err %+v\n", err)
 	}
 
-	programAST, err := b.ParseImportStatement()
+	programAST, err = b.ParseImportStatement()
 	if err != nil {
 		fmt.Printf("err %+v\n", err)
 		t.Fatal()
 	}
 
-	fmt.Printf("programAST %+v\n", programAST)
+	fmt.Printf(programASTString, programAST)
 }
 
 func TestParseIncludeStatement(t *testing.T) {
-	b, err := getBuilderFromString(tests[StatementTest]["include"])
+	b, err = getBuilderFromString(tests[StatementTest]["include"])
 	if err != nil {
 		t.Errorf("err %+v\n", err)
 	}
 
-	programAST, err := b.ParseIncludeStatement()
+	programAST, err = b.ParseIncludeStatement()
 	if err != nil {
 		fmt.Printf("err %+v\n", err)
 		t.Fatal()
 	}
 
-	fmt.Printf("programAST %+v\n", programAST)
+	fmt.Printf(programASTString, programAST)
 }
 
 func TestParseForStatement(t *testing.T) {
-	b, err := getBuilderFromString(tests[StatementTest]["stdFor"])
+	b, err = getBuilderFromString(tests[StatementTest]["stdFor"])
 	if err != nil {
 		t.Errorf("err %+v\n", err)
 	}
 
-	programAST, err := b.ParseForStatement()
+	programAST, err = b.ParseForStatement()
 	if err != nil {
 		fmt.Printf("err %+v\n", err)
 		t.Fatal()
 	}
 
-	fmt.Printf("programAST %+v\n", programAST)
+	fmt.Printf(programASTString, programAST)
 }
 
 func TestParseForStdStatement(t *testing.T) {
-	b, err := getBuilderFromString(tests[StatementTest]["stdFor"])
+	b, err = getBuilderFromString(tests[StatementTest]["stdFor"])
 	if err != nil {
 		t.Errorf("err %+v\n", err)
 	}
 
-	programAST, err := b.ParseForStdStatement()
+	programAST, err = b.ParseForStdStatement()
 	if err != nil {
 		fmt.Printf("err %+v\n", err)
 		t.Fatal()
 	}
 
-	fmt.Printf("programAST %+v\n", programAST)
+	fmt.Printf(programASTString, programAST)
 }
 
 func TestParseArrayDeclaration(t *testing.T) {
-	b, err := getBuilderFromString(tests[StatementTest]["arrayDef"])
+	b, err = getBuilderFromString(tests[StatementTest]["arrayDef"])
 	if err != nil {
 		t.Errorf("err %+v\n", err)
 	}
 
-	programAST, err := b.ParseDeclarationStatement()
+	programAST, err = b.ParseDeclarationStatement()
 	if err != nil {
 		fmt.Printf("err %+v\n", err)
 		t.Fatal()
 	}
 
-	fmt.Printf("programAST %+v\n", programAST)
+	fmt.Printf(programASTString, programAST)
 }
 
 func TestParseForInStatement(t *testing.T) {
-	b, err := getBuilderFromString(tests[StatementTest]["forin"])
+	b, err = getBuilderFromString(tests[StatementTest]["forin"])
 	if err != nil {
 		t.Errorf("err %+v\n", err)
 	}
 
-	programAST, err := b.ParseForPrepositionStatement()
+	programAST, err = b.ParseForPrepositionStatement()
 	if err != nil {
 		fmt.Printf("err %+v\n", err)
 		t.Fatal()
 	}
 
-	fmt.Printf("programAST %+v\n", programAST)
+	fmt.Printf(programASTString, programAST)
 }
 
 func TestParseForOfStatement(t *testing.T) {
-	b, err := getBuilderFromString(tests[StatementTest]["forin"])
+	b, err = getBuilderFromString(tests[StatementTest]["forin"])
 	if err != nil {
 		t.Errorf("err %+v\n", err)
 	}
 
-	programAST, err := b.ParseForPrepositionStatement()
+	programAST, err = b.ParseForPrepositionStatement()
 	if err != nil {
 		fmt.Printf("err %+v\n", err)
 		t.Fatal()
 	}
 
-	fmt.Printf("programAST %+v\n", programAST)
+	fmt.Printf(programASTString, programAST)
 }
 
 func TestParseIndexAssignmentStatement(t *testing.T) {
-	b, err := getBuilderFromString(tests[StatementTest]["indexAssign"])
+	b, err = getBuilderFromString(tests[StatementTest]["indexAssign"])
 	if err != nil {
 		t.Errorf("err %+v\n", err)
 	}
 
-	programAST, err := b.ParseAssignmentStatement()
+	programAST, err = b.ParseAssignmentStatement()
 	if err != nil {
 		fmt.Printf("err %+v\n", err)
 		t.Fatal()
 	}
 
-	fmt.Printf("programAST %+v\n", programAST)
+	fmt.Printf(programASTString, programAST)
 }
