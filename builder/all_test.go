@@ -14,14 +14,12 @@ func TestAllStatements(t *testing.T) {
 		fmt.Printf(runningString, name)
 		b, err = getBuilderFromString(stmt)
 		if err != nil {
-			fmt.Printf(errString, err)
-			t.Fatal()
+			t.Errorf(errString, err)
 		}
 
 		programAST, err = b.ParseStatement()
 		if err != nil {
-			fmt.Printf(errString, err)
-			t.Fatal()
+			t.Errorf(errString, err)
 		}
 
 		fmt.Printf(programASTString, programAST)
@@ -33,14 +31,12 @@ func TestAllExpressions(t *testing.T) {
 		fmt.Printf(runningString, name)
 		b, err = getBuilderFromString(expr)
 		if err != nil {
-			fmt.Printf(errString, err)
-			t.Fatal()
+			t.Errorf(errString, err)
 		}
 
 		programAST, err = b.ParseExpression()
 		if err != nil {
-			fmt.Printf(errString, err)
-			t.Fatal()
+			t.Errorf(errString, err)
 		}
 
 		fmt.Printf(programASTString, programAST)
