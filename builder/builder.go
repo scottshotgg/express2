@@ -1,36 +1,40 @@
 package builder
 
 import (
-	"fmt"
-
 	"github.com/pkg/errors"
 
 	"github.com/scottshotgg/express-token"
 )
 
-type Node struct {
-	Type     string
-	Kind     string
-	Value    interface{}
-	Metadata map[string]interface{}
-	Left     *Node
-	Right    *Node
-}
+type (
+	opCallbackFn func(n *Node) (*Node, error)
 
-type Builder struct {
-	Tokens []token.Token
-	Index  int
-	// [op_tier][op] -> func
-	OpFuncMap map[int]map[string]func(n *Node) (*Node, error)
-}
+	Node struct {
+		Type     string
+		Kind     string
+		Value    interface{}
+		Metadata map[string]interface{}
+		Left     *Node
+		Right    *Node
+	}
 
-type Index struct {
-	Type  string
-	Value interface{}
-}
+	Builder struct {
+		Tokens []token.Token
+		Index  int
+		// [op_tier][op] -> func
+		OpFuncMap []map[string]opCallbackFn
+	}
+
+	Index struct {
+		Type  string
+		Value interface{}
+	}
+)
 
 var (
 	ErrNotImplemented = errors.New("Not implemented")
+	ErrMultDimArrInit = errors.New("Cannot use multiple expression inside array type initializer")
+	ErrOutOfTokens    = errors.New("Out of tokens")
 )
 
 func New(tokens []token.Token) *Builder {
@@ -38,13 +42,18 @@ func New(tokens []token.Token) *Builder {
 		Tokens: tokens,
 	}
 
-	b.OpFuncMap = map[int]map[string]func(n *Node) (*Node, error){
-		1: map[string]func(n *Node) (*Node, error){
+	b.OpFuncMap = []map[string]opCallbackFn{
+		0: map[string]opCallbackFn{
 			token.Increment: b.ParseIncrement,
-			token.LThan:     b.ParseConditionExpression,
+			token.Accessor:  b.ParseSelection,
 			token.LBracket:  b.ParseIndexExpression,
 			token.LParen:    b.ParseCall,
-			token.Accessor:  b.ParseSelection,
+			token.LThan:     b.ParseConditionExpression,
+			// token.PriOp: b.ParsePriOp,
+		},
+
+		1: map[string]opCallbackFn{
+			// token.SecOp: b.ParseSecOp,
 		},
 	}
 
@@ -53,7 +62,7 @@ func New(tokens []token.Token) *Builder {
 
 func (b *Builder) GetNextToken() (*token.Token, error) {
 	if b.Index > len(b.Tokens)-1 {
-		return nil, errors.New("Out of tokens")
+		return nil, ErrOutOfTokens
 	}
 
 	return &b.Tokens[b.Index], nil
@@ -62,16 +71,20 @@ func (b *Builder) GetNextToken() (*token.Token, error) {
 func (b *Builder) ParseGroupOfExpressions() (*Node, error) {
 	// Check ourselves
 	if b.Tokens[b.Index].Type != token.LParen {
-		return nil, errors.New("Could not get group of expressions")
+		return b.AppendTokenToError("Could not get group of expressions")
 	}
 
 	// Skip over the left paren token
 	b.Index++
 
-	exprs := []*Node{}
+	var (
+		expr  *Node
+		exprs []*Node
+		err   error
+	)
 
 	for b.Tokens[b.Index].Type != token.RParen {
-		expr, err := b.ParseExpression()
+		expr, err = b.ParseExpression()
 		if err != nil {
 			return nil, err
 		}
@@ -98,7 +111,7 @@ func (b *Builder) ParseGroupOfExpressions() (*Node, error) {
 func (b *Builder) ParseCall(n *Node) (*Node, error) {
 	// Check ourselves ...
 	if b.Tokens[b.Index].Type != token.LParen {
-		return nil, errors.New("Could not get lparen in function call;")
+		return b.AppendTokenToError("Could not get lparen in function call")
 	}
 
 	// We are not allowing for named arguments right now
@@ -119,16 +132,20 @@ func (b *Builder) ParseCall(n *Node) (*Node, error) {
 func (b *Builder) ParseBlockStatement() (*Node, error) {
 	// Check ourselves ...
 	if b.Tokens[b.Index].Type != token.LBrace {
-		return nil, errors.Errorf("Could not get lbrace; %s", b.Tokens[b.Index].Type)
+		return b.AppendTokenToError("Could not get left brace")
 	}
 
 	// Increment over the left brace token
 	b.Index++
 
-	stmts := []*Node{}
+	var (
+		stmt  *Node
+		stmts []*Node
+		err   error
+	)
 
 	for b.Tokens[b.Index].Type != token.RBrace {
-		stmt, err := b.ParseStatement()
+		stmt, err = b.ParseStatement()
 		if err != nil {
 			return nil, err
 		}
@@ -148,7 +165,7 @@ func (b *Builder) ParseBlockStatement() (*Node, error) {
 func (b *Builder) ParseReturnStatement() (*Node, error) {
 	// Check ourselves ...
 	if b.Tokens[b.Index].Type != token.Return {
-		return nil, errors.Errorf("Could not get return; %+v", b.Tokens[b.Index])
+		return b.AppendTokenToError("Could not get return")
 	}
 
 	// Skip over the `return` token
@@ -180,12 +197,12 @@ func (b *Builder) ParseDeref() (*Node, error) {
 	// Check ourselves ...
 	if b.Tokens[b.Index].Type != token.PriOp &&
 		b.Tokens[b.Index].Value.String == "*" {
-		return nil, errors.Errorf("Could not get deref; %+v", b.Tokens[b.Index])
+		return b.AppendTokenToError("Could not get deref")
 	}
 
-	// Look ahead and make sure it is an ident; you can't deref just anything...
+	// Look ahead and make sure it is an ident;you can't deref just anything...
 	if b.Tokens[b.Index+1].Type != token.Ident {
-		return nil, errors.Errorf("Could not get ident to deref; %+v", b.Tokens[b.Index])
+		return b.AppendTokenToError("Could not get ident to deref")
 	}
 
 	// Step over the deref
@@ -250,13 +267,13 @@ func (b *Builder) ParseStatement() (*Node, error) {
 		return b.ParseReturnStatement()
 	}
 
-	return nil, errors.Errorf("Could not get statement from; %+v", b.Tokens[b.Index])
+	return b.AppendTokenToError("Could not get statement from")
 }
 
 func (b *Builder) ParseForPrepositionStatement() (*Node, error) {
 	// Check ourselves ...
 	if b.Tokens[b.Index].Type != token.For {
-		return nil, errors.New("Could not get for in")
+		return b.AppendTokenToError("Could not get for in")
 	}
 
 	// Step over the for token
@@ -281,7 +298,7 @@ func (b *Builder) ParseForPrepositionStatement() (*Node, error) {
 		prepType = "forof"
 
 	default:
-		return nil, errors.New("Could not get preposition; " + b.Tokens[b.Index].Value.String)
+		return b.AppendTokenToError("Could not get preposition")
 	}
 
 	// Step over the preposition
@@ -311,7 +328,7 @@ func (b *Builder) ParseForPrepositionStatement() (*Node, error) {
 func (b *Builder) ParseForStdStatement() (*Node, error) {
 	// Check ourselves ...
 	if b.Tokens[b.Index].Type != token.For {
-		return nil, errors.Errorf("Could not get for std; %+v", b.Tokens[b.Index])
+		return b.AppendTokenToError("Could not get for std")
 	}
 
 	// Step over the for token
@@ -371,21 +388,23 @@ func (b *Builder) ParseForStdStatement() (*Node, error) {
 	return &node, nil
 }
 
+func (b *Builder) AppendTokenToError(errText string) (*Node, error) {
+	if b.Index < len(b.Tokens)-1 {
+		return nil, errors.Errorf(errText+"; %+v", b.Tokens[b.Index])
+	}
+
+	return nil, errors.New(errText)
+}
+
 func (b *Builder) ParseForStatement() (*Node, error) {
 	// Check ourselves ...
 	if b.Tokens[b.Index].Type != token.For {
-		return nil, errors.New("Could not get for std")
+		return b.AppendTokenToError("Could not get for std")
 	}
 
 	if b.Index > len(b.Tokens)-2 {
-		return nil, errors.New("Out of tokens")
+		return nil, ErrOutOfTokens
 	}
-
-	// Clone the builder to backtrack
-	// jsonClone, _ := json.Marshal(b)
-	// // Click back to the last save
-	// bp := &builder.Builder{}
-	// json.Unmarshal(jsonClone, bp)
 
 	// For right now just look ahead two
 	if b.Tokens[b.Index+2].Type == token.Keyword {
@@ -398,7 +417,7 @@ func (b *Builder) ParseForStatement() (*Node, error) {
 func (b *Builder) ParseIfStatement() (*Node, error) {
 	// Check ourselves ...
 	if b.Tokens[b.Index].Type != token.If {
-		return nil, errors.New("Could not get if")
+		return b.AppendTokenToError("Could not get if")
 	}
 
 	// Step over the if token
@@ -414,19 +433,15 @@ func (b *Builder) ParseIfStatement() (*Node, error) {
 	// TODO: this will have to move inside the expression I think
 	b.Index++
 
-	block, err := b.ParseBlockStatement()
+	n := Node{
+		Type:  "if",
+		Value: condition,
+	}
+
+	n.Left, err = b.ParseBlockStatement()
 	if err != nil {
 		return nil, err
 	}
-
-	var elseBlock *Node
-
-	// Check for an else block
-	// nt, err := b.GetNextToken()
-	// if err != nil {
-	// 	// TODO: need to return a better error here
-	// 	return nil, err
-	// }
 
 	if b.Index < len(b.Tokens)-1 && b.Tokens[b.Index].Type == token.Else {
 		// Step over the else token
@@ -434,24 +449,19 @@ func (b *Builder) ParseIfStatement() (*Node, error) {
 
 		// Check for an else if
 		if b.Tokens[b.Index].Type == token.If {
-			elseBlock, err = b.ParseIfStatement()
+			n.Right, err = b.ParseIfStatement()
 			if err != nil {
 				return nil, err
 			}
 		} else {
-			elseBlock, err = b.ParseBlockStatement()
+			n.Right, err = b.ParseBlockStatement()
 			if err != nil {
 				return nil, err
 			}
 		}
 	}
 
-	return &Node{
-		Type:  "if",
-		Value: condition,
-		Left:  block,
-		Right: elseBlock,
-	}, nil
+	return &n, nil
 }
 
 func (b *Builder) ParseArrayType(typeOf string) (*Node, error) {
@@ -475,7 +485,7 @@ func (b *Builder) ParseArrayType(typeOf string) (*Node, error) {
 
 		nodesAssert, ok := expr.Value.([]*Node)
 		if !ok {
-			return nil, errors.Errorf("Invalid assertion; %+v", expr.Value)
+			return nil, errors.Errorf("Invalid assertion; %+v", expr)
 		}
 
 		var dimValue Index
@@ -493,7 +503,7 @@ func (b *Builder) ParseArrayType(typeOf string) (*Node, error) {
 			dimValue.Value = -1
 
 		default:
-			return nil, errors.New("Cannot use multiple expression inside array type initializer")
+			return nil, ErrMultDimArrInit
 		}
 
 		dim = append(dim, &dimValue)
@@ -514,7 +524,7 @@ func (b *Builder) ParseArrayType(typeOf string) (*Node, error) {
 func (b *Builder) ParseType() (*Node, error) {
 	// Check ourselves ...
 	if b.Tokens[b.Index].Type != token.Type {
-		return nil, errors.New("Could not get type; " + b.Tokens[b.Index].Value.String)
+		return b.AppendTokenToError("Could not get type")
 	}
 
 	// TODO: we would need to implement something like this
@@ -540,11 +550,11 @@ func (b *Builder) ParseType() (*Node, error) {
 
 func (b *Builder) ParseIndexExpression(n *Node) (*Node, error) {
 	if b.Index > len(b.Tokens)-1 {
-		return nil, errors.Errorf("Out of tokens")
+		return nil, ErrOutOfTokens
 	}
 
 	if b.Tokens[b.Index].Type != token.LBracket {
-		return nil, errors.Errorf("Could not get LBracket")
+		return b.AppendTokenToError("Could not get left bracket")
 	}
 
 	b.Index++
@@ -573,7 +583,7 @@ func (b *Builder) ParseDeclarationStatement() (*Node, error) {
 
 	// Check that the next token is an ident
 	if b.Tokens[b.Index].Type != token.Ident {
-		return nil, errors.New("Could not get declaration statement without ident")
+		return b.AppendTokenToError("Could not get declaration statement")
 	}
 
 	// Create the ident
@@ -619,7 +629,7 @@ func (b *Builder) ParseDeclarationStatement() (*Node, error) {
 func (b *Builder) ParseTypeDeclarationStatement() (*Node, error) {
 	// Check ourselves ...
 	if b.Tokens[b.Index].Type != token.TypeDef {
-		return nil, errors.New("Could not get type declaration statement")
+		return b.AppendTokenToError("Could not get type declaration statement")
 	}
 
 	// Skip over the `type` token
@@ -636,7 +646,7 @@ func (b *Builder) ParseTypeDeclarationStatement() (*Node, error) {
 
 	// Check for the equals token
 	if b.Tokens[b.Index].Type != token.Assign {
-		return nil, errors.New("No equals found after ident in typedef")
+		return b.AppendTokenToError("No equals found after ident in typedef")
 	}
 
 	// Increment over the equals
@@ -645,7 +655,7 @@ func (b *Builder) ParseTypeDeclarationStatement() (*Node, error) {
 	// Parse the right hand side
 	typeOf, err := b.ParseType()
 	if err != nil {
-		return nil, errors.New("Could not get expression")
+		return nil, err
 	}
 
 	// Increment over the first part of the expression
@@ -661,7 +671,7 @@ func (b *Builder) ParseTypeDeclarationStatement() (*Node, error) {
 func (b *Builder) ParseStructStatement() (*Node, error) {
 	// Check ourselves ...
 	if b.Tokens[b.Index].Type != token.Struct {
-		return nil, errors.New("Could not get struct declaration statement")
+		return b.AppendTokenToError("Could not get struct declaration statement")
 	}
 
 	// Skip over the `struct` token
@@ -678,7 +688,7 @@ func (b *Builder) ParseStructStatement() (*Node, error) {
 
 	// Check for the equals token
 	if b.Tokens[b.Index].Type != token.Assign {
-		return nil, errors.New("No equals found after ident in struct def")
+		return b.AppendTokenToError("No equals found after ident in struct def")
 	}
 
 	// Increment over the equals
@@ -687,7 +697,7 @@ func (b *Builder) ParseStructStatement() (*Node, error) {
 	// Parse the right hand side
 	body, err := b.ParseBlockStatement()
 	if err != nil {
-		return nil, errors.New("Could not get expression")
+		return nil, err
 	}
 
 	// Increment over the first part of the expression
@@ -703,7 +713,7 @@ func (b *Builder) ParseStructStatement() (*Node, error) {
 func (b *Builder) ParseLetStatement() (*Node, error) {
 	// Check ourselves ...
 	if b.Tokens[b.Index].Type != token.Let {
-		return nil, errors.New("Could not get let statement")
+		return b.AppendTokenToError("Could not get let statement")
 	}
 
 	// Skip over the let token
@@ -722,7 +732,7 @@ func (b *Builder) ParseLetStatement() (*Node, error) {
 		// This is where we would implement variable declarations
 		// without values, other types of assignment, etc
 		// Leave it alone for now
-		return nil, errors.New("No equals found after ident in let")
+		return b.AppendTokenToError("No equals found after ident in let")
 	}
 
 	// Increment over the equals
@@ -748,7 +758,7 @@ func (b *Builder) ParseAssignmentStatement() (*Node, error) {
 	// into: [expr] = [expr]
 	// Check that the next token is an ident
 	if b.Tokens[b.Index].Type != token.Ident {
-		return nil, errors.New("Could not get assignment statement without ident")
+		return b.AppendTokenToError("Could not get assignment statement without ident")
 	}
 
 	ident, err := b.ParseExpression()
@@ -764,7 +774,7 @@ func (b *Builder) ParseAssignmentStatement() (*Node, error) {
 		// This is where we would implement variable declarations
 		// without values, other types of assignment, etc
 		// Leave it alone for now
-		return nil, errors.New("No equals found after ident")
+		return b.AppendTokenToError("No equals found after ident")
 	}
 
 	// Increment over the equals
@@ -789,7 +799,7 @@ func (b *Builder) ParseAssignmentStatement() (*Node, error) {
 func (b *Builder) ParsePackageStatement() (*Node, error) {
 	// Check ourselves ...
 	if b.Tokens[b.Index].Type != token.Package {
-		return nil, errors.New("Could not get package statement")
+		return b.AppendTokenToError("Could not get package statement")
 	}
 
 	// Step over the package token
@@ -809,7 +819,7 @@ func (b *Builder) ParsePackageStatement() (*Node, error) {
 func (b *Builder) ParseImportStatement() (*Node, error) {
 	// Check ourselves ...
 	if b.Tokens[b.Index].Type != token.Import {
-		return nil, errors.New("Could not get import statement")
+		return b.AppendTokenToError("Could not get import statement")
 	}
 
 	// Step over the import token
@@ -829,7 +839,7 @@ func (b *Builder) ParseImportStatement() (*Node, error) {
 func (b *Builder) ParseIncludeStatement() (*Node, error) {
 	// Check ourselves ...
 	if b.Tokens[b.Index].Type != token.Include {
-		return nil, errors.New("Could not get include statement")
+		return b.AppendTokenToError("Could not get include statement")
 	}
 
 	// Step over the import token
@@ -848,7 +858,6 @@ func (b *Builder) ParseIncludeStatement() (*Node, error) {
 
 func (b *Builder) ParseExpression() (*Node, error) {
 	// This is where we will implement secondary tier operators (+ , -)
-
 	return b.ParseTerm()
 }
 
@@ -890,7 +899,7 @@ func (b *Builder) ParseTerm() (*Node, error) {
 	// LOOKAHEAD performed to figure out whether the expression is done
 	for b.Index < len(b.Tokens)-1 {
 		// Look for a tier1 operator in the func map
-		opFunc, ok := b.OpFuncMap[1][b.Tokens[b.Index+1].Type]
+		opFunc, ok := b.OpFuncMap[0][b.Tokens[b.Index+1].Type]
 		if !ok {
 			break
 		}
@@ -951,13 +960,13 @@ func (b *Builder) ParseFactor() (*Node, error) {
 		return b.ParseBlockStatement()
 	}
 
-	return nil, errors.Errorf("Could not parse factor from token; %+v", b.Tokens[b.Index])
+	return b.AppendTokenToError("Could not parse expression from token")
 }
 
 func (b *Builder) ParseNestedExpression() (*Node, error) {
 	// Check ourselves
 	if b.Tokens[b.Index].Type != token.LParen {
-		return nil, errors.New("Could not get nested expression")
+		return b.AppendTokenToError("Could not get nested expression")
 	}
 
 	// Skip over the left paren
@@ -972,7 +981,7 @@ func (b *Builder) ParseNestedExpression() (*Node, error) {
 	b.Index++
 
 	if b.Tokens[b.Index].Type != token.RParen {
-		return nil, errors.Errorf("No rparen found at end of factor-expression: %+v", b.Tokens[b.Index])
+		return b.AppendTokenToError("No rparen found at end of factor-expression")
 	}
 
 	// Skip over the right paren
@@ -983,11 +992,11 @@ func (b *Builder) ParseNestedExpression() (*Node, error) {
 
 func (b *Builder) ParseSelection(n *Node) (*Node, error) {
 	if b.Index > len(b.Tokens)-1 {
-		return nil, errors.Errorf("Out of tokens")
+		return nil, ErrOutOfTokens
 	}
 
 	if b.Tokens[b.Index].Type != token.Accessor {
-		return nil, errors.Errorf("Could not get selection operator; %+v", b.Tokens[b.Index])
+		return b.AppendTokenToError("Could not get selection operator")
 	}
 
 	b.Index++
@@ -1008,7 +1017,7 @@ func (b *Builder) ParseSelection(n *Node) (*Node, error) {
 func (b *Builder) ParseArrayExpression() (*Node, error) {
 	// Check ourselves
 	if b.Tokens[b.Index].Type != token.LBracket {
-		return nil, errors.New("Could not get array expression")
+		return b.AppendTokenToError("Could not get array expression")
 	}
 
 	// Skip over the left bracket token
@@ -1044,7 +1053,7 @@ func (b *Builder) ParseArrayExpression() (*Node, error) {
 func (b *Builder) ParseGroupOfStatements() (*Node, error) {
 	// Check ourselves
 	if b.Tokens[b.Index].Type != token.LParen {
-		return nil, errors.New("Could not get group of statements")
+		return b.AppendTokenToError("Could not get group of statements")
 	}
 
 	// Skip over the left paren token
@@ -1078,7 +1087,7 @@ func (b *Builder) ParseGroupOfStatements() (*Node, error) {
 func (b *Builder) ParseFunctionStatement() (*Node, error) {
 	// Check ourselves
 	if b.Tokens[b.Index].Type != token.Function {
-		return nil, errors.New("Could not get function")
+		return b.AppendTokenToError("Could not get function")
 	}
 
 	// Step over the function token
@@ -1091,7 +1100,7 @@ func (b *Builder) ParseFunctionStatement() (*Node, error) {
 
 	// Named function
 	if b.Tokens[b.Index].Type != token.Ident {
-		return nil, errors.New("Could not get ident after function token")
+		return b.AppendTokenToError("Could not get ident after function token")
 	}
 
 	node.Value = b.Tokens[b.Index].Value.String
@@ -1099,7 +1108,7 @@ func (b *Builder) ParseFunctionStatement() (*Node, error) {
 	b.Index++
 
 	if b.Tokens[b.Index].Type != token.LParen {
-		return nil, errors.New("Could not get lparen")
+		return b.AppendTokenToError("Could not get left paren")
 	}
 
 	args, err := b.ParseGroupOfStatements()
@@ -1111,7 +1120,7 @@ func (b *Builder) ParseFunctionStatement() (*Node, error) {
 	node.Metadata["args"] = args
 
 	// We are not supporting multiple returns for now
-	// // Check for multiple returns; another left paren
+	// // Check for multiple returns;another left paren
 	// if b.Tokens[b.Index].Type == token.LParen {
 	// 	return nil, errors.New("Could not get returns")
 	// }
@@ -1136,7 +1145,7 @@ func (b *Builder) ParseFunctionStatement() (*Node, error) {
 	return node, nil
 }
 
-func (b *Builder) BuildAST() (Node, error) {
+func (b *Builder) BuildAST() (*Node, error) {
 	for b.Index < len(b.Tokens)-1 {
 		// switch b.Tokens[i].Type {
 		// case token.Function:
@@ -1145,19 +1154,18 @@ func (b *Builder) BuildAST() (Node, error) {
 		// }
 		stmt, err := b.ParseStatement()
 		if err != nil {
-			return Node{}, err
+			return nil, err
 		}
 
+		// Just a fallback
 		if stmt == nil {
-			return Node{}, errors.New("Could not get statement")
+			return b.AppendTokenToError("Could not get statement")
 		}
-
-		fmt.Println("stmt", stmt)
 	}
 
 	// fmt.Println(b.ParseBlock())
 
-	return Node{
+	return &Node{
 		Type: "program",
 	}, nil
 }
