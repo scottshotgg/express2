@@ -111,7 +111,7 @@ func (b *Builder) ParseGroupOfExpressions() (*Node, error) {
 func (b *Builder) ParseCall(n *Node) (*Node, error) {
 	// Check ourselves ...
 	if b.Tokens[b.Index].Type != token.LParen {
-		return b.AppendTokenToError("Could not get lparen in function call")
+		return b.AppendTokenToError("Could not get left paren")
 	}
 
 	// We are not allowing for named arguments right now
@@ -217,57 +217,6 @@ func (b *Builder) ParseDeref() (*Node, error) {
 		Type: "deref",
 		Left: ident,
 	}, nil
-}
-
-// TODO: what if types were expressions ...
-
-// ParseStatement ** does ** not look ahead
-func (b *Builder) ParseStatement() (*Node, error) {
-	switch b.Tokens[b.Index].Type {
-	case token.PriOp:
-		return b.ParseDeref()
-
-	case token.Package:
-		return b.ParsePackageStatement()
-
-	case token.Import:
-		return b.ParseImportStatement()
-
-	case token.Include:
-		return b.ParseIncludeStatement()
-
-	case token.TypeDef:
-		return b.ParseTypeDeclarationStatement()
-
-	case token.Type:
-		return b.ParseDeclarationStatement()
-
-	case token.Ident:
-		return b.ParseAssignmentStatement()
-
-	case token.Function:
-		return b.ParseFunctionStatement()
-
-	case token.LBrace:
-		return b.ParseBlockStatement()
-
-	case token.Struct:
-		return b.ParseStructStatement()
-
-	case token.Let:
-		return b.ParseLetStatement()
-
-	case token.If:
-		return b.ParseIfStatement()
-
-	case token.For:
-		return b.ParseForStatement()
-
-	case token.Return:
-		return b.ParseReturnStatement()
-	}
-
-	return b.AppendTokenToError("Could not get statement from")
 }
 
 func (b *Builder) ParseForPrepositionStatement() (*Node, error) {
@@ -1023,10 +972,14 @@ func (b *Builder) ParseArrayExpression() (*Node, error) {
 	// Skip over the left bracket token
 	b.Index++
 
-	exprs := []*Node{}
+	var (
+		expr  *Node
+		exprs []*Node
+		err   error
+	)
 
 	for b.Index < len(b.Tokens) && b.Tokens[b.Index].Type != token.RBracket {
-		expr, err := b.ParseExpression()
+		expr, err = b.ParseExpression()
 		if err != nil {
 			return nil, err
 		}
@@ -1059,10 +1012,14 @@ func (b *Builder) ParseGroupOfStatements() (*Node, error) {
 	// Skip over the left paren token
 	b.Index++
 
-	stmts := []*Node{}
+	var (
+		stmt  *Node
+		stmts []*Node
+		err   error
+	)
 
 	for b.Tokens[b.Index].Type != token.RParen {
-		stmt, err := b.ParseStatement()
+		stmt, err = b.ParseStatement()
 		if err != nil {
 			return nil, err
 		}
@@ -1093,7 +1050,7 @@ func (b *Builder) ParseFunctionStatement() (*Node, error) {
 	// Step over the function token
 	b.Index++
 
-	node := &Node{
+	node := Node{
 		Type:     "function",
 		Metadata: map[string]interface{}{},
 	}
@@ -1142,7 +1099,58 @@ func (b *Builder) ParseFunctionStatement() (*Node, error) {
 		return nil, err
 	}
 
-	return node, nil
+	return &node, nil
+}
+
+// TODO: what if types were expressions ...
+
+// ParseStatement ** does ** not look ahead
+func (b *Builder) ParseStatement() (*Node, error) {
+	switch b.Tokens[b.Index].Type {
+	case token.PriOp:
+		return b.ParseDeref()
+
+	case token.Package:
+		return b.ParsePackageStatement()
+
+	case token.Import:
+		return b.ParseImportStatement()
+
+	case token.Include:
+		return b.ParseIncludeStatement()
+
+	case token.TypeDef:
+		return b.ParseTypeDeclarationStatement()
+
+	case token.Type:
+		return b.ParseDeclarationStatement()
+
+	case token.Ident:
+		return b.ParseAssignmentStatement()
+
+	case token.Function:
+		return b.ParseFunctionStatement()
+
+	case token.LBrace:
+		return b.ParseBlockStatement()
+
+	case token.Struct:
+		return b.ParseStructStatement()
+
+	case token.Let:
+		return b.ParseLetStatement()
+
+	case token.If:
+		return b.ParseIfStatement()
+
+	case token.For:
+		return b.ParseForStatement()
+
+	case token.Return:
+		return b.ParseReturnStatement()
+	}
+
+	return b.AppendTokenToError("Could not get statement from")
 }
 
 func (b *Builder) BuildAST() (*Node, error) {
