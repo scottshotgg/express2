@@ -43,8 +43,7 @@ func TestParseDerefExpression(t *testing.T) {
 
 	programAST, err = b.ParseExpression()
 	if err != nil {
-		fmt.Printf(errString, err)
-		t.Fatal()
+		t.Errorf(errString, err)
 	}
 
 	fmt.Printf(programASTString, programAST)
@@ -59,8 +58,7 @@ func TestParseIdentExpression(t *testing.T) {
 	// programAST, err =  b.ParseConditionExpression()
 	programAST, err = b.ParseExpression()
 	if err != nil {
-		fmt.Printf(errString, err)
-		t.Fatal()
+		t.Errorf(errString, err)
 	}
 
 	fmt.Printf(programASTString, programAST)
@@ -75,8 +73,7 @@ func TestParseConditionExpression(t *testing.T) {
 	// programAST, err =  b.ParseConditionExpression()
 	programAST, err = b.ParseExpression()
 	if err != nil {
-		fmt.Printf(errString, err)
-		t.Fatal()
+		t.Errorf(errString, err)
 	}
 
 	fmt.Printf(programASTString, programAST)
@@ -91,8 +88,7 @@ func TestParseIncrementExpression(t *testing.T) {
 	// programAST, err =  b.ParseIncrement(&Node{})
 	programAST, err = b.ParseExpression()
 	if err != nil {
-		fmt.Printf(errString, err)
-		t.Fatal()
+		t.Errorf(errString, err)
 	}
 
 	// fmt.Println(b.ParseBlockStatement())
@@ -108,8 +104,7 @@ func TestParseArrayExpression(t *testing.T) {
 
 	programAST, err = b.ParseArrayExpression()
 	if err != nil {
-		fmt.Printf(errString, err)
-		t.Fatal()
+		t.Errorf(errString, err)
 	}
 
 	fmt.Printf(programASTString, programAST)
@@ -125,8 +120,7 @@ func TestParseType(t *testing.T) {
 
 	programAST, err = b.ParseType()
 	if err != nil {
-		fmt.Printf(errString, err)
-		t.Fatal()
+		t.Errorf(errString, err)
 	}
 
 	fmt.Printf(programASTString, programAST)
@@ -140,8 +134,7 @@ func TestParseLiteral(t *testing.T) {
 
 	programAST, err = b.ParseExpression()
 	if err != nil {
-		fmt.Printf(errString, err)
-		t.Fatal()
+		t.Errorf(errString, err)
 	}
 
 	fmt.Printf(programASTString, programAST)
@@ -155,8 +148,7 @@ func TestParseIdentIndexExpression(t *testing.T) {
 
 	programAST, err = b.ParseExpression()
 	if err != nil {
-		fmt.Printf(errString, err)
-		t.Fatal()
+		t.Errorf(errString, err)
 	}
 
 	// Use DFS for this
@@ -194,20 +186,6 @@ func TestParseBlockExpression(t *testing.T) {
 	fmt.Printf(programASTString, programAST)
 }
 
-func TestParseStatement(t *testing.T) {
-	b, err = getBuilderFromString(tests[StatementTest]["funcDef"])
-	if err != nil {
-		t.Errorf(errString, err)
-	}
-
-	programAST, err = b.ParseStatement()
-	if err != nil {
-		t.Errorf(errString, err)
-	}
-
-	fmt.Printf(programASTString, programAST)
-}
-
 func TestParseSelectionExpression(t *testing.T) {
 	b, err = getBuilderFromString(tests[ExpressionTest]["identSelect"])
 	if err != nil {
@@ -215,96 +193,6 @@ func TestParseSelectionExpression(t *testing.T) {
 	}
 
 	programAST, err = b.ParseExpression()
-	if err != nil {
-		t.Errorf(errString, err)
-	}
-
-	// Remember: The left always provides the value...
-	fmt.Printf(programASTString, programAST)
-}
-
-func TestParseSelectionAssignmentStatement(t *testing.T) {
-	b, err = getBuilderFromString(tests[StatementTest]["selectionAssign"])
-	if err != nil {
-		t.Errorf(errString, err)
-	}
-
-	programAST, err = b.ParseAssignmentStatement()
-	if err != nil {
-		t.Errorf(errString, err)
-	}
-
-	// Remember: The left always provides the value...
-	fmt.Printf(programASTString, programAST)
-}
-
-func TestParseAssignmentFromSelectionStatement(t *testing.T) {
-	b, err = getBuilderFromString(tests[StatementTest]["assignFromSelect"])
-	if err != nil {
-		t.Errorf(errString, err)
-	}
-
-	programAST, err = b.ParseAssignmentStatement()
-	if err != nil {
-		t.Errorf(errString, err)
-	}
-
-	// Remember: The left always provides the value...
-	fmt.Printf(programASTString, programAST)
-}
-
-func TestParseTypedefStatement(t *testing.T) {
-	b, err = getBuilderFromString(tests[StatementTest]["typeDef"])
-	if err != nil {
-		t.Errorf(errString, err)
-	}
-
-	programAST, err = b.ParseTypeDeclarationStatement()
-	if err != nil {
-		t.Errorf(errString, err)
-	}
-
-	// Remember: The left always provides the value...
-	fmt.Printf(programASTString, programAST)
-}
-
-func TestParseReturnStatement(t *testing.T) {
-	b, err = getBuilderFromString(tests[StatementTest]["returnSomething"])
-	if err != nil {
-		t.Errorf(errString, err)
-	}
-
-	programAST, err = b.ParseReturnStatement()
-	if err != nil {
-		t.Errorf(errString, err)
-	}
-
-	// Remember: The left always provides the value...
-	fmt.Printf(programASTString, programAST)
-}
-
-func TestParseStructStatement(t *testing.T) {
-	b, err = getBuilderFromString(tests[StatementTest]["struct"])
-	if err != nil {
-		t.Errorf(errString, err)
-	}
-
-	programAST, err = b.ParseStructStatement()
-	if err != nil {
-		t.Errorf(errString, err)
-	}
-
-	// Remember: The left always provides the value...
-	fmt.Printf(programASTString, programAST)
-}
-
-func TestParseLetStatement(t *testing.T) {
-	b, err = getBuilderFromString(tests[StatementTest]["simpleLet"])
-	if err != nil {
-		t.Errorf(errString, err)
-	}
-
-	programAST, err = b.ParseLetStatement()
 	if err != nil {
 		t.Errorf(errString, err)
 	}

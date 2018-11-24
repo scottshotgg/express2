@@ -1,6 +1,10 @@
 package builder_test
 
-import "github.com/scottshotgg/express2/builder"
+import (
+	"testing"
+
+	"github.com/scottshotgg/express2/builder"
+)
 
 type TestType int
 
@@ -27,7 +31,7 @@ var (
 		"array":       "[ \"something\", [8, 8], 9, i ]",
 		"intLit":      "7",
 		"identIndex":  "something[9][0]",
-		"identCall":   "funcYou(6, 7)",
+		"identCall":   "funcYou(too, 7)",
 		"blockExpr":   "{ int i = 7 }",
 		"identSelect": "some.thing.whatever.yeah",
 		"binop":       "9 + 8 * 7",
@@ -64,3 +68,54 @@ var (
 		StatementTest:  statementTestMap,
 	}
 )
+
+func TestNew(t *testing.T) {
+	if builder.New(nil) == nil {
+		t.Errorf(errString, "Builder was nil for some reason")
+	}
+}
+
+// func TestBuildAST(t *testing.T) {
+// 	var totalString string
+
+// 	var i int
+// 	// Test each one individually
+// 	for _, stmt := range statementTestMap {
+// 		if i > len(statementTestMap)-18 {
+// 			break
+// 		}
+
+// 		i++
+
+// 		// Accumulate a string containing all statements
+// 		totalString += stmt + "\n"
+
+// 		b, err = getBuilderFromString(stmt)
+// 		if err != nil {
+// 			t.Errorf(errString, err)
+// 		}
+
+// 		programAST, err = b.BuildAST()
+// 		if err != nil {
+// 			fmt.Println("before", b.Tokens[b.Index-1])
+// 			t.Errorf(errString, err)
+// 			fmt.Println("after", b.Tokens[b.Index+1])
+// 		}
+
+// 		fmt.Printf(programASTString, programAST)
+// 	}
+
+// 	b, err = getBuilderFromString(totalString)
+// 	if err != nil {
+// 		t.Errorf(errString, err)
+// 	}
+
+// 	programAST, err = b.BuildAST()
+// 	if err != nil {
+// 		fmt.Println("before", b.Tokens[b.Index-1])
+// 		t.Errorf(errString, err)
+// 		fmt.Println("after", b.Tokens[b.Index+1])
+// 	}
+
+// 	fmt.Printf(programASTString, programAST)
+// }
