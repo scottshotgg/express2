@@ -92,7 +92,7 @@ func TestParseGroupOfStatements(t *testing.T) {
 		t.Errorf(errString, err)
 	}
 
-	fmt.Printf("\nprogramAST %+v\n", programAST)
+	fmt.Printf("programASTString", programAST)
 }
 
 func TestParseFunctionStatement(t *testing.T) {
@@ -106,7 +106,7 @@ func TestParseFunctionStatement(t *testing.T) {
 		t.Errorf(errString, err)
 	}
 
-	fmt.Printf("\nprogramAST %+v\n", programAST)
+	fmt.Printf("programASTString", programAST)
 }
 
 func TestParseCallAssignmentStatement(t *testing.T) {
@@ -120,7 +120,7 @@ func TestParseCallAssignmentStatement(t *testing.T) {
 		t.Errorf(errString, err)
 	}
 
-	fmt.Printf("\nprogramAST %+v\n", programAST)
+	fmt.Printf("programASTString", programAST)
 }
 
 func TestParseBlockStatement(t *testing.T) {
