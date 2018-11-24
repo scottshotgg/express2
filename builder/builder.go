@@ -24,8 +24,17 @@ type Builder struct {
 	OpFuncMap map[int]map[string]func(n *Node) (*Node, error)
 }
 
+type Index struct {
+	Type  string
+	Value interface{}
+}
+
+var (
+	ErrNotImplemented = errors.New("Not implemented")
+)
+
 func New(tokens []token.Token) *Builder {
-	b := &Builder{
+	b := Builder{
 		Tokens: tokens,
 	}
 
@@ -35,10 +44,19 @@ func New(tokens []token.Token) *Builder {
 			token.LThan:     b.ParseConditionExpression,
 			token.LBracket:  b.ParseIndexExpression,
 			token.LParen:    b.ParseCall,
+			token.Accessor:  b.ParseSelection,
 		},
 	}
 
-	return b
+	return &b
+}
+
+func (b *Builder) GetNextToken() (*token.Token, error) {
+	if b.Index > len(b.Tokens)-1 {
+		return nil, errors.New("Out of tokens")
+	}
+
+	return &b.Tokens[b.Index], nil
 }
 
 func (b *Builder) ParseGroupOfExpressions() (*Node, error) {
@@ -127,11 +145,46 @@ func (b *Builder) ParseBlockStatement() (*Node, error) {
 	}, nil
 }
 
+func (b *Builder) ParseReturnStatement() (*Node, error) {
+	// Check ourselves ...
+	if b.Tokens[b.Index].Type != token.Return {
+		return nil, errors.Errorf("Could not get return; %+v", b.Tokens[b.Index])
+	}
+
+	// Skip over the `return` token
+	b.Index++
+
+	// If there is a newline, the return is void typed
+	if b.Index < len(b.Tokens) && b.Tokens[b.Index].Value.String == "\n" {
+		return &Node{
+			Type: "return",
+		}, nil
+	}
+
+	// we are only supporting one return value for now
+	expr, err := b.ParseExpression()
+	if err != nil {
+		return nil, err
+	}
+
+	// Step over the expression token
+	b.Index++
+
+	return &Node{
+		Type: "return",
+		Left: expr,
+	}, nil
+}
+
+func (b *Builder) ParseIdentStatement() (*Node, error) {
+	return nil, nil
+}
+
 // ParseStatement ** does ** not look ahead
 func (b *Builder) ParseStatement() (*Node, error) {
 	switch b.Tokens[b.Index].Type {
-	// case token.TypeDef:
-	// 	return nil, ErrNotImplemented
+	case token.TypeDef:
+		return b.ParseTypeDeclarationStatement()
 
 	case token.Type:
 		fmt.Println("**type**")
@@ -145,7 +198,7 @@ func (b *Builder) ParseStatement() (*Node, error) {
 
 	// TODO: what if types were expressions ...
 	case token.Ident:
-		return nil, ErrNotImplemented
+		return b.ParseIdentStatement()
 		// check if user defined type - ParseType
 		// get assignment statement
 
@@ -164,7 +217,7 @@ func (b *Builder) ParseStatement() (*Node, error) {
 
 	case token.Block:
 		// get a block
-		return nil, ErrNotImplemented
+		return b.ParseBlockStatement()
 
 	case "*":
 		// get a deref assignment
@@ -177,27 +230,16 @@ func (b *Builder) ParseStatement() (*Node, error) {
 
 	case token.For:
 		// get a loop
-		return nil, ErrNotImplemented
+		return b.ParseForStatement()
 
 	case token.Return:
 		// get a return statement
-		return nil, ErrNotImplemented
-
+		return b.ParseReturnStatement()
 	}
 
 	// defer processing to next level higher
 	return nil, nil
 }
-
-func (b *Builder) GetNextToken() (*token.Token, error) {
-	if b.Index > len(b.Tokens)-1 {
-		return nil, errors.New("Out of tokens")
-	}
-
-	return &b.Tokens[b.Index], nil
-}
-
-var ErrNotImplemented = errors.New("Not implemented")
 
 func (b *Builder) ParseForPrepositionStatement() (*Node, error) {
 	// Check ourselves ...
@@ -254,18 +296,10 @@ func (b *Builder) ParseForPrepositionStatement() (*Node, error) {
 	}, nil
 }
 
-// func (b *Builder) ParseForOfStatement() (*Node, error) {
-// 	return nil, ErrNotImplemented
-// }
-
-// func (b *Builder) ParseForPrepositionStatement() (*Node, error) {
-// 	return nil, ErrNotImplemented
-// }
-
 func (b *Builder) ParseForStdStatement() (*Node, error) {
 	// Check ourselves ...
 	if b.Tokens[b.Index].Type != token.For {
-		return nil, errors.New("Could not get for std")
+		return nil, errors.Errorf("Could not get for std; %+v", b.Tokens[b.Index])
 	}
 
 	// Step over the for token
@@ -331,25 +365,22 @@ func (b *Builder) ParseForStatement() (*Node, error) {
 		return nil, errors.New("Could not get for std")
 	}
 
-	// if b.Index > len(b.Tokens)-2 {
-	// 	return nil, errors.New("Out of tokens")
-	// }
-
-	// Clone the builder to backtrack
-	clone := *b
-
-	node, err := b.ParseForPrepositionStatement()
-	if err != nil {
-		// Click back to the last save
-		b = &clone
-
-		node, err = b.ParseForStdStatement()
-		if err != nil {
-			return nil, err
-		}
+	if b.Index > len(b.Tokens)-2 {
+		return nil, errors.New("Out of tokens")
 	}
 
-	return node, nil
+	// Clone the builder to backtrack
+	// jsonClone, _ := json.Marshal(b)
+	// // Click back to the last save
+	// bp := &builder.Builder{}
+	// json.Unmarshal(jsonClone, bp)
+
+	// For right now just look ahead two
+	if b.Tokens[b.Index+2].Type == token.Keyword {
+		return b.ParseForPrepositionStatement()
+	}
+
+	return b.ParseForStdStatement()
 }
 
 func (b *Builder) ParseIfStatement() (*Node, error) {
@@ -411,13 +442,8 @@ func (b *Builder) ParseIfStatement() (*Node, error) {
 	}, nil
 }
 
-type index struct {
-	Type  string
-	Value interface{}
-}
-
 func (b *Builder) ParseArrayType(typeOf string) (*Node, error) {
-	var dim []index
+	var dim []*Index
 
 	// Look ahead at the next token here
 	for b.Index < len(b.Tokens)-1 && b.Tokens[b.Index+1].Type == token.LBracket {
@@ -440,7 +466,7 @@ func (b *Builder) ParseArrayType(typeOf string) (*Node, error) {
 			return nil, errors.Errorf("Invalid assertion; %+v", expr.Value)
 		}
 
-		var dimValue index
+		var dimValue Index
 
 		switch len(nodesAssert) {
 		case 1:
@@ -458,7 +484,7 @@ func (b *Builder) ParseArrayType(typeOf string) (*Node, error) {
 			return nil, errors.New("Cannot use multiple expression inside array type initializer")
 		}
 
-		dim = append(dim, dimValue)
+		dim = append(dim, &dimValue)
 	}
 
 	b.Index++
@@ -500,26 +526,6 @@ func (b *Builder) ParseType() (*Node, error) {
 	}, nil
 }
 
-// // TODO: implement this later
-// func (b *Builder) ParseIdent() (*Node, error) {
-// 	// Check ourselves ...
-// 	if b.Tokens[b.Index].Type != token.Ident {
-// 		return nil, errors.New("Could not get assignment statement without ident")
-// 	}
-
-// 	// ident := &Node{
-// 	// 	Type:  "ident",
-// 	// 	Value: b.Tokens[b.Index].Value.String,
-// 	// }
-
-// 	// switch b.Tokens[b.Index+1].Type {
-// 	// case token.LBracket:
-// 	// 	ident, err := b.Parse
-// 	// }
-
-// 	return b.ParseExpression()
-// }
-
 func (b *Builder) ParseIndexExpression(n *Node) (*Node, error) {
 	if b.Index > len(b.Tokens)-1 {
 		return nil, errors.Errorf("Out of tokens")
@@ -546,34 +552,6 @@ func (b *Builder) ParseIndexExpression(n *Node) (*Node, error) {
 		Right: expr,
 	}, nil
 }
-
-// func (b *Builder) ParseIndexExpression(n *Node) (*Node, error) {
-// 	// Check ourselves ...
-// 	if b.Tokens[b.Index].Type != token.Ident {
-// 		return nil, errors.New("Could not get ident; " + b.Tokens[b.Index].Value.String)
-// 	}
-
-// 	ident := &Node{
-// 		Type:  "ident",
-// 		Value: b.Tokens[b.Index].Value.String,
-// 	}
-
-// 	// TODO: make a function called "ParseIndexOperator"
-// 	at, err := b.ParseArrayType("int")
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	return &Node{
-// 		Type:  "index",
-// 		Value: ident,
-// 		Metadata: map[string]interface{}{
-// 			"dim": at.Metadata["dim"],
-// 		},
-// 	}, nil
-// }
-
-func (b *Builder) ParseSelectionStatement() (*Node, error) { return nil, nil }
 
 func (b *Builder) ParseDeclarationStatement() (*Node, error) {
 	typeOf, err := b.ParseType()
@@ -612,7 +590,7 @@ func (b *Builder) ParseDeclarationStatement() (*Node, error) {
 	// Parse the right hand side
 	expr, err := b.ParseExpression()
 	if err != nil {
-		return nil, errors.New("Could not get expression")
+		return nil, err
 	}
 
 	// Increment over the first part of the expression
@@ -626,8 +604,135 @@ func (b *Builder) ParseDeclarationStatement() (*Node, error) {
 	}, nil
 }
 
+func (b *Builder) ParseTypeDeclarationStatement() (*Node, error) {
+	// Check ourselves ...
+	if b.Tokens[b.Index].Type != token.TypeDef {
+		return nil, errors.New("Could not get type declaration statement")
+	}
+
+	// Skip over the `type` token
+	b.Index++
+
+	// Create the ident
+	ident, err := b.ParseExpression()
+	if err != nil {
+		return nil, err
+	}
+
+	// Increment over the ident token
+	b.Index++
+
+	// Check for the equals token
+	if b.Tokens[b.Index].Type != token.Assign {
+		return nil, errors.New("No equals found after ident in typedef")
+	}
+
+	// Increment over the equals
+	b.Index++
+
+	// Parse the right hand side
+	typeOf, err := b.ParseType()
+	if err != nil {
+		return nil, errors.New("Could not get expression")
+	}
+
+	// Increment over the first part of the expression
+	b.Index++
+
+	return &Node{
+		Type:  "typedef",
+		Left:  ident,
+		Right: typeOf,
+	}, nil
+}
+
+func (b *Builder) ParseStructStatement() (*Node, error) {
+	// Check ourselves ...
+	if b.Tokens[b.Index].Type != token.Struct {
+		return nil, errors.New("Could not get struct declaration statement")
+	}
+
+	// Skip over the `struct` token
+	b.Index++
+
+	// Create the ident
+	ident, err := b.ParseExpression()
+	if err != nil {
+		return nil, err
+	}
+
+	// Increment over the ident token
+	b.Index++
+
+	// Check for the equals token
+	if b.Tokens[b.Index].Type != token.Assign {
+		return nil, errors.New("No equals found after ident in struct def")
+	}
+
+	// Increment over the equals
+	b.Index++
+
+	// Parse the right hand side
+	body, err := b.ParseBlockStatement()
+	if err != nil {
+		return nil, errors.New("Could not get expression")
+	}
+
+	// Increment over the first part of the expression
+	b.Index++
+
+	return &Node{
+		Type:  "struct",
+		Left:  ident,
+		Right: body,
+	}, nil
+}
+
+func (b *Builder) ParseLetStatement() (*Node, error) {
+	// Check ourselves ...
+	if b.Tokens[b.Index].Type != token.Let {
+		return nil, errors.New("Could not get let statement")
+	}
+
+	// Skip over the let token
+	b.Index++
+
+	ident, err := b.ParseExpression()
+	if err != nil {
+		return nil, err
+	}
+
+	// Increment over the ident token
+	b.Index++
+
+	// Check for the equals token
+	if b.Tokens[b.Index].Type != token.Assign {
+		// This is where we would implement variable declarations
+		// without values, other types of assignment, etc
+		// Leave it alone for now
+		return nil, errors.New("No equals found after ident in let")
+	}
+
+	// Increment over the equals
+	b.Index++
+
+	// Parse the right hand side
+	expr, err := b.ParseExpression()
+	if err != nil {
+		return nil, err
+	}
+
+	// Increment over the first part of the expression
+	b.Index++
+
+	return &Node{
+		Type:  "let",
+		Left:  ident,
+		Right: expr,
+	}, nil
+}
+
 func (b *Builder) ParseAssignmentStatement() (*Node, error) {
-	// TODO: this will need to change when statements like this are generalized
 	// into: [expr] = [expr]
 	// Check that the next token is an ident
 	if b.Tokens[b.Index].Type != token.Ident {
@@ -656,7 +761,7 @@ func (b *Builder) ParseAssignmentStatement() (*Node, error) {
 	// Parse the right hand side
 	expr, err := b.ParseExpression()
 	if err != nil {
-		return nil, errors.New("Could not get expression")
+		return nil, err
 	}
 
 	// Increment over the first part of the expression
@@ -792,11 +897,6 @@ func (b *Builder) ParseFactor() (*Node, error) {
 
 	// Variable identifier
 	case token.Ident:
-		// Look ahead
-		// if b.Index < len(b.Tokens)-1 && b.Tokens[b.Index+1].Type == token.LParen {
-		// 	return b.ParseCall()
-		// }
-
 		return &Node{
 			Type:  "ident",
 			Value: b.Tokens[b.Index].Value.String,
@@ -812,8 +912,11 @@ func (b *Builder) ParseFactor() (*Node, error) {
 			return nil, err
 		}
 
+		// Skip over the expression
+		b.Index++
+
 		if b.Tokens[b.Index].Type != token.RParen {
-			return nil, errors.Errorf("No rparen found at end of facotr-expression: %+v", b.Tokens[b.Index])
+			return nil, errors.Errorf("No rparen found at end of factor-expression: %+v", b.Tokens[b.Index])
 		}
 
 		// Skip over the right paren
@@ -832,6 +935,30 @@ func (b *Builder) ParseFactor() (*Node, error) {
 	default:
 		return nil, errors.Errorf("Could not parse expression from token; %+v", b.Tokens[b.Index])
 	}
+}
+
+func (b *Builder) ParseSelection(n *Node) (*Node, error) {
+	if b.Index > len(b.Tokens)-1 {
+		return nil, errors.Errorf("Out of tokens")
+	}
+
+	if b.Tokens[b.Index].Type != token.Accessor {
+		return nil, errors.Errorf("Could not get selection operator; %+v", b.Tokens[b.Index])
+	}
+
+	b.Index++
+
+	expr, err := b.ParseExpression()
+	if err != nil {
+		return nil, err
+	}
+
+	return &Node{
+		Type: "selection",
+		// Value: n,
+		Left:  n,
+		Right: expr,
+	}, nil
 }
 
 func (b *Builder) ParseArrayExpression() (*Node, error) {
