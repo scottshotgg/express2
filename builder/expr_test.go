@@ -19,12 +19,44 @@ func TestParseGroupOfExpressions(t *testing.T) {
 	fmt.Printf("\nprogramAST %+v\n", programAST)
 }
 
+func TestParseDerefExpression(t *testing.T) {
+	b, err := getBuilderFromString(tests[ExpressionTest]["deref"])
+	if err != nil {
+		t.Errorf("err %+v\n", err)
+	}
+
+	programAST, err := b.ParseExpression()
+	if err != nil {
+		fmt.Printf("err %+v\n", err)
+		t.Fatal()
+	}
+
+	fmt.Printf("programAST %+v\n", programAST)
+}
+
+func TestParseIdentExpression(t *testing.T) {
+	b, err := getBuilderFromString(tests[ExpressionTest]["ident"])
+	if err != nil {
+		t.Errorf("err %+v\n", err)
+	}
+
+	// programAST, err := b.ParseConditionExpression()
+	programAST, err := b.ParseExpression()
+	if err != nil {
+		fmt.Printf("err %+v\n", err)
+		t.Fatal()
+	}
+
+	fmt.Printf("programAST %+v\n", programAST)
+}
+
 func TestParseConditionExpression(t *testing.T) {
 	b, err := getBuilderFromString(tests[ExpressionTest]["condition"])
 	if err != nil {
 		t.Errorf("err %+v\n", err)
 	}
 
+	// programAST, err := b.ParseConditionExpression()
 	programAST, err := b.ParseExpression()
 	if err != nil {
 		fmt.Printf("err %+v\n", err)
@@ -40,6 +72,7 @@ func TestParseIncrementExpression(t *testing.T) {
 		t.Errorf("err %+v\n", err)
 	}
 
+	// programAST, err := b.ParseIncrement(&Node{})
 	programAST, err := b.ParseExpression()
 	if err != nil {
 		fmt.Printf("err %+v\n", err)
@@ -266,11 +299,9 @@ func TestParseLetStatement(t *testing.T) {
 
 // func TestParseStructBlockExpression(t *testing.T) {}
 
-// Not sure if we need this because we have the group of statements thing
-// func TestParseMultipleStatements(t *testing.T) {}
-
 // func TestParseAllowStatement(t *testing.T) {}
 
 // func TestParseUsingStatement(t *testing.T) {}
 
-// func TestParseTypedefStatement(t *testing.T) {}
+// Not sure if we need this because we have the group of statements thing
+// func TestParseMultipleStatements(t *testing.T) {}

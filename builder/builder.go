@@ -176,69 +176,81 @@ func (b *Builder) ParseReturnStatement() (*Node, error) {
 	}, nil
 }
 
-func (b *Builder) ParseIdentStatement() (*Node, error) {
-	return nil, nil
+func (b *Builder) ParseDeref() (*Node, error) {
+	// Check ourselves ...
+	if b.Tokens[b.Index].Type != token.PriOp &&
+		b.Tokens[b.Index].Value.String == "*" {
+		return nil, errors.Errorf("Could not get deref; %+v", b.Tokens[b.Index])
+	}
+
+	// Look ahead and make sure it is an ident; you can't deref just anything...
+	if b.Tokens[b.Index+1].Type != token.Ident {
+		return nil, errors.Errorf("Could not get ident to deref; %+v", b.Tokens[b.Index])
+	}
+
+	// Step over the deref
+	b.Index++
+
+	ident, err := b.ParseExpression()
+	if err != nil {
+		return nil, err
+	}
+
+	return &Node{
+		Type: "deref",
+		Left: ident,
+	}, nil
 }
+
+// TODO: what if types were expressions ...
 
 // ParseStatement ** does ** not look ahead
 func (b *Builder) ParseStatement() (*Node, error) {
 	switch b.Tokens[b.Index].Type {
+	case token.PriOp:
+		return b.ParseDeref()
+
+	case token.Package:
+		return b.ParsePackageStatement()
+
+	case token.Import:
+		return b.ParseImportStatement()
+
+	case token.Include:
+		return b.ParseIncludeStatement()
+
 	case token.TypeDef:
 		return b.ParseTypeDeclarationStatement()
 
 	case token.Type:
-		fmt.Println("**type**")
-		// get declaration statement
-		// need to check if there is an asterisk after
-		// need to check if there is brackets after
-		// MAKE a ParseType function that will return the type, check against user types, pointer, array, etc
-
-		// For now: no user defined types ...
 		return b.ParseDeclarationStatement()
 
-	// TODO: what if types were expressions ...
 	case token.Ident:
-		return b.ParseIdentStatement()
-		// check if user defined type - ParseType
-		// get assignment statement
-
-		// just let ParseExpression/Term/Factor handle these ...
-		// or call
-		// selection operation
-		// index operation
-
-		// TODO: Make a function that will determine what kind of `IdentStatement`
-		//
+		return b.ParseAssignmentStatement()
 
 	case token.Function:
-		fmt.Println("function**")
-		// get a function statement
 		return b.ParseFunctionStatement()
 
-	case token.Block:
-		// get a block
+	case token.LBrace:
 		return b.ParseBlockStatement()
 
-	case "*":
-		// get a deref assignment
-		return nil, ErrNotImplemented
+	case token.Struct:
+		return b.ParseStructStatement()
+
+	case token.Let:
+		return b.ParseLetStatement()
 
 	case token.If:
-		// get an if-else
-		fmt.Println("if**")
 		return b.ParseIfStatement()
 
 	case token.For:
-		// get a loop
 		return b.ParseForStatement()
 
 	case token.Return:
-		// get a return statement
 		return b.ParseReturnStatement()
 	}
 
-	// defer processing to next level higher
-	return nil, nil
+	return nil, errors.Errorf("Could not get statement from; %+v", b.Tokens[b.Index])
 }
 
 func (b *Builder) ParseForPrepositionStatement() (*Node, error) {
@@ -774,6 +786,26 @@ func (b *Builder) ParseAssignmentStatement() (*Node, error) {
 	}, nil
 }
 
+func (b *Builder) ParsePackageStatement() (*Node, error) {
+	// Check ourselves ...
+	if b.Tokens[b.Index].Type != token.Package {
+		return nil, errors.New("Could not get package statement")
+	}
+
+	// Step over the package token
+	b.Index++
+
+	expr, err := b.ParseExpression()
+	if err != nil {
+		return nil, err
+	}
+
+	return &Node{
+		Type: "package",
+		Left: expr,
+	}, nil
+}
+
 func (b *Builder) ParseImportStatement() (*Node, error) {
 	// Check ourselves ...
 	if b.Tokens[b.Index].Type != token.Import {
@@ -789,8 +821,8 @@ func (b *Builder) ParseImportStatement() (*Node, error) {
 	}
 
 	return &Node{
-		Type:  "import",
-		Value: expr,
+		Type: "import",
+		Left: expr,
 	}, nil
 }
 
@@ -809,8 +841,8 @@ func (b *Builder) ParseIncludeStatement() (*Node, error) {
 	}
 
 	return &Node{
-		Type:  "include",
-		Value: expr,
+		Type: "include",
+		Left: expr,
 	}, nil
 }
 
@@ -830,8 +862,8 @@ func (b *Builder) ParseConditionExpression(expr *Node) (*Node, error) {
 	}
 
 	return &Node{
-		Type:  "comp",
-		Value: "",
+		Type: "comp",
+		// Value: "",
 		Left:  expr,
 		Right: right,
 	}, nil
@@ -902,27 +934,13 @@ func (b *Builder) ParseFactor() (*Node, error) {
 			Value: b.Tokens[b.Index].Value.String,
 		}, nil
 
+	// Deref operator
+	case token.PriOp:
+		return b.ParseDeref()
+
 	// Nested expression
 	case token.LParen:
-		// Skip over the left paren
-		b.Index++
-
-		expr, err := b.ParseExpression()
-		if err != nil {
-			return nil, err
-		}
-
-		// Skip over the expression
-		b.Index++
-
-		if b.Tokens[b.Index].Type != token.RParen {
-			return nil, errors.Errorf("No rparen found at end of factor-expression: %+v", b.Tokens[b.Index])
-		}
-
-		// Skip over the right paren
-		b.Index++
-
-		return expr, nil
+		return b.ParseNestedExpression()
 
 	// Array expression
 	case token.LBracket:
@@ -931,10 +949,36 @@ func (b *Builder) ParseFactor() (*Node, error) {
 	// Named block
 	case token.LBrace:
 		return b.ParseBlockStatement()
-
-	default:
-		return nil, errors.Errorf("Could not parse expression from token; %+v", b.Tokens[b.Index])
 	}
+
+	return nil, errors.Errorf("Could not parse factor from token; %+v", b.Tokens[b.Index])
+}
+
+func (b *Builder) ParseNestedExpression() (*Node, error) {
+	// Check ourselves
+	if b.Tokens[b.Index].Type != token.LParen {
+		return nil, errors.New("Could not get nested expression")
+	}
+
+	// Skip over the left paren
+	b.Index++
+
+	expr, err := b.ParseExpression()
+	if err != nil {
+		return nil, err
+	}
+
+	// Skip over the expression
+	b.Index++
+
+	if b.Tokens[b.Index].Type != token.RParen {
+		return nil, errors.Errorf("No rparen found at end of factor-expression: %+v", b.Tokens[b.Index])
+	}
+
+	// Skip over the right paren
+	b.Index++
+
+	return expr, nil
 }
 
 func (b *Builder) ParseSelection(n *Node) (*Node, error) {

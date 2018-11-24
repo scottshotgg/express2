@@ -10,13 +10,15 @@ import (
 type TestType int
 
 const (
-	ExpressionTest TestType = iota + 1
+	_ TestType = iota
+	ExpressionTest
 	StatementTest
 )
 
 var (
 	tests = map[TestType]map[string]string{
 		ExpressionTest: map[string]string{
+			"deref":       "*somethingElse",
 			"ident":       "thisIsAnIdent",
 			"inc":         "i++",
 			"condition":   "something < 10 < (7)",
@@ -49,6 +51,8 @@ var (
 			"returnSomething":  "return something[\"here\"].me()",
 			"struct":           "struct something = { int i = 10 }",
 			"simpleLet":        "let something = 99",
+			"package":          "package something",
+			"derefAssign":      "*something = 10",
 		},
 	}
 )

@@ -129,6 +129,36 @@ func TestParseBlockStatement(t *testing.T) {
 	fmt.Printf("programAST %+v\n", programAST)
 }
 
+func TestParseDerefAssignmentStatement(t *testing.T) {
+	b, err := getBuilderFromString(tests[StatementTest]["derefAssign"])
+	if err != nil {
+		t.Errorf("err %+v\n", err)
+	}
+
+	programAST, err := b.ParseStatement()
+	if err != nil {
+		fmt.Printf("err %+v\n", err)
+		t.Fatal()
+	}
+
+	fmt.Printf("programAST %+v\n", programAST)
+}
+
+func TestParsePackageStatement(t *testing.T) {
+	b, err := getBuilderFromString(tests[StatementTest]["package"])
+	if err != nil {
+		t.Errorf("err %+v\n", err)
+	}
+
+	programAST, err := b.ParsePackageStatement()
+	if err != nil {
+		fmt.Printf("err %+v\n", err)
+		t.Fatal()
+	}
+
+	fmt.Printf("programAST %+v\n", programAST)
+}
+
 func TestParseImportStatement(t *testing.T) {
 	b, err := getBuilderFromString(tests[StatementTest]["import"])
 	if err != nil {
