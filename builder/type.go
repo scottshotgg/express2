@@ -59,6 +59,7 @@ func (b *Builder) ParseArrayType(typeOf string) (*Node, error) {
 		var dimValue Index
 
 		switch len(nodesAssert) {
+
 		case 1:
 			dimValue.Type = nodesAssert[0].Kind
 			dimValue.Value, ok = nodesAssert[0].Value.(int)

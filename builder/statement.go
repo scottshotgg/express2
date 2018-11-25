@@ -278,7 +278,9 @@ func (b *Builder) ParseReturnStatement() (*Node, error) {
 
 	// If there is a newline, the return is void typed
 	if b.Index < len(b.Tokens) &&
-		b.Tokens[b.Index].Value.String == "\n" {
+		b.Tokens[b.Index].Value.Type == "newline" {
+		b.Index++
+
 		return &Node{
 			Type: "return",
 		}, nil
@@ -641,7 +643,7 @@ func (b *Builder) ParseFunctionStatement() (*Node, error) {
 	if b.Tokens[b.Index].Type == token.Type {
 		node.Metadata["returns"] = &Node{
 			Type:  "type",
-			Value: b.Tokens[b.Index].Type,
+			Value: b.Tokens[b.Index].Value.String,
 		}
 
 		// Step over the type token
