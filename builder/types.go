@@ -1,6 +1,8 @@
 package builder
 
-import "github.com/scottshotgg/express-token"
+import (
+	"github.com/scottshotgg/express-token"
+)
 
 type (
 	opCallbackFn func(n *Node) (*Node, error)

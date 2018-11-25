@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"testing"
+
+	"github.com/scottshotgg/express2/test"
 )
 
 const (
@@ -11,7 +13,7 @@ const (
 )
 
 func TestAllStatements(t *testing.T) {
-	for name, stmt := range tests[StatementTest] {
+	for name, stmt := range test.Tests[test.StatementTest] {
 		fmt.Printf(runningString, name)
 		b, err = getBuilderFromString(stmt)
 		if err != nil {
@@ -29,7 +31,7 @@ func TestAllStatements(t *testing.T) {
 }
 
 func TestAllExpressions(t *testing.T) {
-	for name, expr := range tests[ExpressionTest] {
+	for name, expr := range test.Tests[test.ExpressionTest] {
 		fmt.Printf(runningString, name)
 		b, err = getBuilderFromString(expr)
 		if err != nil {
