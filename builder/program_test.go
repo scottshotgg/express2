@@ -7,10 +7,14 @@ import (
 	"testing"
 )
 
+var (
+	testBytes []byte
+)
+
 func TestProgram(t *testing.T) {
-	testBytes, err := ioutil.ReadFile("test.expr")
+	testBytes, err = ioutil.ReadFile("test.expr")
 	if err != nil {
-		t.Fatalf(errFormatString, err)
+		t.Fatalf("Could not read file: "+errFormatString, err)
 	}
 
 	// keep this string here for injection
