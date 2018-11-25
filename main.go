@@ -80,25 +80,11 @@ func main() {
 		fmt.Println(t)
 	}
 
-	programnode, err := builder.New(tokens).BuildAST()
+	programAST, err := builder.New(tokens).BuildAST()
 	if err != nil {
 		fmt.Printf("err %+v\n", err)
 		os.Exit(9)
 	}
-
-	// // Make a builder
-	// builder := &ast.ASTBuilder{
-	// 	Tokens: tokens,
-	// }
-
-	// fmt.Println("\nBuilding AST ...")
-
-	// // Build the AST
-	// programnode, err := builder.BuildAST()
-	// if err != nil {
-	// 	fmt.Printf("err %+v\n", err)
-	// 	os.Exit(9)
-	// }
 
 	pJSON, _ := json.Marshal(programAST)
 	fmt.Println()
@@ -122,12 +108,12 @@ func main() {
 
 	// fmt.Println("Transpiling Express to C++ code ...")
 
-	// // Transpile the AST into C++
-	// t, err := transpiler.Transpile(programAST)
-	// if err != nil {
-	// 	fmt.Printf("\nerr %+v\n", err)
-	// 	os.Exit(9)
-	// }
+	// Transpile the AST into C++
+	t, err := transpiler.Transpile(programAST)
+	if err != nil {
+		fmt.Printf("\nerr %+v\n", err)
+		os.Exit(9)
+	}
 
 	// fmt.Println("\nWriting transpilied C++ code to main.cpp ...")
 

@@ -4,10 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"testing"
+
+	"github.com/scottshotgg/express2/test"
 )
 
 func TestParseBinOpExpression(t *testing.T) {
-	b, err = getBuilderFromString(tests[ExpressionTest]["binop"])
+	b, err = getBuilderFromString(test.Tests[test.ExpressionTest]["binop"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -38,7 +40,7 @@ func TestParseGroupOfExpressions(t *testing.T) {
 }
 
 func TestParseDerefExpression(t *testing.T) {
-	b, err = getBuilderFromString(tests[ExpressionTest]["deref"])
+	b, err = getBuilderFromString(test.Tests[test.ExpressionTest]["deref"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -53,7 +55,7 @@ func TestParseDerefExpression(t *testing.T) {
 }
 
 func TestParseIdentExpression(t *testing.T) {
-	b, err = getBuilderFromString(tests[ExpressionTest]["ident"])
+	b, err = getBuilderFromString(test.Tests[test.ExpressionTest]["ident"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -69,7 +71,7 @@ func TestParseIdentExpression(t *testing.T) {
 }
 
 func TestParseConditionExpression(t *testing.T) {
-	b, err = getBuilderFromString(tests[ExpressionTest]["condition"])
+	b, err = getBuilderFromString(test.Tests[test.ExpressionTest]["condition"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -85,7 +87,7 @@ func TestParseConditionExpression(t *testing.T) {
 }
 
 func TestParseIncrementExpression(t *testing.T) {
-	b, err = getBuilderFromString(tests[ExpressionTest]["inc"])
+	b, err = getBuilderFromString(test.Tests[test.ExpressionTest]["inc"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -103,7 +105,7 @@ func TestParseIncrementExpression(t *testing.T) {
 }
 
 func TestParseArrayExpression(t *testing.T) {
-	b, err = getBuilderFromString(tests[ExpressionTest]["array"])
+	b, err = getBuilderFromString(test.Tests[test.ExpressionTest]["array"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -118,7 +120,7 @@ func TestParseArrayExpression(t *testing.T) {
 }
 
 func TestParseLiteral(t *testing.T) {
-	b, err = getBuilderFromString(tests[ExpressionTest]["intLit"])
+	b, err = getBuilderFromString(test.Tests[test.ExpressionTest]["intLit"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -133,7 +135,7 @@ func TestParseLiteral(t *testing.T) {
 }
 
 func TestParseIdentIndexExpression(t *testing.T) {
-	b, err = getBuilderFromString(tests[ExpressionTest]["identIndex"])
+	b, err = getBuilderFromString(test.Tests[test.ExpressionTest]["identIndex"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -152,7 +154,7 @@ func TestParseIdentIndexExpression(t *testing.T) {
 }
 
 func TestParseCallExpression(t *testing.T) {
-	b, err = getBuilderFromString(tests[ExpressionTest]["identCall"])
+	b, err = getBuilderFromString(test.Tests[test.ExpressionTest]["identCall"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -167,7 +169,7 @@ func TestParseCallExpression(t *testing.T) {
 }
 
 func TestParseBlockExpression(t *testing.T) {
-	b, err = getBuilderFromString(tests[ExpressionTest]["blockExpr"])
+	b, err = getBuilderFromString(test.Tests[test.ExpressionTest]["blockExpr"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -182,7 +184,7 @@ func TestParseBlockExpression(t *testing.T) {
 }
 
 func TestParseSelectionExpression(t *testing.T) {
-	b, err = getBuilderFromString(tests[ExpressionTest]["identSelect"])
+	b, err = getBuilderFromString(test.Tests[test.ExpressionTest]["identSelect"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}

@@ -606,10 +606,13 @@ func (b *Builder) ParseFunctionStatement() (*Node, error) {
 	// Step over the function token
 	b.Index++
 
-	node := Node{
-		Type:     "function",
-		Metadata: map[string]interface{}{},
-	}
+	var (
+		err  error
+		node = Node{
+			Type:     "function",
+			Metadata: map[string]interface{}{},
+		}
+	)
 
 	// Named function
 	if b.Tokens[b.Index].Type != token.Ident {
@@ -617,6 +620,7 @@ func (b *Builder) ParseFunctionStatement() (*Node, error) {
 	}
 
 	node.Value = b.Tokens[b.Index].Value.String
+
 	// Step over the ident token
 	b.Index++
 
@@ -629,8 +633,11 @@ func (b *Builder) ParseFunctionStatement() (*Node, error) {
 		return nil, err
 	}
 
+	if args != nil {
+		node.Metadata["args"] = args
+	}
+
 	// Might want to avoid putting this here if we don't have any
-	node.Metadata["args"] = args
 
 	// We are not supporting multiple returns for now
 	// // Check for multiple returns;another left paren
@@ -650,7 +657,7 @@ func (b *Builder) ParseFunctionStatement() (*Node, error) {
 		b.Index++
 	}
 
-	node.Value, err = b.ParseBlockStatement()
+	node.Left, err = b.ParseBlockStatement()
 	if err != nil {
 		return nil, err
 	}

@@ -10,6 +10,7 @@ func New(tokens []token.Token) *Builder {
 	}
 
 	b.OpFuncMap = []map[string]opCallbackFn{
+		// Tier 1 operators
 		0: map[string]opCallbackFn{
 			token.Increment: b.ParseIncrement,
 			token.Accessor:  b.ParseSelection,
@@ -19,6 +20,7 @@ func New(tokens []token.Token) *Builder {
 			token.PriOp:     b.ParseBinOp,
 		},
 
+		// Tier two operators
 		1: map[string]opCallbackFn{
 			token.SecOp: b.ParseBinOp,
 		},

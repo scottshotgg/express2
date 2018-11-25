@@ -1,6 +1,7 @@
 package something
 
 import "something"
+include "something.cpp"
 
 type Something = string
 

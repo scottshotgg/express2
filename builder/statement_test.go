@@ -4,10 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"testing"
+
+	"github.com/scottshotgg/express2/test"
 )
 
 func TestParseBinOpAssignmentStatement(t *testing.T) {
-	b, err = getBuilderFromString(tests[StatementTest]["binop"])
+	b, err = getBuilderFromString(test.Tests[test.StatementTest]["binop"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -23,7 +25,7 @@ func TestParseBinOpAssignmentStatement(t *testing.T) {
 
 func TestParseDeclarationStatement(t *testing.T) {
 	// TODO: we need the rest of the declaration types and stuff
-	b, err = getBuilderFromString(tests[StatementTest]["decl"])
+	b, err = getBuilderFromString(test.Tests[test.StatementTest]["decl"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -38,7 +40,7 @@ func TestParseDeclarationStatement(t *testing.T) {
 }
 
 func TestParseAssignmentFromIndexStatement(t *testing.T) {
-	b, err = getBuilderFromString(tests[StatementTest]["assignFromIndex"])
+	b, err = getBuilderFromString(test.Tests[test.StatementTest]["assignFromIndex"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -57,7 +59,7 @@ func TestParseAssignmentFromIndexStatement(t *testing.T) {
 }
 
 func TestParseAssignmentStatement(t *testing.T) {
-	b, err = getBuilderFromString(tests[StatementTest]["simpleAssign"])
+	b, err = getBuilderFromString(test.Tests[test.StatementTest]["simpleAssign"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -72,7 +74,7 @@ func TestParseAssignmentStatement(t *testing.T) {
 }
 
 func TestIfElseStatement(t *testing.T) {
-	b, err = getBuilderFromString(tests[StatementTest]["ifElse"])
+	b, err = getBuilderFromString(test.Tests[test.StatementTest]["ifElse"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -104,7 +106,7 @@ func TestParseGroupOfStatements(t *testing.T) {
 }
 
 func TestParseFunctionStatement(t *testing.T) {
-	b, err = getBuilderFromString(tests[StatementTest]["funcDef"])
+	b, err = getBuilderFromString(test.Tests[test.StatementTest]["funcDef"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -119,7 +121,7 @@ func TestParseFunctionStatement(t *testing.T) {
 }
 
 func TestParseCallAssignmentStatement(t *testing.T) {
-	b, err = getBuilderFromString(tests[StatementTest]["callAssign"])
+	b, err = getBuilderFromString(test.Tests[test.StatementTest]["callAssign"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -134,7 +136,7 @@ func TestParseCallAssignmentStatement(t *testing.T) {
 }
 
 func TestParseBlockStatement(t *testing.T) {
-	b, err = getBuilderFromString(tests[StatementTest]["block"])
+	b, err = getBuilderFromString(test.Tests[test.StatementTest]["block"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -149,7 +151,7 @@ func TestParseBlockStatement(t *testing.T) {
 }
 
 func TestParseDerefAssignmentStatement(t *testing.T) {
-	b, err = getBuilderFromString(tests[StatementTest]["derefAssign"])
+	b, err = getBuilderFromString(test.Tests[test.StatementTest]["derefAssign"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -164,7 +166,7 @@ func TestParseDerefAssignmentStatement(t *testing.T) {
 }
 
 func TestParsePackageStatement(t *testing.T) {
-	b, err = getBuilderFromString(tests[StatementTest]["package"])
+	b, err = getBuilderFromString(test.Tests[test.StatementTest]["package"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -179,7 +181,7 @@ func TestParsePackageStatement(t *testing.T) {
 }
 
 func TestParseImportStatement(t *testing.T) {
-	b, err = getBuilderFromString(tests[StatementTest]["import"])
+	b, err = getBuilderFromString(test.Tests[test.StatementTest]["import"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -194,7 +196,7 @@ func TestParseImportStatement(t *testing.T) {
 }
 
 func TestParseIncludeStatement(t *testing.T) {
-	b, err = getBuilderFromString(tests[StatementTest]["include"])
+	b, err = getBuilderFromString(test.Tests[test.StatementTest]["include"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -209,7 +211,7 @@ func TestParseIncludeStatement(t *testing.T) {
 }
 
 func TestParseForStatement(t *testing.T) {
-	b, err = getBuilderFromString(tests[StatementTest]["stdFor"])
+	b, err = getBuilderFromString(test.Tests[test.StatementTest]["stdFor"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -224,7 +226,7 @@ func TestParseForStatement(t *testing.T) {
 }
 
 func TestParseForStdStatement(t *testing.T) {
-	b, err = getBuilderFromString(tests[StatementTest]["stdFor"])
+	b, err = getBuilderFromString(test.Tests[test.StatementTest]["stdFor"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -239,7 +241,7 @@ func TestParseForStdStatement(t *testing.T) {
 }
 
 func TestParseArrayDeclaration(t *testing.T) {
-	b, err = getBuilderFromString(tests[StatementTest]["arrayDef"])
+	b, err = getBuilderFromString(test.Tests[test.StatementTest]["arrayDef"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -254,7 +256,7 @@ func TestParseArrayDeclaration(t *testing.T) {
 }
 
 func TestParseForInStatement(t *testing.T) {
-	b, err = getBuilderFromString(tests[StatementTest]["forin"])
+	b, err = getBuilderFromString(test.Tests[test.StatementTest]["forin"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -269,7 +271,7 @@ func TestParseForInStatement(t *testing.T) {
 }
 
 func TestParseForOfStatement(t *testing.T) {
-	b, err = getBuilderFromString(tests[StatementTest]["forin"])
+	b, err = getBuilderFromString(test.Tests[test.StatementTest]["forin"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -284,7 +286,7 @@ func TestParseForOfStatement(t *testing.T) {
 }
 
 func TestParseIndexAssignmentStatement(t *testing.T) {
-	b, err = getBuilderFromString(tests[StatementTest]["indexAssign"])
+	b, err = getBuilderFromString(test.Tests[test.StatementTest]["indexAssign"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -298,7 +300,7 @@ func TestParseIndexAssignmentStatement(t *testing.T) {
 	fmt.Printf(jsonFormatString, nodeJSON)
 }
 func TestParseStatement(t *testing.T) {
-	b, err = getBuilderFromString(tests[StatementTest]["funcDef"])
+	b, err = getBuilderFromString(test.Tests[test.StatementTest]["funcDef"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -313,7 +315,7 @@ func TestParseStatement(t *testing.T) {
 }
 
 func TestParseSelectionAssignmentStatement(t *testing.T) {
-	b, err = getBuilderFromString(tests[StatementTest]["selectionAssign"])
+	b, err = getBuilderFromString(test.Tests[test.StatementTest]["selectionAssign"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -329,7 +331,7 @@ func TestParseSelectionAssignmentStatement(t *testing.T) {
 }
 
 func TestParseAssignmentFromSelectionStatement(t *testing.T) {
-	b, err = getBuilderFromString(tests[StatementTest]["assignFromSelect"])
+	b, err = getBuilderFromString(test.Tests[test.StatementTest]["assignFromSelect"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -345,7 +347,7 @@ func TestParseAssignmentFromSelectionStatement(t *testing.T) {
 }
 
 func TestParseTypedefStatement(t *testing.T) {
-	b, err = getBuilderFromString(tests[StatementTest]["typeDef"])
+	b, err = getBuilderFromString(test.Tests[test.StatementTest]["typeDef"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -361,7 +363,7 @@ func TestParseTypedefStatement(t *testing.T) {
 }
 
 func TestParseReturnStatement(t *testing.T) {
-	b, err = getBuilderFromString(tests[StatementTest]["returnSomething"])
+	b, err = getBuilderFromString(test.Tests[test.StatementTest]["returnSomething"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -377,7 +379,7 @@ func TestParseReturnStatement(t *testing.T) {
 }
 
 func TestParseStructStatement(t *testing.T) {
-	b, err = getBuilderFromString(tests[StatementTest]["struct"])
+	b, err = getBuilderFromString(test.Tests[test.StatementTest]["struct"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -393,7 +395,7 @@ func TestParseStructStatement(t *testing.T) {
 }
 
 func TestParseLetStatement(t *testing.T) {
-	b, err = getBuilderFromString(tests[StatementTest]["simpleLet"])
+	b, err = getBuilderFromString(test.Tests[test.StatementTest]["simpleLet"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
