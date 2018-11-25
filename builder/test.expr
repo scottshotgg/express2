@@ -1,0 +1,17 @@
+package something
+
+import "something"
+
+type Something = string
+
+function something() string {
+  string something = "something"
+  return {
+    function something() string {
+      string something = "something"
+      return something
+    }
+  }.something()
+}
+
+function main() { println(something()) }

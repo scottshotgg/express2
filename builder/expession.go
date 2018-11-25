@@ -63,6 +63,8 @@ func (b *Builder) ParseDerefExpression() (*Node, error) {
 		return ident, err
 	}
 
+	b.Index++
+
 	return &Node{
 		Type: "deref",
 		Left: ident,
@@ -124,6 +126,10 @@ func (b *Builder) ParseTerm() (*Node, error) {
 
 		factor, err = opFunc(factor)
 		if err != nil {
+			// if err == ErrOutOfTokens {
+			// 	return factor,
+			// }
+
 			return factor, err
 		}
 	}

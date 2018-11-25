@@ -80,7 +80,7 @@ func main() {
 		fmt.Println(t)
 	}
 
-	programAST, err := builder.New(tokens).BuildAST()
+	programnode, err := builder.New(tokens).BuildAST()
 	if err != nil {
 		fmt.Printf("err %+v\n", err)
 		os.Exit(9)
@@ -94,7 +94,7 @@ func main() {
 	// fmt.Println("\nBuilding AST ...")
 
 	// // Build the AST
-	// programAST, err := builder.BuildAST()
+	// programnode, err := builder.BuildAST()
 	// if err != nil {
 	// 	fmt.Printf("err %+v\n", err)
 	// 	os.Exit(9)
