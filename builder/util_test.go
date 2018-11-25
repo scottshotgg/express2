@@ -1,6 +1,7 @@
 package builder_test
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/scottshotgg/express-ast"
@@ -40,4 +41,9 @@ func printTokensFromBuilder(b *builder.Builder) {
 	for _, token := range b.Tokens {
 		fmt.Println(token)
 	}
+}
+
+func printNode(node builder.Node) {
+	nodeJSON, _ = json.Marshal(node)
+	fmt.Printf(jsonFormatString, nodeJSON)
 }

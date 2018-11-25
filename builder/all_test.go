@@ -1,6 +1,7 @@
 package builder_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"testing"
 )
@@ -14,15 +15,16 @@ func TestAllStatements(t *testing.T) {
 		fmt.Printf(runningString, name)
 		b, err = getBuilderFromString(stmt)
 		if err != nil {
-			t.Errorf(errString, err)
+			t.Errorf(errFormatString, err)
 		}
 
-		programAST, err = b.ParseStatement()
+		node, err = b.ParseStatement()
 		if err != nil {
-			t.Errorf(errString, err)
+			t.Errorf(errFormatString, err)
 		}
 
-		fmt.Printf(programASTString, programAST)
+		nodeJSON, _ = json.Marshal(node)
+		fmt.Printf(jsonFormatString, nodeJSON)
 	}
 }
 
@@ -31,14 +33,15 @@ func TestAllExpressions(t *testing.T) {
 		fmt.Printf(runningString, name)
 		b, err = getBuilderFromString(expr)
 		if err != nil {
-			t.Errorf(errString, err)
+			t.Errorf(errFormatString, err)
 		}
 
-		programAST, err = b.ParseExpression()
+		node, err = b.ParseExpression()
 		if err != nil {
-			t.Errorf(errString, err)
+			t.Errorf(errFormatString, err)
 		}
 
-		fmt.Printf(programASTString, programAST)
+		nodeJSON, _ = json.Marshal(node)
+		fmt.Printf(jsonFormatString, nodeJSON)
 	}
 }

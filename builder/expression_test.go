@@ -1,6 +1,7 @@
 package builder_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"testing"
 )
@@ -8,197 +9,192 @@ import (
 func TestParseBinOpExpression(t *testing.T) {
 	b, err = getBuilderFromString(tests[ExpressionTest]["binop"])
 	if err != nil {
-		t.Errorf(errString, err)
+		t.Errorf(errFormatString, err)
 	}
 
-	programAST, err = b.ParseExpression()
+	node, err = b.ParseExpression()
 	if err != nil {
-		t.Errorf(errString, err)
+		t.Errorf(errFormatString, err)
 	}
 
-	fmt.Printf(programASTString, programAST)
-
-	// fmt.Printf(programASTString, *programAST.Metadata["args"].(*builder.Node).Value.([]*builder.Node)[0].Right)
+	nodeJSON, _ = json.Marshal(node)
+	fmt.Printf(jsonFormatString, nodeJSON)
+	// fmt.Printf(nodeString, *node.Metadata["args"].(*builder.Node).Value.([]*builder.Node)[0].Right)
 }
 
 func TestParseGroupOfExpressions(t *testing.T) {
 	b, err = getBuilderFromString("(1, i, s, 9)")
 	if err != nil {
-		t.Errorf(errString, err)
+		t.Errorf(errFormatString, err)
 	}
 
-	programAST, err = b.ParseGroupOfExpressions()
+	node, err = b.ParseGroupOfExpressions()
 	if err != nil {
-		t.Errorf(errString, err)
+		t.Errorf(errFormatString, err)
 	}
 
-	fmt.Printf(programASTString, programAST)
+	nodeJSON, _ = json.Marshal(node)
+	fmt.Printf(jsonFormatString, nodeJSON)
 }
 
 func TestParseDerefExpression(t *testing.T) {
 	b, err = getBuilderFromString(tests[ExpressionTest]["deref"])
 	if err != nil {
-		t.Errorf(errString, err)
+		t.Errorf(errFormatString, err)
 	}
 
-	programAST, err = b.ParseExpression()
+	node, err = b.ParseExpression()
 	if err != nil {
-		t.Errorf(errString, err)
+		t.Errorf(errFormatString, err)
 	}
 
-	fmt.Printf(programASTString, programAST)
+	nodeJSON, _ = json.Marshal(node)
+	fmt.Printf(jsonFormatString, nodeJSON)
 }
 
 func TestParseIdentExpression(t *testing.T) {
 	b, err = getBuilderFromString(tests[ExpressionTest]["ident"])
 	if err != nil {
-		t.Errorf(errString, err)
+		t.Errorf(errFormatString, err)
 	}
 
-	// programAST, err =  b.ParseConditionExpression()
-	programAST, err = b.ParseExpression()
+	// node, err =  b.ParseConditionExpression()
+	node, err = b.ParseExpression()
 	if err != nil {
-		t.Errorf(errString, err)
+		t.Errorf(errFormatString, err)
 	}
 
-	fmt.Printf(programASTString, programAST)
+	nodeJSON, _ = json.Marshal(node)
+	fmt.Printf(jsonFormatString, nodeJSON)
 }
 
 func TestParseConditionExpression(t *testing.T) {
 	b, err = getBuilderFromString(tests[ExpressionTest]["condition"])
 	if err != nil {
-		t.Errorf(errString, err)
+		t.Errorf(errFormatString, err)
 	}
 
-	// programAST, err =  b.ParseConditionExpression()
-	programAST, err = b.ParseExpression()
+	// node, err =  b.ParseConditionExpression()
+	node, err = b.ParseExpression()
 	if err != nil {
-		t.Errorf(errString, err)
+		t.Errorf(errFormatString, err)
 	}
 
-	fmt.Printf(programASTString, programAST)
+	nodeJSON, _ = json.Marshal(node)
+	fmt.Printf(jsonFormatString, nodeJSON)
 }
 
 func TestParseIncrementExpression(t *testing.T) {
 	b, err = getBuilderFromString(tests[ExpressionTest]["inc"])
 	if err != nil {
-		t.Errorf(errString, err)
+		t.Errorf(errFormatString, err)
 	}
 
-	// programAST, err =  b.ParseIncrement(&Node{})
-	programAST, err = b.ParseExpression()
+	// node, err =  b.ParseIncrement(&Node{})
+	node, err = b.ParseExpression()
 	if err != nil {
-		t.Errorf(errString, err)
+		t.Errorf(errFormatString, err)
 	}
 
 	// fmt.Println(b.ParseBlockStatement())
 
-	fmt.Printf(programASTString, programAST)
+	nodeJSON, _ = json.Marshal(node)
+	fmt.Printf(jsonFormatString, nodeJSON)
 }
 
 func TestParseArrayExpression(t *testing.T) {
 	b, err = getBuilderFromString(tests[ExpressionTest]["array"])
 	if err != nil {
-		t.Errorf(errString, err)
+		t.Errorf(errFormatString, err)
 	}
 
-	programAST, err = b.ParseArrayExpression()
+	node, err = b.ParseArrayExpression()
 	if err != nil {
-		t.Errorf(errString, err)
+		t.Errorf(errFormatString, err)
 	}
 
-	fmt.Printf(programASTString, programAST)
-}
-
-func TestParseType(t *testing.T) {
-	test := "int[][5]"
-
-	b, err = getBuilderFromString(test)
-	if err != nil {
-		t.Errorf(errString, err)
-	}
-
-	programAST, err = b.ParseType()
-	if err != nil {
-		t.Errorf(errString, err)
-	}
-
-	fmt.Printf(programASTString, programAST)
+	nodeJSON, _ = json.Marshal(node)
+	fmt.Printf(jsonFormatString, nodeJSON)
 }
 
 func TestParseLiteral(t *testing.T) {
 	b, err = getBuilderFromString(tests[ExpressionTest]["intLit"])
 	if err != nil {
-		t.Errorf(errString, err)
+		t.Errorf(errFormatString, err)
 	}
 
-	programAST, err = b.ParseExpression()
+	node, err = b.ParseExpression()
 	if err != nil {
-		t.Errorf(errString, err)
+		t.Errorf(errFormatString, err)
 	}
 
-	fmt.Printf(programASTString, programAST)
+	nodeJSON, _ = json.Marshal(node)
+	fmt.Printf(jsonFormatString, nodeJSON)
 }
 
 func TestParseIdentIndexExpression(t *testing.T) {
 	b, err = getBuilderFromString(tests[ExpressionTest]["identIndex"])
 	if err != nil {
-		t.Errorf(errString, err)
+		t.Errorf(errFormatString, err)
 	}
 
-	programAST, err = b.ParseExpression()
+	node, err = b.ParseExpression()
 	if err != nil {
-		t.Errorf(errString, err)
+		t.Errorf(errFormatString, err)
 	}
 
 	// Use DFS for this
-	fmt.Printf(programASTString, programAST)
-	fmt.Printf(programASTString, programAST.Left.Left)
-	fmt.Printf(programASTString, programAST.Left.Right)
-	fmt.Printf(programASTString, programAST.Right)
+	nodeJSON, _ = json.Marshal(node)
+	fmt.Printf(jsonFormatString, nodeJSON)
+	fmt.Printf(astFormatString, node.Left.Left)
+	fmt.Printf(astFormatString, node.Left.Right)
+	fmt.Printf(astFormatString, node.Right)
 }
 
 func TestParseCallExpression(t *testing.T) {
 	b, err = getBuilderFromString(tests[ExpressionTest]["identCall"])
 	if err != nil {
-		t.Errorf(errString, err)
+		t.Errorf(errFormatString, err)
 	}
 
-	programAST, err = b.ParseExpression()
+	node, err = b.ParseExpression()
 	if err != nil {
-		t.Errorf(errString, err)
+		t.Errorf(errFormatString, err)
 	}
 
-	fmt.Printf(programASTString, programAST)
+	nodeJSON, _ = json.Marshal(node)
+	fmt.Printf(jsonFormatString, nodeJSON)
 }
 
 func TestParseBlockExpression(t *testing.T) {
 	b, err = getBuilderFromString(tests[ExpressionTest]["blockExpr"])
 	if err != nil {
-		t.Errorf(errString, err)
+		t.Errorf(errFormatString, err)
 	}
 
-	programAST, err = b.ParseExpression()
+	node, err = b.ParseExpression()
 	if err != nil {
-		t.Errorf(errString, err)
+		t.Errorf(errFormatString, err)
 	}
 
-	fmt.Printf(programASTString, programAST)
+	nodeJSON, _ = json.Marshal(node)
+	fmt.Printf(jsonFormatString, nodeJSON)
 }
 
 func TestParseSelectionExpression(t *testing.T) {
 	b, err = getBuilderFromString(tests[ExpressionTest]["identSelect"])
 	if err != nil {
-		t.Errorf(errString, err)
+		t.Errorf(errFormatString, err)
 	}
 
-	programAST, err = b.ParseExpression()
+	node, err = b.ParseExpression()
 	if err != nil {
-		t.Errorf(errString, err)
+		t.Errorf(errFormatString, err)
 	}
 
 	// Remember: The left always provides the value...
-	fmt.Printf(programASTString, programAST)
+	nodeJSON, _ = json.Marshal(node)
+	fmt.Printf(jsonFormatString, nodeJSON)
 }
 
 // func TestParseStructBlockExpression(t *testing.T) {}

@@ -104,12 +104,15 @@ func (b *Builder) ParseSelection(n *Node) (*Node, error) {
 		return b.AppendTokenToError("Could not get selection operator")
 	}
 
+	// Step over the accessor
 	b.Index++
 
 	expr, err := b.ParseExpression()
 	if err != nil {
 		return nil, err
 	}
+
+	b.Index++
 
 	return &Node{
 		Type: "selection",

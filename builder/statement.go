@@ -1,6 +1,10 @@
 package builder
 
-import "github.com/scottshotgg/express-token"
+import (
+	"fmt"
+
+	"github.com/scottshotgg/express-token"
+)
 
 func (b *Builder) ParseGroupOfStatements() (*Node, error) {
 	// Check ourselves
@@ -249,6 +253,7 @@ func (b *Builder) ParseBlockStatement() (*Node, error) {
 		if err != nil {
 			return nil, err
 		}
+		fmt.Println("i am here", stmt)
 
 		stmts = append(stmts, stmt)
 	}
@@ -378,8 +383,8 @@ func (b *Builder) ParseTypeDeclarationStatement() (*Node, error) {
 		return nil, err
 	}
 
-	// Increment over the first part of the expression
-	b.Index++
+	// // Increment over the first part of the expression
+	// b.Index++
 
 	return &Node{
 		Type:  "typedef",
@@ -420,8 +425,8 @@ func (b *Builder) ParseStructStatement() (*Node, error) {
 		return nil, err
 	}
 
-	// Increment over the first part of the expression
-	b.Index++
+	// // Increment over the first part of the expression
+	// b.Index++
 
 	return &Node{
 		Type:  "struct",
@@ -489,9 +494,12 @@ func (b *Builder) ParseAssignmentStatement() (*Node, error) {
 	// Increment over the ident token
 	b.Index++
 
+	if b.Index > len(b.Tokens) {
+		return ident, nil
+	}
+
 	// Check for the equals token
-	if b.Index < len(b.Tokens)-1 &&
-		b.Tokens[b.Index].Type != token.Assign {
+	if b.Tokens[b.Index].Type != token.Assign {
 		if ident.Type == "call" {
 			return ident, nil
 		}
@@ -648,13 +656,59 @@ func (b *Builder) ParseFunctionStatement() (*Node, error) {
 	return &node, nil
 }
 
+func (b *Builder) ParseDerefStatement() (*Node, error) {
+	// if b.Tokens[b.Index].Type != token.Ident {
+	// 	return b.AppendTokenToError("Could not get assignment statement without ident")
+	// }
+
+	deref, err := b.ParseDerefExpression()
+	if err != nil {
+		return nil, err
+	}
+
+	// // Increment over the ident token
+	// b.Index++
+
+	if b.Index > len(b.Tokens) {
+		return deref, nil
+	}
+
+	// Check for the equals token
+	if b.Tokens[b.Index].Type != token.Assign {
+		if deref.Type == "call" {
+			return deref, nil
+		}
+
+		return b.AppendTokenToError("No equals found after ident in assignment")
+	}
+
+	// Increment over the equals
+	b.Index++
+
+	// Parse the right hand side
+	expr, err := b.ParseExpression()
+	if err != nil {
+		return nil, err
+	}
+
+	// Increment over the first part of the expression
+	b.Index++
+
+	return &Node{
+		Type:  "assignment",
+		Left:  deref,
+		Right: expr,
+	}, nil
+}
+
 // TODO: what if types were expressions ...
 
 // ParseStatement ** does ** not look ahead
 func (b *Builder) ParseStatement() (*Node, error) {
 	switch b.Tokens[b.Index].Type {
+
 	case token.PriOp:
-		return b.ParseDerefExpression()
+		return b.ParseDerefStatement()
 
 	case token.Package:
 		return b.ParsePackageStatement()

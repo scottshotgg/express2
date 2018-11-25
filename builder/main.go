@@ -1,8 +1,6 @@
 package builder
 
 import (
-	"fmt"
-
 	"github.com/scottshotgg/express-token"
 )
 
@@ -50,8 +48,6 @@ func (b *Builder) BuildAST() (*Node, error) {
 		if stmt == nil {
 			return b.AppendTokenToError("Statement was nil")
 		}
-
-		fmt.Println("stmt", stmt)
 
 		stmts = append(stmts, stmt)
 	}

@@ -14,14 +14,16 @@ const (
 	ExpressionTest
 	StatementTest
 
-	programASTString = "programAST %+v\n"
-	errString        = "err %+v\n"
+	astFormatString  = "ast: %+v\n"
+	errFormatString  = "err: %+v\n"
+	jsonFormatString = "JSON: %s\n"
 )
 
 var (
-	b          *builder.Builder
-	programAST *builder.Node
-	err        error
+	b        *builder.Builder
+	node     *builder.Node
+	err      error
+	nodeJSON []byte
 
 	expressionTestMap = map[string]string{
 		"deref":       "*somethingElse",
@@ -46,10 +48,10 @@ var (
 		"block":            "{ int i = 10 int j = 99 }",
 		"import":           "import \"somethingHere.expr\"",
 		"include":          "include \"somethingHere.expr\"",
-		"stdFor":           "for int i = 1; i < 10; i++ { }",
+		"stdFor":           "for int i = 1; i < 10; i++ { int i = 10 }",
 		"arrayDef":         "int[] i = [ 8, 9, 0 ]",
-		"forin":            "for i in [ 7, 8, 9 ] { }",
-		"forof":            "for i of [ 7, 8, 9 ] { }",
+		"forin":            "for i in is { i = 10 }",
+		"forof":            "for i of [ 7, 8, 9 ] { int i = 10 }",
 		"indexAssign":      "something[7] = \"hey its me\"",
 		"assignFromIndex":  "something = here[9][0]",
 		"typeDef":          "type myInt = int",
@@ -71,7 +73,7 @@ var (
 
 func TestNew(t *testing.T) {
 	if builder.New(nil) == nil {
-		t.Errorf(errString, "Builder was nil for some reason")
+		t.Errorf(errFormatString, "Builder was nil for some reason")
 	}
 }
 
@@ -81,41 +83,51 @@ func TestNew(t *testing.T) {
 // 	var i int
 // 	// Test each one individually
 // 	for _, stmt := range statementTestMap {
-// 		if i > len(statementTestMap)-18 {
-// 			break
-// 		}
+// 		// if i > len(statementTestMap)-18 {
+// 		// 	break
+// 		// }
 
 // 		i++
 
 // 		// Accumulate a string containing all statements
-// 		totalString += stmt + "\n"
+// 		totalString += stmt
 
 // 		b, err = getBuilderFromString(stmt)
 // 		if err != nil {
-// 			t.Errorf(errString, err)
+// 			t.Errorf(errFormatString, err)
 // 		}
 
-// 		programAST, err = b.BuildAST()
+// 		node, err = b.BuildAST()
 // 		if err != nil {
+// 			fmt.Println("before", b.Tokens[b.Index-3])
+// 			fmt.Println("before", b.Tokens[b.Index-2])
 // 			fmt.Println("before", b.Tokens[b.Index-1])
-// 			t.Errorf(errString, err)
+// 			t.Errorf(errFormatString, err)
 // 			fmt.Println("after", b.Tokens[b.Index+1])
 // 		}
 
-// 		fmt.Printf(programASTString, programAST)
+// 		nodeJSON, _ = json.Marshal(node)
+// 		fmt.Printf(jsonFormatString, nodeJSON)
 // 	}
 
 // 	b, err = getBuilderFromString(totalString)
 // 	if err != nil {
-// 		t.Errorf(errString, err)
+// 		t.Errorf(errFormatString, err)
 // 	}
 
-// 	programAST, err = b.BuildAST()
+// 	node, err = b.BuildAST()
 // 	if err != nil {
+// 		fmt.Println("before", b.Tokens[b.Index-3])
+// 		fmt.Println("before", b.Tokens[b.Index-2])
 // 		fmt.Println("before", b.Tokens[b.Index-1])
-// 		t.Errorf(errString, err)
+// 		t.Errorf(errFormatString, err)
 // 		fmt.Println("after", b.Tokens[b.Index+1])
 // 	}
 
-// 	fmt.Printf(programASTString, programAST)
+// 	nodeJSON, _ = json.Marshal(node)
+// 	fmt.Printf(jsonFormatString, nodeJSON)
+// }
+
+// func (b *Builder) TestBuildAST(t *testing.T) {
+
 // }
