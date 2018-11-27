@@ -496,7 +496,7 @@ func (b *Builder) ParseAssignmentStatement() (*Node, error) {
 	// Increment over the ident token
 	b.Index++
 
-	if b.Index > len(b.Tokens) {
+	if b.Index > len(b.Tokens)-1 {
 		return ident, nil
 	}
 
