@@ -23,7 +23,7 @@ func (b *Builder) ParseBinOp(n *Node) (*Node, error) {
 	}, nil
 }
 
-func (b *Builder) ParseConditionExpression(n *Node) (*Node, error) {
+func (b *Builder) ParseLessThanExpression(n *Node) (*Node, error) {
 	// Step over the conditional operator token
 	b.Index++
 
@@ -33,8 +33,25 @@ func (b *Builder) ParseConditionExpression(n *Node) (*Node, error) {
 	}
 
 	return &Node{
-		Type: "comp",
-		// Value: "",
+		Type:  "comp",
+		Value: "<",
+		Left:  n,
+		Right: right,
+	}, nil
+}
+
+func (b *Builder) ParseGreaterThanExpression(n *Node) (*Node, error) {
+	// Step over the conditional operator token
+	b.Index++
+
+	right, err := b.ParseExpression()
+	if err != nil {
+		return nil, err
+	}
+
+	return &Node{
+		Type:  "comp",
+		Value: ">",
 		Left:  n,
 		Right: right,
 	}, nil
@@ -42,8 +59,8 @@ func (b *Builder) ParseConditionExpression(n *Node) (*Node, error) {
 
 func (b *Builder) ParseIncrement(n *Node) (*Node, error) {
 	return &Node{
-		Type:  "inc",
-		Value: n,
+		Type: "inc",
+		Left: n,
 	}, nil
 }
 

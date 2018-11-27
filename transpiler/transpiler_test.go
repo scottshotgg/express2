@@ -225,3 +225,45 @@ func TestTranspileDeclarationStatement(t *testing.T) {
 
 	fmt.Println("C++:", *cpp)
 }
+
+func TestTranspileIncrementExpression(t *testing.T) {
+	ast, err := getStatementASTFromString(test.Tests[test.ExpressionTest]["inc"])
+	if err != nil {
+		t.Fatalf("Could not create AST: %+v", err)
+	}
+
+	cpp, err = transpiler.TranspileIncrementExpression(ast)
+	if err != nil {
+		t.Errorf("err: %+v", err)
+	}
+
+	fmt.Println("C++:", *cpp)
+}
+
+func TestTranspileConditionExpression(t *testing.T) {
+	ast, err := getStatementASTFromString(test.Tests[test.ExpressionTest]["condition"])
+	if err != nil {
+		t.Fatalf("Could not create AST: %+v", err)
+	}
+
+	cpp, err = transpiler.TranspileConditionExpression(ast)
+	if err != nil {
+		t.Errorf("err: %+v", err)
+	}
+
+	fmt.Println("C++:", *cpp)
+}
+
+func TestTranspileBinOpExpression(t *testing.T) {
+	ast, err := getStatementASTFromString(test.Tests[test.ExpressionTest]["binop"])
+	if err != nil {
+		t.Fatalf("Could not create AST: %+v", err)
+	}
+
+	cpp, err = transpiler.TranspileBinOpExpression(ast)
+	if err != nil {
+		t.Errorf("err: %+v", err)
+	}
+
+	fmt.Println("C++:", *cpp)
+}

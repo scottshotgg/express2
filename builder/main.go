@@ -16,7 +16,8 @@ func New(tokens []token.Token) *Builder {
 			token.Accessor:  b.ParseSelection,
 			token.LBracket:  b.ParseIndexExpression,
 			token.LParen:    b.ParseCall,
-			token.LThan:     b.ParseConditionExpression,
+			token.LThan:     b.ParseLessThanExpression,
+			token.GThan:     b.ParseGreaterThanExpression,
 			token.PriOp:     b.ParseBinOp,
 		},
 

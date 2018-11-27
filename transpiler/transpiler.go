@@ -69,6 +69,12 @@ func TranspileExpression(n *builder.Node) (*string, error) {
 
 	case "ident":
 		return TranspileIdentExpression(n)
+
+	case "comp":
+		return TranspileConditionExpression(n)
+
+	case "binop":
+		return TranspileBinOpExpression(n)
 	}
 
 	return nil, errors.New("Not implemented: " + n.Type)
@@ -223,6 +229,80 @@ func TranspileDeclarationStatement(n *builder.Node) (*string, error) {
 	}
 
 	nString += *vString
+
+	return &nString, nil
+}
+
+func TranspileIncrementExpression(n *builder.Node) (*string, error) {
+	if n.Type != "inc" {
+		return nil, errors.New("Node is not an inc")
+	}
+
+	var (
+		nString = ""
+		vString *string
+		err     error
+	)
+
+	// Translate the ident expression (lhs)
+	vString, err = TranspileExpression(n.Left)
+	if err != nil {
+		return nil, err
+	}
+
+	nString += *vString + "++"
+
+	return &nString, nil
+}
+
+func TranspileConditionExpression(n *builder.Node) (*string, error) {
+	if n.Type != "comp" {
+		return nil, errors.New("Node is not an comp")
+	}
+
+	var (
+		nString = ""
+		vString *string
+		err     error
+	)
+
+	// Translate the lhs
+	vString, err = TranspileExpression(n.Left)
+	if err != nil {
+		return nil, err
+	}
+
+	nString += *vString
+
+	// Translate the rhs
+	vString, err = TranspileExpression(n.Right)
+	if err != nil {
+		return nil, err
+	}
+
+	nString += n.Value.(string) + *vString
+
+	return &nString, nil
+}
+
+func TranspileBinOpExpression(n *builder.Node) (*string, error) {
+	if n.Type != "binop" {
+		return nil, errors.New("Node is not an inc")
+	}
+
+	var (
+		nString = ""
+		vString *string
+		err     error
+	)
+
+	// Translate the ident expression (lhs)
+	vString, err = TranspileExpression(n.Left)
+	if err != nil {
+		return nil, err
+	}
+
+	nString += *vString + "++"
 
 	return &nString, nil
 }
