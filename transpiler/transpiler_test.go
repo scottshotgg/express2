@@ -218,6 +218,8 @@ func TestTranspileDeclarationStatement(t *testing.T) {
 		t.Fatalf("Could not create AST: %+v", err)
 	}
 
+	fmt.Println("ast", ast)
+
 	cpp, err = transpiler.TranspileDeclarationStatement(ast)
 	if err != nil {
 		t.Errorf("err: %+v", err)
@@ -255,12 +257,54 @@ func TestTranspileConditionExpression(t *testing.T) {
 }
 
 func TestTranspileBinOpExpression(t *testing.T) {
-	ast, err := getStatementASTFromString(test.Tests[test.ExpressionTest]["binop"])
+	ast, err := getExpressionASTFromString(test.Tests[test.ExpressionTest]["binop"])
 	if err != nil {
 		t.Fatalf("Could not create AST: %+v", err)
 	}
 
 	cpp, err = transpiler.TranspileBinOpExpression(ast)
+	if err != nil {
+		t.Errorf("err: %+v", err)
+	}
+
+	fmt.Println("C++:", *cpp)
+}
+
+func TestTranspileBlockStatement(t *testing.T) {
+	ast, err := getStatementASTFromString(test.Tests[test.StatementTest]["block"])
+	if err != nil {
+		t.Fatalf("Could not create AST: %+v", err)
+	}
+
+	cpp, err = transpiler.TranspileBlockStatement(ast)
+	if err != nil {
+		t.Errorf("err: %+v", err)
+	}
+
+	fmt.Println("C++:", *cpp)
+}
+
+func TestTranspileForInStatement(t *testing.T) {
+	ast, err := getStatementASTFromString(test.Tests[test.StatementTest]["forin"])
+	if err != nil {
+		t.Fatalf("Could not create AST: %+v", err)
+	}
+
+	cpp, err = transpiler.TranspileForInStatement(ast)
+	if err != nil {
+		t.Errorf("err: %+v", err)
+	}
+
+	fmt.Println("C++:", *cpp)
+}
+
+func TestTranspileCallExpression(t *testing.T) {
+	ast, err := getStatementASTFromString(test.Tests[test.ExpressionTest]["identCall"])
+	if err != nil {
+		t.Fatalf("Could not create AST: %+v", err)
+	}
+
+	cpp, err = transpiler.TranspileCallExpression(ast)
 	if err != nil {
 		t.Errorf("err: %+v", err)
 	}
