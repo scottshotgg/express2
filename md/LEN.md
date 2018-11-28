@@ -19,4 +19,4 @@ Channel:
   - Use the `.length` property which will compose into `<queue>.size()`
 
 Var:
-  - Use the `.length` property which will return either 1 if the `var` is not a composite type or the `.length` property of the encapsulated composite type
+  - Use the `.length` property which will return either -1 if the `var` is not a composite type or the `.length` property of the encapsulated composite type
