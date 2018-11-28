@@ -1,7 +1,7 @@
 # On length in Express:
 
 Strings:
-  - Use the `.length` property which will compose into `strlen(<string>)
+  - Use the `.length` property which will compose into `strlen(<string>)`
 
 Arrays:
   - Use the `.length` property
