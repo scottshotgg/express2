@@ -1,4 +1,4 @@
-# On length in Expres:
+# On length in Express:
 
 String:
   - Use the `.length` property which will compose into `strlen(<string>)`
