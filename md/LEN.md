@@ -7,7 +7,7 @@ Array:
   - Use the `.length` property
 
 List:
-  - Use the `.length` property which will the length of the populated memory of the vector instead of the `.capacity` property calculated by `<vector>.size()`
+  - Use the `.length` property which will return the length of the populated memory of the vector instead of the `.capacity` property calculated by `<vector>.size()`
 
 Struct:
   - Use the `.length` property which will return the number of attributes the struct has
