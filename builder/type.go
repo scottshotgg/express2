@@ -82,6 +82,7 @@ func (b *Builder) ParseArrayType(typeOf string) (*Node, error) {
 
 	return &Node{
 		Type:  "type",
+		Kind:  typeOf,
 		Value: "array",
 		Metadata: map[string]interface{}{
 			// "type": typeOf,
