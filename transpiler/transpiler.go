@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sync"
 
 	"github.com/scottshotgg/express2/builder"
 )
@@ -24,16 +25,41 @@ func New(ast *builder.Node, name string) *Transpiler {
 		AST:  ast,
 	}
 
+	wg.Add(1)
+
+	go appendWorker(&wg)
+
 	t.ASTCloneJSON, _ = json.Marshal(ast)
 
 	return &t
 }
 
+var appendChan = make(chan string, 5)
+
+func appendWorker(wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	var totalFile string
+
+	for a := range appendChan {
+		totalFile += a
+	}
+
+	fmt.Println("totalFile", totalFile)
+}
+
+func emit(line string) {
+	appendChan <- line
+}
+
+var wg sync.WaitGroup
+
 func (t *Transpiler) Transpile() (string, error) {
+
+	// just grab the first one for now
 	node := t.AST.Value.([]*builder.Node)[0]
 
 	switch node.Type {
-
 	case "function":
 		fmt.Println(node)
 		functionString := ""
@@ -54,6 +80,12 @@ func (t *Transpiler) Transpile() (string, error) {
 		}
 
 		functionString += ") {}"
+
+		emit(functionString)
+
+		close(appendChan)
+
+		wg.Wait()
 
 		return functionString, nil
 	}
@@ -485,8 +517,8 @@ func TranspileForOfStatement(n *builder.Node) (*string, error) {
 	//	- loop_block
 	//	-	increment var
 
-	if n.Type != "forin" {
-		return nil, errors.New("Node is not a forin")
+	if n.Type != "forof" {
+		return nil, errors.New("Node is not a forof")
 	}
 
 	var (
