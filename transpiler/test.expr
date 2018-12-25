@@ -1,5 +1,21 @@
 func main() {
   int i = 0
 
+/*
+  let something = [ 1, 2, 3, 4, 5 ]
+
+  for j of something {
+    i = j
+  }
+*/
+
   return 10
 }
+
+
+/*
+func iterate(:iterable: iter) {
+  for i of iter {
+    println(i)
+  }
+}*/
