@@ -89,9 +89,7 @@ func TestIfElseStatement(t *testing.T) {
 }
 
 func TestParseGroupOfStatements(t *testing.T) {
-	test := "(int i, string s)"
-
-	b, err = getBuilderFromString(test)
+	b, err = getBuilderFromString(test.Tests[test.StatementTest]["sgroup"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -299,6 +297,7 @@ func TestParseIndexAssignmentStatement(t *testing.T) {
 	nodeJSON, _ = json.Marshal(node)
 	fmt.Printf(jsonFormatString, nodeJSON)
 }
+
 func TestParseStatement(t *testing.T) {
 	b, err = getBuilderFromString(test.Tests[test.StatementTest]["funcDef"])
 	if err != nil {

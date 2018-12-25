@@ -3,6 +3,7 @@ package builder
 import (
 	"fmt"
 
+	"github.com/pkg/errors"
 	"github.com/scottshotgg/express-token"
 )
 
@@ -619,7 +620,7 @@ func (b *Builder) ParseFunctionStatement() (*Node, error) {
 		return b.AppendTokenToError("Could not get ident after function token")
 	}
 
-	node.Value = b.Tokens[b.Index].Value.String
+	node.Kind = b.Tokens[b.Index].Value.String
 
 	// Step over the ident token
 	b.Index++
@@ -645,19 +646,43 @@ func (b *Builder) ParseFunctionStatement() (*Node, error) {
 	// 	return nil, errors.New("Could not get returns")
 	// }
 
+	var returnType = b.Tokens[b.Index].Value.String
+
 	// We are not supporting named arguments for now
 	// Check for the return type token
 	if b.Tokens[b.Index].Type == token.Type {
 		node.Metadata["returns"] = &Node{
 			Type:  "type",
-			Value: b.Tokens[b.Index].Value.String,
+			Value: returnType,
 		}
 
 		// Step over the type token
 		b.Index++
 	}
 
-	node.Left, err = b.ParseBlockStatement()
+	// If the function is named main then check that it returns an int
+	// If it doesn't have any return type then apply an int return
+	// If it already has a return type that is not int then that is an error
+	if node.Kind == "main" {
+		if node.Metadata["returns"] != nil {
+			// Add this later
+			// if len(node.Metadata["returns"].([]*Node)) > 1 {
+			// 	return nil, errors.New("main can only have one return")
+			// }
+
+			if returnType != "int" {
+				return nil, errors.New("main can only return an int type")
+			}
+		}
+
+		// Apply the int return
+		node.Metadata["returns"] = &Node{
+			Type:  "type",
+			Value: "int",
+		}
+	}
+
+	node.Value, err = b.ParseBlockStatement()
 	if err != nil {
 		return nil, err
 	}

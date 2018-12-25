@@ -1,1 +1,5 @@
-function main() { }
+func main() {
+  int i = 0
+
+  return 10
+}
