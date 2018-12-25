@@ -76,3 +76,21 @@ func TestFlattenForIn(t *testing.T) {
 
 	fmt.Printf("\nNode: %+v\n", node)
 }
+
+func TestFlattenForOf(t *testing.T) {
+	testBytes, err := ioutil.ReadFile("test.expr")
+	if err != nil {
+		t.Fatalf("Could not read file: %+v", err)
+	}
+
+	test := string(testBytes)
+
+	node, err := getASTFromString(test)
+	if err != nil {
+		t.Fatalf("Could not create transpiler: %+v", err)
+	}
+
+	tree_flattener.Flatten(node)
+
+	fmt.Printf("\nNode: %+v\n", node)
+}

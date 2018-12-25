@@ -93,42 +93,67 @@ func transformArrayToDecl(typeOf string, node *builder.Node) *builder.Node {
 	}
 }
 
-func identLTLength(lhs *builder.Node, rhs *builder.Node) *builder.Node {
+func makeFunctionCall(node *builder.Node) *builder.Node {
 	return &builder.Node{
-		Type:  "comp",
-		Value: "<",
-		Left:  lhs,
-		Right: &builder.Node{
-			Type: "call",
-			Value: &builder.Node{
-				Type:  "ident",
-				Value: "std::size",
-				Metadata: map[string]interface{}{
-					"args": &builder.Node{
-						Type:  "egroup",
-						Value: []*builder.Node{rhs},
-					},
+		Type: "call",
+		Value: &builder.Node{
+			Type:  "ident",
+			Value: "std::size",
+			Metadata: map[string]interface{}{
+				"args": &builder.Node{
+					Type:  "egroup",
+					Value: []*builder.Node{node},
 				},
 			},
 		},
 	}
 }
 
+func makeLengthCall(node *builder.Node) *builder.Node {
+	return &builder.Node{
+		Type: "call",
+		Value: &builder.Node{
+			Type:  "ident",
+			Value: "std::size",
+			Metadata: map[string]interface{}{
+				"args": &builder.Node{
+					Type:  "egroup",
+					Value: []*builder.Node{node},
+				},
+			},
+		},
+	}
+}
+
+func makeLTComp(lhs *builder.Node, rhs *builder.Node) *builder.Node {
+	return &builder.Node{
+		Type:  "comp",
+		Value: "<",
+		Left:  lhs,
+		Right: rhs,
+	}
+}
+
+func makeIncrementOp(node *builder.Node) *builder.Node {
+	return &builder.Node{
+		Type: "inc",
+		Left: node,
+	}
+}
+
 // Don't need any type information for this except for the array
 
-func FlattenForIn(node *builder.Node) {
+func FlattenForIn(node *builder.Node) []*builder.Node {
 
 	arrayType := getArrayType(node.Metadata["end"].(*builder.Node))
 
 	incVar := transformIdentToDecl("int", node.Metadata["start"].(*builder.Node))
 	arrayVar := transformArrayToDecl(arrayType, node.Metadata["end"].(*builder.Node))
 	while := &builder.Node{
-		Type: "while",
-		// Value: , // THIS NEEDS TO BE THE BLOCK AFTER IT IS CHECKED
-		// i < len(arrayVar)
-		Left: identLTLength(incVar.Left, arrayVar.Left),
+		Type:  "while",
+		Value: node.Value,
+		Left:  makeLTComp(incVar.Left, makeLengthCall(arrayVar.Left)),
 	}
-	fmt.Println("stuff", arrayType, incVar, arrayVar, while)
 
 	// recurse, assign result to while.Value, return while.Value
 
@@ -136,22 +161,83 @@ func FlattenForIn(node *builder.Node) {
 	// make array if needed
 	// make while loop with condition
 	// recurse into block
+
+	return []*builder.Node{
+		incVar,
+		arrayVar,
+		while,
+	}
 }
 
 func Flatten(node *builder.Node) {
-	fmt.Println("node", node)
-	stmts := node.Value.([]*builder.Node)
+	// fmt.Println("node", node)
+	var (
+		stmts    = node.Value.([]*builder.Node)
+		newStmts = []*builder.Node{}
+	)
 
 	for _, stmt := range stmts {
-		fmt.Println("stmt", stmt)
+		// fmt.Println("stmt", stmt)
 
 		switch stmt.Type {
 		case "forin":
-			FlattenForIn(stmt)
+			newStmts = append(newStmts, FlattenForIn(stmt)...)
+
+		case "forof":
+			newStmts = append(newStmts, FlattenForOf(stmt)...)
 
 		default:
-			fmt.Println("not implemented", node)
-			os.Exit(9)
+			newStmts = append(newStmts, stmt)
 		}
+	}
+
+	node.Value = newStmts
+}
+
+func makeRandomIdent() *builder.Node {
+	return &builder.Node{
+		Type:  "ident",
+		Value: "RANDOM",
+	}
+}
+
+func transformIdentToAssignment(node *builder.Node, value *builder.Node) *builder.Node {
+	return &builder.Node{
+		Type:  "assignment",
+		Left:  node,
+		Right: value,
+	}
+}
+
+func FlattenForOf(node *builder.Node) []*builder.Node {
+	randomIdent := makeRandomIdent()
+	arrayType := getArrayType(node.Metadata["end"].(*builder.Node))
+	incVar := transformIdentToDecl("int", node.Metadata["start"].(*builder.Node))
+	indVar := transformIdentToDecl(arrayType, randomIdent)
+	arrayVar := transformArrayToDecl(arrayType, node.Metadata["end"].(*builder.Node))
+	block := node.Value.(*builder.Node)
+	stmts := append(block.Value.([]*builder.Node), makeIncrementOp(node.Metadata["start"].(*builder.Node)))
+	while := &builder.Node{
+		Type: "while",
+		// Value: , // THIS NEEDS TO BE THE BLOCK AFTER IT IS CHECKED
+		Value: &builder.Node{
+			Type: "block",
+			Value: append(
+				[]*builder.Node{
+					transformIdentToAssignment(randomIdent, &builder.Node{
+						Type:  "selection",
+						Left:  node.Metadata["end"].(*builder.Node),
+						Right: node.Metadata["start"].(*builder.Node),
+					})},
+				stmts...),
+		},
+		Left: makeLTComp(incVar.Left, arrayVar.Left),
+	}
+
+	return []*builder.Node{
+		incVar,
+		indVar,
+		arrayVar,
+		while,
 	}
 }

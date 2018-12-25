@@ -95,7 +95,7 @@ func TestTranspiler(t *testing.T) {
 		t.Fatalf("Could not read file: %+v", err)
 	}
 
-	test := string(testBytes)
+	var test = string(testBytes)
 
 	tr, err := getTranspilerFromString(test, "main")
 	if err != nil {
@@ -305,6 +305,35 @@ func TestTranspileCallExpression(t *testing.T) {
 	}
 
 	cpp, err = transpiler.TranspileCallExpression(ast)
+	if err != nil {
+		t.Errorf("err: %+v", err)
+	}
+
+	fmt.Println("C++:", *cpp)
+}
+
+// this dont work because sgroup is not in the ParseStatement switch
+func TestTranspileSGroup(t *testing.T) {
+	ast, err := getStatementASTFromString(test.Tests[test.StatementTest]["sgroup"])
+	if err != nil {
+		t.Fatalf("Could not create AST: %+v", err)
+	}
+
+	cpp, err = transpiler.TranspileSGroup(ast)
+	if err != nil {
+		t.Errorf("err: %+v", err)
+	}
+
+	fmt.Println("C++:", *cpp)
+}
+
+func TestTranspileFunctionStatement(t *testing.T) {
+	ast, err := getStatementASTFromString(test.Tests[test.StatementTest]["funcDef"])
+	if err != nil {
+		t.Fatalf("Could not create AST: %+v", err)
+	}
+
+	cpp, err = transpiler.TranspileFunctionStatement(ast)
 	if err != nil {
 		t.Errorf("err: %+v", err)
 	}
