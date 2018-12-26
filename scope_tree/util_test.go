@@ -1,4 +1,4 @@
-package symbol_table_test
+package scope_tree_test
 
 import (
 	"encoding/json"
@@ -46,4 +46,22 @@ func printTokensFromBuilder(b *builder.Builder) {
 func printNode(node builder.Node) {
 	nodeJSON, _ := json.Marshal(node)
 	fmt.Printf(jsonFormatString, nodeJSON)
+}
+
+func getASTFromString(test string) (*builder.Node, error) {
+	b, err := getBuilderFromString(test)
+	if err != nil {
+		return nil, err
+	}
+
+	return b.BuildAST()
+}
+
+func getStatementASTFromString(test string) (*builder.Node, error) {
+	b, err := getBuilderFromString(test)
+	if err != nil {
+		return nil, err
+	}
+
+	return b.ParseStatement()
 }

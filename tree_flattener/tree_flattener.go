@@ -1,8 +1,11 @@
 package tree_flattener
 
 import (
+	"errors"
 	"fmt"
+	"log"
 	"os"
+	"sync"
 
 	"github.com/scottshotgg/express2/builder"
 )
@@ -10,39 +13,9 @@ import (
 func getIntType() *builder.Node {
 	return &builder.Node{
 		Type: "type",
-		Kind: "int",
+		// Kind: "int",
+		Value: "int",
 	}
-}
-
-func transformIdentToDecl(typeOf string, node *builder.Node) *builder.Node {
-	switch typeOf {
-	case "int":
-		return &builder.Node{
-			Type:  "decl",
-			Value: getIntType(),
-			Left:  node,
-			Right: &builder.Node{
-				Type:  "int",
-				Value: 0,
-			},
-		}
-	}
-
-	return nil
-}
-
-func transformIdentAndValueToDecl(typeOf string, node, value *builder.Node) *builder.Node {
-	switch typeOf {
-	case "int":
-		return &builder.Node{
-			Type:  "decl",
-			Value: getIntType(),
-			Left:  node,
-			Right: value,
-		}
-	}
-
-	return nil
 }
 
 // expects an egroup
@@ -72,6 +45,38 @@ func getArrayType(node *builder.Node) string {
 	forin &{type  array map[dim:[0xc00000a1a0]] <nil> <nil>}
 */
 
+func transformIdentToDecl(typeOf string, node *builder.Node) *builder.Node {
+	switch typeOf {
+	case "int":
+		return &builder.Node{
+			Type:  "decl",
+			Value: getIntType(),
+			Left:  node,
+			Right: &builder.Node{
+				Type:  "literal",
+				Kind:  "int",
+				Value: 0,
+			},
+		}
+	}
+
+	return nil
+}
+
+func transformIdentAndValueToDecl(typeOf string, node, value *builder.Node) *builder.Node {
+	switch typeOf {
+	case "int":
+		return &builder.Node{
+			Type:  "decl",
+			Value: getIntType(),
+			Left:  node,
+			Right: value,
+		}
+	}
+
+	return nil
+}
+
 func transformArrayToDecl(typeOf string, node *builder.Node) *builder.Node {
 	return &builder.Node{
 		Type: "decl",
@@ -79,7 +84,7 @@ func transformArrayToDecl(typeOf string, node *builder.Node) *builder.Node {
 		Value: &builder.Node{
 			Type:     "type",
 			Kind:     typeOf,
-			Value:    "array",
+			Value:    "auto",
 			Metadata: map[string]interface{}{
 				// THIS NEEDS TO BE SET TO BE STATIC SIZE OF THE ARRAY
 			},
@@ -90,6 +95,14 @@ func transformArrayToDecl(typeOf string, node *builder.Node) *builder.Node {
 			Value: "RANDOM_NAME_LATER",
 		},
 		Right: node,
+	}
+}
+
+func transformIdentToAssignment(node *builder.Node, value *builder.Node) *builder.Node {
+	return &builder.Node{
+		Type:  "assignment",
+		Left:  node,
+		Right: value,
 	}
 }
 
@@ -115,11 +128,11 @@ func makeLengthCall(node *builder.Node) *builder.Node {
 		Value: &builder.Node{
 			Type:  "ident",
 			Value: "std::size",
-			Metadata: map[string]interface{}{
-				"args": &builder.Node{
-					Type:  "egroup",
-					Value: []*builder.Node{node},
-				},
+		},
+		Metadata: map[string]interface{}{
+			"args": &builder.Node{
+				Type:  "egroup",
+				Value: []*builder.Node{node},
 			},
 		},
 	}
@@ -141,18 +154,62 @@ func makeIncrementOp(node *builder.Node) *builder.Node {
 	}
 }
 
+func makeRandomIdent() *builder.Node {
+	return &builder.Node{
+		Type:  "ident",
+		Value: "RANDOM",
+	}
+}
+
+// This needs to work with a scopeMap and then change the reference
+// so that everyone referencing this var will feel the change
+func anonymizeIdentName(n *builder.Node) error {
+	if n == nil {
+		return errors.New("Nil node ... anonymizeIdentName")
+	}
+
+	n.Value = n.Value.(string) + "_something_else"
+
+	return nil
+}
+
 // Don't need any type information for this except for the array
 
 func FlattenForIn(node *builder.Node) []*builder.Node {
-
 	arrayType := getArrayType(node.Metadata["end"].(*builder.Node))
+	// randomIdent := makeRandomIdent()
+	start := node.Metadata["start"]
+	if start == nil {
+		// return nil, errors.New("No start amount ...")
+		return nil
+	}
 
-	incVar := transformIdentToDecl("int", node.Metadata["start"].(*builder.Node))
+	// err := anonymizeIdentName(start.(*builder.Node))
+	// if err != nil {
+	// 	return nil
+	// }
+
+	fmt.Printf("ident %+v\n", start)
+
+	incVar := transformIdentToDecl("int", start.(*builder.Node))
 	arrayVar := transformArrayToDecl(arrayType, node.Metadata["end"].(*builder.Node))
+	block := node.Value.(*builder.Node)
+
+	// Flatten all statements in the block
+	var err = FlattenNode(block)
+	if err != nil {
+		log.Printf("err: %+v\n", err)
+		return nil
+	}
+
+	stmts := append(block.Value.([]*builder.Node), makeIncrementOp(node.Metadata["start"].(*builder.Node)))
 	while := &builder.Node{
-		Type:  "while",
-		Value: node.Value,
-		Left:  makeLTComp(incVar.Left, makeLengthCall(arrayVar.Left)),
+		Type: "while",
+		Value: &builder.Node{
+			Type:  "block",
+			Value: stmts,
+		},
+		Left: makeLTComp(incVar.Left, makeLengthCall(arrayVar.Left)),
 	}
 
 	// recurse, assign result to while.Value, return while.Value
@@ -162,6 +219,12 @@ func FlattenForIn(node *builder.Node) []*builder.Node {
 	// make while loop with condition
 	// recurse into block
 
+	fmt.Println("something", []*builder.Node{
+		incVar,
+		arrayVar,
+		while,
+	})
+
 	return []*builder.Node{
 		incVar,
 		arrayVar,
@@ -169,44 +232,128 @@ func FlattenForIn(node *builder.Node) []*builder.Node {
 	}
 }
 
-func Flatten(node *builder.Node) {
-	// fmt.Println("node", node)
+// func FlattenBlock(node *builder.Node) []*builder.Node {
+// 	var newStmts []*builder.Node
+
+// 	for _, stmt := range node.Value.([]*builder.Node) {
+// 		var err = FlattenNode(stmt)
+// 		if err != nil {
+// 			return err
+// 		}
+// 	}
+
+// }
+
+func makeImportNode(importName string) *builder.Node {
+	return &builder.Node{
+		Type: "import",
+		Left: &builder.Node{
+			Type:  "literal",
+			Value: importName,
+		},
+	}
+}
+
+var importChan = make(chan string, 10)
+
+func Flatten(node *builder.Node) ([]*builder.Node, error) {
+	if node.Type != "program" {
+		return nil, errors.New("Flatten must be called with a tree; `program` node")
+	}
+
 	var (
-		stmts    = node.Value.([]*builder.Node)
-		newStmts = []*builder.Node{}
+		imports []*builder.Node
+		wg      sync.WaitGroup
 	)
 
-	for _, stmt := range stmts {
-		// fmt.Println("stmt", stmt)
+	// Spin off a worker to process to imports that are found
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
 
-		switch stmt.Type {
-		case "forin":
-			newStmts = append(newStmts, FlattenForIn(stmt)...)
+		// Keep a map to track which imports we already have
+		var (
+			importMap = map[string]struct{}{}
+			ok        bool
+		)
 
-		case "forof":
-			newStmts = append(newStmts, FlattenForOf(stmt)...)
+		for importName := range importChan {
+			fmt.Println("importName", importName)
+			// If it's already in the map then just skip it
+			_, ok = importMap[importName]
+			if ok {
+				continue
+			}
 
-		default:
-			newStmts = append(newStmts, stmt)
+			importMap[importName] = struct{}{}
+			imports = append(imports, makeImportNode(importName))
+		}
+	}()
+
+	// Flatten all nodes in the program
+	for _, n := range node.Value.([]*builder.Node) {
+		var err = FlattenNode(n)
+		if err != nil {
+			return nil, err
 		}
 	}
 
-	node.Value = newStmts
+	// Close the channel and alert the import worker that we are done
+	close(importChan)
+
+	// Wait for all extraneous imports to be transpiled
+	wg.Wait()
+
+	// Turn the node into a block, this will allow for all of the anonymous idents to
+	// avoid confliction with current idents, but will also preserve the scope
+
+	return imports, nil
 }
 
-func makeRandomIdent() *builder.Node {
-	return &builder.Node{
-		Type:  "ident",
-		Value: "RANDOM",
-	}
-}
+func FlattenNode(node *builder.Node) error {
+	var newStmts []*builder.Node
 
-func transformIdentToAssignment(node *builder.Node, value *builder.Node) *builder.Node {
-	return &builder.Node{
-		Type:  "assignment",
-		Left:  node,
-		Right: value,
+	switch node.Type {
+	case "forin":
+		importChan <- "array"
+		newStmts = append(newStmts, FlattenForIn(node)...)
+
+	case "forof":
+		importChan <- "array"
+		newStmts = append(newStmts, FlattenForOf(node)...)
+
+	case "function":
+		var err = FlattenNode(node.Value.(*builder.Node))
+		if err != nil {
+			return err
+		}
+
+	case "block":
+		for _, stmt := range node.Value.([]*builder.Node) {
+			var err = FlattenNode(stmt)
+			if err != nil {
+				return err
+			}
+		}
+
+	/*
+		We were gonna call `flatten` on the entire tree and recurse through it
+		implement that step later when we need it.
+	*/
+	default:
+		// The node can stay the same
+		return nil
 	}
+
+	// If we acquired new statements then the block is now that
+	if len(newStmts) > 0 {
+		*node = builder.Node{
+			Type:  "block",
+			Value: newStmts,
+		}
+	}
+
+	return nil
 }
 
 func FlattenForOf(node *builder.Node) []*builder.Node {
