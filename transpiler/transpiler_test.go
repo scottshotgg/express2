@@ -52,7 +52,11 @@ func getASTFromString(test string) (*builder.Node, error) {
 		return nil, err
 	}
 
-	return b.BuildAST()
+	node, err := b.BuildAST()
+
+	fmt.Println("scopeTree", b.ScopeTree)
+
+	return node, err
 }
 
 func getTranspilerFromString(test, name string) (*transpiler.Transpiler, error) {
@@ -62,6 +66,33 @@ func getTranspilerFromString(test, name string) (*transpiler.Transpiler, error) 
 	}
 
 	return transpiler.New(ast, name), nil
+}
+
+func getExpressionASTFromString(test string) (*builder.Node, error) {
+	b, err := getBuilderFromString(test)
+	if err != nil {
+		return nil, err
+	}
+
+	return b.ParseExpression()
+}
+
+func getTypeASTFromString(test string) (*builder.Node, error) {
+	b, err := getBuilderFromString(test)
+	if err != nil {
+		return nil, err
+	}
+
+	return b.ParseType()
+}
+
+func getStatementASTFromString(test string) (*builder.Node, error) {
+	b, err := getBuilderFromString(test)
+	if err != nil {
+		return nil, err
+	}
+
+	return b.ParseStatement()
 }
 
 // func getTranspilerFromFilename(filename string) {
@@ -108,33 +139,6 @@ func TestTranspiler(t *testing.T) {
 	}
 
 	fmt.Printf("\nC++: %s\n\n", cpp)
-}
-
-func getExpressionASTFromString(test string) (*builder.Node, error) {
-	b, err := getBuilderFromString(test)
-	if err != nil {
-		return nil, err
-	}
-
-	return b.ParseExpression()
-}
-
-func getTypeASTFromString(test string) (*builder.Node, error) {
-	b, err := getBuilderFromString(test)
-	if err != nil {
-		return nil, err
-	}
-
-	return b.ParseType()
-}
-
-func getStatementASTFromString(test string) (*builder.Node, error) {
-	b, err := getBuilderFromString(test)
-	if err != nil {
-		return nil, err
-	}
-
-	return b.ParseStatement()
 }
 
 func TestTranspileIdentExpression(t *testing.T) {
@@ -218,7 +222,7 @@ func TestTranspileDeclarationStatement(t *testing.T) {
 		t.Fatalf("Could not create AST: %+v", err)
 	}
 
-	fmt.Println("ast", ast)
+	fmt.Printf("ast: %+v\n", ast.Right)
 
 	cpp, err = transpiler.TranspileDeclarationStatement(ast)
 	if err != nil {
@@ -304,6 +308,8 @@ func TestTranspileCallExpression(t *testing.T) {
 		t.Fatalf("Could not create AST: %+v", err)
 	}
 
+	fmt.Printf("ast %+v\n", ast)
+
 	cpp, err = transpiler.TranspileCallExpression(ast)
 	if err != nil {
 		t.Errorf("err: %+v", err)
@@ -334,6 +340,54 @@ func TestTranspileFunctionStatement(t *testing.T) {
 	}
 
 	cpp, err = transpiler.TranspileFunctionStatement(ast)
+	if err != nil {
+		t.Errorf("err: %+v", err)
+	}
+
+	fmt.Println("C++:", *cpp)
+}
+
+func TestTranspileIndexExpression(t *testing.T) {
+	ast, err := getStatementASTFromString(test.Tests[test.ExpressionTest]["identIndex"])
+	if err != nil {
+		t.Fatalf("Could not create AST: %+v", err)
+	}
+
+	fmt.Printf("ast %+v\n", ast)
+
+	cpp, err = transpiler.TranspileIndexExpression(ast)
+	if err != nil {
+		t.Errorf("err: %+v", err)
+	}
+
+	fmt.Println("C++:", *cpp)
+}
+
+func TestTranspileImportStatement(t *testing.T) {
+	ast, err := getStatementASTFromString(test.Tests[test.ExpressionTest]["import"])
+	if err != nil {
+		t.Fatalf("Could not create AST: %+v", err)
+	}
+
+	fmt.Printf("ast %+v\n", ast)
+
+	cpp, err = transpiler.TranspileImportStatement(ast)
+	if err != nil {
+		t.Errorf("err: %+v", err)
+	}
+
+	fmt.Println("C++:", *cpp)
+}
+
+func TestTranspileIncludeStatement(t *testing.T) {
+	ast, err := getStatementASTFromString(test.Tests[test.StatementTest]["include"])
+	if err != nil {
+		t.Fatalf("Could not create AST: %+v", err)
+	}
+
+	fmt.Printf("ast %+v\n", ast)
+
+	cpp, err = transpiler.TranspileIncludeStatement(ast)
 	if err != nil {
 		t.Errorf("err: %+v", err)
 	}

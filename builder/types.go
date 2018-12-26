@@ -26,5 +26,7 @@ type (
 		Index  int           `json:",omitempty"`
 		// [op_tier][op] -> func
 		OpFuncMap []map[string]opCallbackFn `json:,"omitempty"`
+
+		ScopeTree *ScopeTree
 	}
 )

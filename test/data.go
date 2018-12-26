@@ -38,7 +38,7 @@ var (
 		"stdFor":       "for int i = 1; i < 10; i++ { int i = 10 }",
 		"arrayDef":     "int[] i = [ 8, 9, 0 ]",
 		// "forin":            "for i in is { i = 10 }",
-		"forin":            "for i in [ 7, 8, 9 ] { i = 10 }",
+		"forin":            "for i in [ 7, 8, 9 ] { j = 10 }",
 		"forof":            "for i of [ 7, 8, 9 ] { int i = 10 }",
 		"indexAssign":      "something[7] = \"hey its me\"",
 		"assignFromIndex":  "something = here[9][0]",
