@@ -244,7 +244,7 @@ func (t *Transpiler) generateFunctions() string {
 		functionString += "\n" + f
 	}
 
-	return "\n// Function prototypes:\n" + strings.Join(prototypes, "\n") + "\n\n// Functions:" + functionString
+	return "\n// Prototypes:\n" + strings.Join(prototypes, "\n") + "\n\n// Functions:" + functionString
 }
 
 // // just grab the first one for now
