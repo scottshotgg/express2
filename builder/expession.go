@@ -1,6 +1,8 @@
 package builder
 
-import "github.com/scottshotgg/express-token"
+import (
+	"github.com/scottshotgg/express-token"
+)
 
 func (b *Builder) ParseGroupOfExpressions() (*Node, error) {
 	// Check ourselves
@@ -164,6 +166,13 @@ func (b *Builder) ParseFactor() (*Node, error) {
 
 	// Variable identifier
 	case token.Ident:
+		// // Check the scope map for the variable, if we already have a variable declared then use that
+		// var node = b.ScopeTree.Get(b.Tokens[b.Index].Value.String)
+		// if node != nil {
+		// 	// TODO: might need to fix this
+		// 	return node, nil
+		// }
+
 		return &Node{
 			Type:  "ident",
 			Value: b.Tokens[b.Index].Value.String,

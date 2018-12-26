@@ -1,0 +1,23 @@
+func something() {
+  int i = 10
+}
+
+func main() {
+  int i = 0
+
+  for j in [1,2,3] {
+    i = j
+  }
+
+  for j in [1,2,3] {
+    for j in [4,5,6] {
+      i = j
+    }
+  }
+
+  something()
+}
+
+func another(int i, string s) {
+  int j = 6666666
+}

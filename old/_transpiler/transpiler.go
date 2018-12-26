@@ -248,7 +248,7 @@ func TranslateAssignmentStatement(a *ast.Assignment, name string) (string, error
 func TranspileObject(statements []ast.Statement, name string) (string, error) {
 	// TODO: implement all object logic here for the assignments and stuff; would like to keep it in the same function but w/e
 
-	fmt.Println("i am here", statements, name)
+	// fmt.Println("i am here", statements, name)
 
 	objectString := "{};\n"
 

@@ -2,36 +2,26 @@ package transpiler
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
+	"log"
+	"os"
+	"strings"
 	"sync"
 
+	"github.com/pkg/errors"
 	"github.com/scottshotgg/express2/builder"
+	"github.com/scottshotgg/express2/tree_flattener"
 )
 
 type Transpiler struct {
 	Name         string
 	ASTCloneJSON []byte
 	AST          *builder.Node
-	Functions    map[string]*builder.Node
-	Types        map[string]*builder.Node
-	Includes     []*builder.Node
-	Imports      []*builder.Node
-}
-
-func New(ast *builder.Node, name string) *Transpiler {
-	t := Transpiler{
-		Name: name,
-		AST:  ast,
-	}
-
-	wg.Add(1)
-
-	go appendWorker(&wg)
-
-	t.ASTCloneJSON, _ = json.Marshal(ast)
-
-	return &t
+	Functions    map[string]string
+	Types        map[string]string
+	Includes     []string
+	Imports      []string
+	Main         string
 }
 
 var appendChan = make(chan string, 5)
@@ -53,6 +43,8 @@ func emit(line string) {
 }
 
 var wg sync.WaitGroup
+var wg1 sync.WaitGroup
+var funcChan = make(chan *builder.Node, 100)
 
 /*
 	Transpile needs to work like this:
@@ -60,9 +52,66 @@ var wg sync.WaitGroup
 	- if the statement contains ANY block, then flatten on the node
 */
 
+func (t *Transpiler) functionWorker(wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	var (
+		function     *string
+		err          error
+		functionName string
+	)
+
+	for f := range funcChan {
+		functionName = f.Kind
+
+		function, err = TranspileFunctionStatement(f)
+		if err != nil {
+			log.Printf("Function error: %+v %+v\n", f, err)
+			os.Exit(9)
+		}
+
+		if functionName == "main" {
+			if t.Main != "" {
+				// FIXME: this is an error
+				log.Printf("Already have a main function: %+v\n", f)
+				os.Exit(9)
+			}
+
+			t.Main = *function
+		} else {
+			if t.Functions[functionName] != "" {
+				// FIXME: this is an error
+				log.Printf("Function already declared: %+v\n", f)
+				os.Exit(9)
+			}
+
+			t.Functions[functionName] = *function
+		}
+	}
+}
+
+func New(ast *builder.Node, name string) *Transpiler {
+	var t = Transpiler{
+		Name:      name,
+		AST:       ast,
+		Functions: map[string]string{},
+		Types:     map[string]string{},
+	}
+
+	// go appendWorker(&wg)
+
+	t.ASTCloneJSON, _ = json.Marshal(ast)
+
+	return &t
+}
+
+// This will give use some problems with multiple compilers ...
+var importChan = make(chan []*builder.Node, 10)
+
 func (t *Transpiler) Transpile() (string, error) {
 	// Extract the nodes
 	var (
+		// flattenedImports []*builder.Node
 		nodes   = t.AST.Value.([]*builder.Node)
 		stringP *string
 		err     error
@@ -70,22 +119,132 @@ func (t *Transpiler) Transpile() (string, error) {
 		cpp string
 	)
 
+	wg1.Add(1)
+	go t.functionWorker(&wg1)
+
+	// Spin off a worker to process to imports that are found
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+
+		var (
+			importStringP *string
+			// Why does this shadow ...
+			// Is the gofunc "capturing" variables that aren't passed?
+			ierr error
+		)
+
+		for nodes := range importChan {
+			fmt.Println("imports", nodes)
+			for i := range nodes {
+				fmt.Println("import", nodes[i].Value)
+				// Might want to make this go through the entire pipeline ...
+				importStringP, ierr = TranspileImportStatement(nodes[i])
+				if ierr != nil {
+					log.Printf("Error transpiling import statement: %+v\n", err)
+
+					// Exit if there is a problem transpiling the import statement
+					// and we'll deal with it later
+					os.Exit(9)
+				}
+
+				// TODO: should really check the deref on all of these, but the usage/running
+				// is pretty predictable right now
+				t.Imports = append(t.Imports, *importStringP)
+			}
+		}
+	}()
+
+	// Flatten the tree
+	imports, err := tree_flattener.Flatten(t.AST)
+	if err != nil {
+		return "", err
+	}
+
+	importChan <- imports
+
 	for _, node := range nodes {
 		fmt.Println("node", node)
 
 		// Switch on the statement type to figure out how to process it
-		switch node.Type {
-		case "function":
-			stringP, err = TranspileFunctionStatement(node)
-			if err != nil {
-				return cpp, err
-			}
+		// Flatten anything with a scope
+		// switch node.Type {
+		// case "function":
 
+		stringP, err = TranspileStatement(node)
+		if err != nil {
+			return "", err
+		}
+
+		if node.Type != "function" {
 			cpp += *stringP
 		}
+
+		// }
 	}
 
-	return cpp, nil
+	// Close the channel and alert the import worker that we are done
+	close(funcChan)
+
+	wg1.Wait()
+
+	close(importChan)
+
+	// Wait for all extraneous imports to be transpiled
+	wg.Wait()
+
+	return t.ToCpp(cpp), nil
+}
+
+func (t *Transpiler) ToCpp(extra string) string {
+	// Put the main functions before the other cpp code; I don't think
+	// there should be anything in cpp, but w/e
+
+	extra += "// Imports:\n" + strings.Join(t.Imports, "\n")
+
+	extra += "\n\n// Includes:\n"
+	if len(t.Includes) > 0 {
+		extra += strings.Join(t.Includes, "\n")
+	} else {
+		extra += "// none\n"
+	}
+
+	extra += t.generateTypes()
+
+	extra += t.generateFunctions()
+	extra += "\n\n// Main:\n" + t.Main
+
+	return extra
+}
+
+func (t *Transpiler) generateTypes() string {
+	var typesString = "\n// Types:\n"
+
+	for _, t := range t.Types {
+		typesString += t + "\n"
+	}
+
+	if len(typesString) == len("\n// Types:\n") {
+		typesString += "// none\n"
+	}
+
+	return typesString
+}
+
+func (t *Transpiler) generateFunctions() string {
+	var (
+		prototypes     []string
+		functionString string
+	)
+
+	// Put the functions at the top of the file before the main function
+	for _, f := range t.Functions {
+		// TODO: just hack this in here for now to make the function prototypes
+		prototypes = append(prototypes, strings.Split(f, "{")[0]+";")
+		functionString += "\n" + f
+	}
+
+	return "\n// Function prototypes:\n" + strings.Join(prototypes, "\n") + "\n\n// Functions:" + functionString
 }
 
 // // just grab the first one for now
@@ -107,6 +266,79 @@ func (t *Transpiler) Transpile() (string, error) {
 // 	fmt.Println(*stmtSTringP)
 // }
 
+func TranspileIncludeStatement(n *builder.Node) (*string, error) {
+	return nil, errors.Errorf("Direct C/C++ usage is not implemented yet: include: %+v\n", n)
+
+	if n.Type != "include" {
+		return nil, errors.New("Node is not an inc")
+	}
+
+	lhs, err := TranspileExpression(n.Left)
+	if err != nil {
+		return nil, err
+	}
+
+	*lhs = "#include<" + *lhs + ">"
+
+	return lhs, nil
+}
+
+func TranspileImportStatement(n *builder.Node) (*string, error) {
+	if n.Type != "import" {
+		return nil, errors.New("Node is not an inc")
+	}
+
+	lhs, err := TranspileExpression(n.Left)
+	if err != nil {
+		return nil, err
+	}
+
+	*lhs = "#include<" + *lhs + ">"
+
+	return lhs, nil
+}
+
+func TranspileIncrementExpression(n *builder.Node) (*string, error) {
+	if n.Type != "inc" {
+		return nil, errors.New("Node is not an inc")
+	}
+
+	lhs, err := TranspileExpression(n.Left)
+	if err != nil {
+		return nil, err
+	}
+
+	// Put parenthesis around it
+	*lhs = "(" + *lhs + ")++"
+
+	return lhs, nil
+}
+
+func TranspileIndexExpression(n *builder.Node) (*string, error) {
+	/*
+		Left is an expression
+		Right is an expression
+	*/
+
+	if n.Type != "index" {
+		return nil, errors.New("Node is not an index")
+	}
+
+	lhs, err := TranspileExpression(n.Left)
+	if err != nil {
+		return nil, err
+	}
+
+	rhs, err := TranspileExpression(n.Right)
+	if err != nil {
+		return nil, err
+	}
+
+	var nString = *lhs + "[" + *rhs + "]"
+
+	return &nString, nil
+}
+
 func TranspileExpression(n *builder.Node) (*string, error) {
 	switch n.Type {
 
@@ -127,19 +359,48 @@ func TranspileExpression(n *builder.Node) (*string, error) {
 
 	case "call":
 		return TranspileCallExpression(n)
+
+	case "index":
+		return TranspileIndexExpression(n)
+
+		// case "selection":
+		// 	return TranspileSelectExpression(n)
 	}
 
-	return nil, errors.New("Not implemented: " + n.Type)
+	return nil, errors.Errorf("Not implemented expression: %+v", n)
 }
 
 func TranspileStatement(n *builder.Node) (*string, error) {
 	switch n.Type {
 
+	// FIXME: Why do we have expressions in here ... ?
 	case "literal":
 		return TranspileLiteralExpression(n)
 
+	case "inc":
+		var cppString, err = TranspileIncrementExpression(n)
+		if err == nil {
+			*cppString += ";"
+		}
+
+		return cppString, err
+
+	case "call":
+		var cppString, err = TranspileCallExpression(n)
+		if err == nil {
+			*cppString += ";"
+		}
+
+		return cppString, err
+
 	case "ident":
 		return TranspileIdentExpression(n)
+
+	case "import":
+		return TranspileImportStatement(n)
+
+	case "include":
+		return TranspileIncludeStatement(n)
 
 	case "assignment":
 		return TranspileAssignmentStatement(n)
@@ -148,21 +409,32 @@ func TranspileStatement(n *builder.Node) (*string, error) {
 		return TranspileDeclarationStatement(n)
 
 	case "function":
-		return TranspileFunctionStatement(n)
+		funcChan <- n
+		// Right now just grab the name from the string
+		// Later on we can issue new function names for lambdas
+		var name = n.Kind
+		return &name, nil
+		// function, err = TranspileFunctionStatement(n)
 
 	case "return":
 		return TranspileReturnStatement(n)
+
+	case "block":
+		return TranspileBlockStatement(n)
+
+	case "while":
+		return TranspileWhileStatement(n)
 
 	case "forof":
 		return TranspileForOfStatement(n)
 
 	case "forin":
-		return TranspileForOfStatement(n)
+		return TranspileForInStatement(n)
 
 	case "forstd":
 	}
 
-	return nil, errors.New("Not implemented: " + n.Type)
+	return nil, errors.Errorf("Not implemented statement: %+v", n)
 }
 
 func TranspileReturnStatement(n *builder.Node) (*string, error) {
@@ -255,7 +527,7 @@ func TranspileIdentExpression(n *builder.Node) (*string, error) {
 
 	nString, ok := n.Value.(string)
 	if !ok {
-		return nil, errors.New("Node value was not a string")
+		return nil, errors.Errorf("Node value was not a string; %v", n)
 	}
 
 	return &nString, nil
@@ -268,7 +540,22 @@ func TranspileType(n *builder.Node) (*string, error) {
 
 	nString, ok := n.Value.(string)
 	if !ok {
-		return nil, errors.New("Node value was not a string")
+		return nil, errors.Errorf("Node value was not a string; %v", n)
+	}
+
+	if nString == "string" {
+		nString = "std::" + nString
+
+		// TODO: switch this to just use a damn string later
+		importChan <- []*builder.Node{
+			&builder.Node{
+				Type: "import",
+				Left: &builder.Node{
+					Type:  "literal",
+					Value: "string",
+				},
+			},
+		}
 	}
 
 	return &nString, nil
@@ -398,27 +685,27 @@ func TranspileDeclarationStatement(n *builder.Node) (*string, error) {
 	return &nString, nil
 }
 
-func TranspileIncrementExpression(n *builder.Node) (*string, error) {
-	if n.Type != "inc" {
-		return nil, errors.New("Node is not an inc")
-	}
+// func TranspileIncrementExpression(n *builder.Node) (*string, error) {
+// 	if n.Type != "inc" {
+// 		return nil, errors.New("Node is not an inc")
+// 	}
 
-	var (
-		nString = ""
-		vString *string
-		err     error
-	)
+// 	var (
+// 		nString = ""
+// 		vString *string
+// 		err     error
+// 	)
 
-	// Translate the ident expression (lhs)
-	vString, err = TranspileExpression(n.Left)
-	if err != nil {
-		return nil, err
-	}
+// 	// Translate the ident expression (lhs)
+// 	vString, err = TranspileExpression(n.Left)
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	nString += *vString + "++;"
+// 	nString += *vString + "++;"
 
-	return &nString, nil
-}
+// 	return &nString, nil
+// }
 
 func TranspileConditionExpression(n *builder.Node) (*string, error) {
 	if n.Type != "comp" {
@@ -497,7 +784,9 @@ func TranspileBlockStatement(n *builder.Node) (*string, error) {
 			return nil, err
 		}
 
-		nString += *vString
+		if stmt.Type != "function" {
+			nString += *vString
+		}
 	}
 
 	nString = "{" + nString + "}"
@@ -511,25 +800,21 @@ func TranspileEGroup(n *builder.Node) (*string, error) {
 	}
 
 	var (
-		nString string
-		vString *string
-		err     error
+		nStrings = make([]string, len(n.Value.([]*builder.Node)))
+		vString  *string
+		err      error
 	)
 
-	for _, e := range n.Value.([]*builder.Node) {
+	for i, e := range n.Value.([]*builder.Node) {
 		vString, err = TranspileExpression(e)
 		if err != nil {
 			return nil, err
 		}
 
-		nString += *vString + ","
+		nStrings[i] = *vString
 	}
 
-	if len(nString) > 0 {
-		nString = nString[:len(nString)-1]
-	}
-
-	nString = "(" + nString + ")"
+	var nString = "(" + strings.Join(nStrings, ",") + ")"
 
 	return &nString, nil
 }
@@ -540,21 +825,21 @@ func TranspileSGroup(n *builder.Node) (*string, error) {
 	}
 
 	var (
-		nString string
-		vString *string
-		err     error
+		nStrings = make([]string, len(n.Value.([]*builder.Node)))
+		vString  *string
+		err      error
 	)
 
-	for _, s := range n.Value.([]*builder.Node) {
+	for i, s := range n.Value.([]*builder.Node) {
 		vString, err = TranspileStatement(s)
 		if err != nil {
 			return nil, err
 		}
 
-		nString += *vString + ","
+		nStrings[i] = *vString
 	}
 
-	nString = "(" + nString + ")"
+	var nString = "(" + strings.Join(nStrings, ",") + ")"
 
 	return &nString, nil
 }
@@ -577,12 +862,19 @@ func TranspileCallExpression(n *builder.Node) (*string, error) {
 
 	nString += *vString
 
-	vString, err = TranspileEGroup(n.Metadata["args"].(*builder.Node))
-	if err != nil {
-		return nil, err
-	}
+	var args = n.Metadata["args"]
 
-	nString += *vString
+	// Just do the checking here for now, not sure the merits of making the sgroup function check
+	if args != nil {
+		vString, err = TranspileEGroup(args.(*builder.Node))
+		if err != nil {
+			return nil, err
+		}
+
+		nString += *vString
+	} else {
+		nString += "()"
+	}
 
 	return &nString, nil
 }
@@ -595,7 +887,7 @@ func TranspileForInStatement(n *builder.Node) (*string, error) {
 	//	- loop_block
 	//	-	increment var
 
-	return nil, errors.New("not implemented: forin")
+	// return nil, errors.New("not implemented: forin")
 
 	if n.Type != "forin" {
 		return nil, errors.New("Node is not a forin")
@@ -669,7 +961,7 @@ func TranspileForOfStatement(n *builder.Node) (*string, error) {
 	//	- loop_block
 	//	-	increment var
 
-	return nil, errors.New("not implemented: forof")
+	// return nil, errors.New("not implemented: forof")
 
 	if n.Type != "forof" {
 		return nil, errors.New("Node is not a forof")
@@ -730,6 +1022,40 @@ func TranspileForOfStatement(n *builder.Node) (*string, error) {
 	}
 
 	nString += *vString + "}"
+
+	return &nString, nil
+}
+
+func TranspileWhileStatement(n *builder.Node) (*string, error) {
+	/*
+		while statements are simple, we already have all the tools:
+		`while` `(` expr `)` block
+	*/
+
+	if n.Type != "while" {
+		return nil, errors.New("Node is not a forof")
+	}
+
+	var (
+		nString = "{ while("
+		// vString *string
+		// err     error
+	)
+
+	fmt.Printf("transpile expr: %+v\n", n.Left.Right)
+	condition, err := TranspileExpression(n.Left)
+	if err != nil {
+		return nil, err
+	}
+
+	nString += *condition + ")"
+
+	block, err := TranspileBlockStatement(n.Value.(*builder.Node))
+	if err != nil {
+		return nil, err
+	}
+
+	nString += *block + "}"
 
 	return &nString, nil
 }

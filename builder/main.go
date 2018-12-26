@@ -32,10 +32,15 @@ func New(tokens []token.Token) *Builder {
 
 func (b *Builder) BuildAST() (*Node, error) {
 	var (
-		stmt  *Node
-		stmts []*Node
-		err   error
+		stmt        *Node
+		stmts       []*Node
+		err         error
+		programNode = &Node{
+			Type: "program",
+		}
 	)
+
+	b.ScopeTree = NewScopeTree(programNode)
 
 	for b.Index < len(b.Tokens)-1 {
 		stmt, err = b.ParseStatement()
@@ -55,8 +60,7 @@ func (b *Builder) BuildAST() (*Node, error) {
 		stmts = append(stmts, stmt)
 	}
 
-	return &Node{
-		Type:  "program",
-		Value: stmts,
-	}, nil
+	programNode.Value = stmts
+
+	return programNode, nil
 }

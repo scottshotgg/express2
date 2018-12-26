@@ -1,8 +1,6 @@
 package builder
 
 import (
-	"fmt"
-
 	"github.com/pkg/errors"
 	"github.com/scottshotgg/express-token"
 )
@@ -55,7 +53,7 @@ func (b *Builder) ParseForPrepositionStatement() (*Node, error) {
 	b.Index++
 
 	// Parse the ident before the `in` token
-	expr1, err := b.ParseExpression()
+	var ident, err = b.ParseExpression()
 	if err != nil {
 		return nil, err
 	}
@@ -80,10 +78,12 @@ func (b *Builder) ParseForPrepositionStatement() (*Node, error) {
 	b.Index++
 
 	// Parse the array/expression
-	expr2, err := b.ParseExpression()
+	array, err := b.ParseExpression()
 	if err != nil {
 		return nil, err
 	}
+
+	// TODO: we also need to parse here to figure out if this array is an ident
 
 	b.Index++
 
@@ -96,8 +96,8 @@ func (b *Builder) ParseForPrepositionStatement() (*Node, error) {
 		Type:  prepType,
 		Value: body,
 		Metadata: map[string]interface{}{
-			"start": expr1,
-			"end":   expr2,
+			"start": ident,
+			"end":   array,
 		},
 	}, nil
 }
@@ -254,7 +254,7 @@ func (b *Builder) ParseBlockStatement() (*Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		fmt.Println("i am here", stmt)
+		// fmt.Println("i am here", stmt)
 
 		stmts = append(stmts, stmt)
 	}
@@ -303,7 +303,7 @@ func (b *Builder) ParseReturnStatement() (*Node, error) {
 }
 
 func (b *Builder) ParseDeclarationStatement() (*Node, error) {
-	typeOf, err := b.ParseType()
+	var typeOf, err = b.ParseType()
 	if err != nil {
 		return nil, err
 	}
@@ -318,6 +318,19 @@ func (b *Builder) ParseDeclarationStatement() (*Node, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// // Check the scope map to make sure this hasn't been declared for the current scope
+	// var node = b.ScopeTree.Local(ident.Value.(string))
+
+	// // If the return value isn't nil then that means we found something in the local scope
+	// if node != nil {
+	// 	return nil, errors.Errorf("Variable already declared: %+v\n", node)
+	// }
+
+	// err = b.ScopeTree.Declare(ident)
+	// if err != nil {
+	// 	return nil, err
+	// }
 
 	// Increment over the ident token
 	b.Index++
@@ -493,6 +506,16 @@ func (b *Builder) ParseAssignmentStatement() (*Node, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// // Check the scope map to make sure this hasn't been declared for the current scope
+	// var node = b.ScopeTree.Get(ident.Value.(string))
+
+	// // If the return value isn't nil then that means we found something in the local scope
+	// if node == nil {
+	// 	return nil, errors.Errorf("Use of undeclared identifier: %+v\n", ident)
+	// }
+
+	// *ident = *node
 
 	// Increment over the ident token
 	b.Index++
@@ -739,50 +762,58 @@ func (b *Builder) ParseDerefStatement() (*Node, error) {
 
 // ParseStatement ** does ** not look ahead
 func (b *Builder) ParseStatement() (*Node, error) {
+	var (
+		node *Node
+		err  error
+	)
+
 	switch b.Tokens[b.Index].Type {
 
 	case token.PriOp:
-		return b.ParseDerefStatement()
+		node, err = b.ParseDerefStatement()
 
 	case token.Package:
-		return b.ParsePackageStatement()
+		node, err = b.ParsePackageStatement()
 
 	case token.Import:
-		return b.ParseImportStatement()
+		node, err = b.ParseImportStatement()
 
 	case token.Include:
-		return b.ParseIncludeStatement()
+		node, err = b.ParseIncludeStatement()
 
 	case token.TypeDef:
-		return b.ParseTypeDeclarationStatement()
+		node, err = b.ParseTypeDeclarationStatement()
 
 	case token.Type:
-		return b.ParseDeclarationStatement()
+		node, err = b.ParseDeclarationStatement()
 
 	case token.Ident:
-		return b.ParseAssignmentStatement()
+		node, err = b.ParseAssignmentStatement()
 
 	case token.Function:
-		return b.ParseFunctionStatement()
+		node, err = b.ParseFunctionStatement()
 
 	case token.LBrace:
-		return b.ParseBlockStatement()
+		node, err = b.ParseBlockStatement()
 
 	case token.Struct:
-		return b.ParseStructStatement()
+		node, err = b.ParseStructStatement()
 
 	case token.Let:
-		return b.ParseLetStatement()
+		node, err = b.ParseLetStatement()
 
 	case token.If:
-		return b.ParseIfStatement()
+		node, err = b.ParseIfStatement()
 
 	case token.For:
-		return b.ParseForStatement()
+		node, err = b.ParseForStatement()
 
 	case token.Return:
-		return b.ParseReturnStatement()
+		node, err = b.ParseReturnStatement()
+
+	default:
+		return b.AppendTokenToError("Could not get statement from")
 	}
 
-	return b.AppendTokenToError("Could not get statement from")
+	return node, err
 }
