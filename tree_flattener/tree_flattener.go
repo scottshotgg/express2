@@ -244,9 +244,9 @@ func FlattenForIn(node *builder.Node) []*builder.Node {
 
 // }
 
-func makeImportNode(importName string) *builder.Node {
+func makeIncludeNode(importName string) *builder.Node {
 	return &builder.Node{
-		Type: "import",
+		Type: "include",
 		Left: &builder.Node{
 			Type:  "literal",
 			Value: importName,
@@ -254,7 +254,7 @@ func makeImportNode(importName string) *builder.Node {
 	}
 }
 
-var importChan = make(chan string, 10)
+var includeChan = make(chan string, 10)
 
 func Flatten(node *builder.Node) ([]*builder.Node, error) {
 	if node.Type != "program" {
@@ -262,31 +262,31 @@ func Flatten(node *builder.Node) ([]*builder.Node, error) {
 	}
 
 	var (
-		imports []*builder.Node
-		wg      sync.WaitGroup
+		includes []*builder.Node
+		wg       sync.WaitGroup
 	)
 
-	// Spin off a worker to process to imports that are found
+	// Spin off a worker to process to includes that are found
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 
-		// Keep a map to track which imports we already have
+		// Keep a map to track which includes we already have
 		var (
-			importMap = map[string]struct{}{}
-			ok        bool
+			includesMap = map[string]struct{}{}
+			ok          bool
 		)
 
-		for importName := range importChan {
-			fmt.Println("importName", importName)
+		for includeName := range includeChan {
+			fmt.Println("includeName", includeName)
 			// If it's already in the map then just skip it
-			_, ok = importMap[importName]
+			_, ok = includesMap[includeName]
 			if ok {
 				continue
 			}
 
-			importMap[importName] = struct{}{}
-			imports = append(imports, makeImportNode(importName))
+			includesMap[includeName] = struct{}{}
+			includes = append(includes, makeIncludeNode(includeName))
 		}
 	}()
 
@@ -299,7 +299,7 @@ func Flatten(node *builder.Node) ([]*builder.Node, error) {
 	}
 
 	// Close the channel and alert the import worker that we are done
-	close(importChan)
+	close(includeChan)
 
 	// Wait for all extraneous imports to be transpiled
 	wg.Wait()
@@ -307,7 +307,7 @@ func Flatten(node *builder.Node) ([]*builder.Node, error) {
 	// Turn the node into a block, this will allow for all of the anonymous idents to
 	// avoid confliction with current idents, but will also preserve the scope
 
-	return imports, nil
+	return includes, nil
 }
 
 func FlattenNode(node *builder.Node) error {
@@ -315,11 +315,11 @@ func FlattenNode(node *builder.Node) error {
 
 	switch node.Type {
 	case "forin":
-		importChan <- "array"
+		includeChan <- "array"
 		newStmts = append(newStmts, FlattenForIn(node)...)
 
 	case "forof":
-		importChan <- "array"
+		includeChan <- "array"
 		newStmts = append(newStmts, FlattenForOf(node)...)
 
 	case "function":

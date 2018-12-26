@@ -22,6 +22,7 @@ type Transpiler struct {
 	Includes     []string
 	Imports      []string
 	Main         string
+	GenerateMain bool
 }
 
 var appendChan = make(chan string, 5)
@@ -106,7 +107,7 @@ func New(ast *builder.Node, name string) *Transpiler {
 }
 
 // This will give use some problems with multiple compilers ...
-var importChan = make(chan []*builder.Node, 10)
+var includeChan = make(chan []*builder.Node, 10)
 
 func (t *Transpiler) Transpile() (string, error) {
 	// Extract the nodes
@@ -134,14 +135,14 @@ func (t *Transpiler) Transpile() (string, error) {
 			ierr error
 		)
 
-		for nodes := range importChan {
-			fmt.Println("imports", nodes)
+		for nodes := range includeChan {
+			fmt.Println("includes", nodes)
 			for i := range nodes {
-				fmt.Println("import", nodes[i].Value)
+				fmt.Println("include", nodes[i].Value)
 				// Might want to make this go through the entire pipeline ...
-				importStringP, ierr = TranspileImportStatement(nodes[i])
+				importStringP, ierr = TranspileIncludeStatement(nodes[i])
 				if ierr != nil {
-					log.Printf("Error transpiling import statement: %+v\n", err)
+					log.Printf("Error transpiling include statement: %+v\n", err)
 
 					// Exit if there is a problem transpiling the import statement
 					// and we'll deal with it later
@@ -150,18 +151,18 @@ func (t *Transpiler) Transpile() (string, error) {
 
 				// TODO: should really check the deref on all of these, but the usage/running
 				// is pretty predictable right now
-				t.Imports = append(t.Imports, *importStringP)
+				t.Includes = append(t.Includes, *importStringP)
 			}
 		}
 	}()
 
 	// Flatten the tree
-	imports, err := tree_flattener.Flatten(t.AST)
+	includes, err := tree_flattener.Flatten(t.AST)
 	if err != nil {
 		return "", err
 	}
 
-	importChan <- imports
+	includeChan <- includes
 
 	for _, node := range nodes {
 		fmt.Println("node", node)
@@ -188,7 +189,7 @@ func (t *Transpiler) Transpile() (string, error) {
 
 	wg1.Wait()
 
-	close(importChan)
+	close(includeChan)
 
 	// Wait for all extraneous imports to be transpiled
 	wg.Wait()
@@ -200,7 +201,12 @@ func (t *Transpiler) ToCpp(extra string) string {
 	// Put the main functions before the other cpp code; I don't think
 	// there should be anything in cpp, but w/e
 
-	extra += "// Imports:\n" + strings.Join(t.Imports, "\n")
+	extra += "// Imports:\n"
+	if len(t.Imports) > 0 {
+		extra += strings.Join(t.Imports, "\n")
+	} else {
+		extra += "// none\n"
+	}
 
 	extra += "\n\n// Includes:\n"
 	if len(t.Includes) > 0 {
@@ -212,19 +218,19 @@ func (t *Transpiler) ToCpp(extra string) string {
 	extra += t.generateTypes()
 
 	extra += t.generateFunctions()
-	extra += "\n\n// Main:\n" + t.Main
+	extra += fmt.Sprintf("\n\n// Main:\n// generated: %v\n%s\n", t.GenerateMain, t.Main)
 
 	return extra
 }
 
 func (t *Transpiler) generateTypes() string {
-	var typesString = "\n// Types:\n"
+	var typesString = "\n\n// Types:\n"
 
 	for _, t := range t.Types {
 		typesString += t + "\n"
 	}
 
-	if len(typesString) == len("\n// Types:\n") {
+	if len(typesString) == len("\n\n// Types:\n") {
 		typesString += "// none\n"
 	}
 
@@ -244,7 +250,8 @@ func (t *Transpiler) generateFunctions() string {
 		functionString += "\n" + f
 	}
 
-	return "\n// Prototypes:\n" + strings.Join(prototypes, "\n") + "\n\n// Functions:" + functionString
+	return "\n// Prototypes:\n" + strings.Join(prototypes, "\n") +
+		"\n\n// Functions:" + functionString
 }
 
 // // just grab the first one for now
@@ -267,8 +274,6 @@ func (t *Transpiler) generateFunctions() string {
 // }
 
 func TranspileIncludeStatement(n *builder.Node) (*string, error) {
-	return nil, errors.Errorf("Direct C/C++ usage is not implemented yet: include: %+v\n", n)
-
 	if n.Type != "include" {
 		return nil, errors.New("Node is not an inc")
 	}
@@ -400,7 +405,8 @@ func TranspileStatement(n *builder.Node) (*string, error) {
 		return TranspileImportStatement(n)
 
 	case "include":
-		return TranspileIncludeStatement(n)
+		return nil, errors.Errorf("Direct C/C++ usage is not implemented yet: include: %+v\n", n)
+		// return TranspileIncludeStatement(n)
 
 	case "assignment":
 		return TranspileAssignmentStatement(n)
@@ -547,9 +553,9 @@ func TranspileType(n *builder.Node) (*string, error) {
 		nString = "std::" + nString
 
 		// TODO: switch this to just use a damn string later
-		importChan <- []*builder.Node{
+		includeChan <- []*builder.Node{
 			&builder.Node{
-				Type: "import",
+				Type: "include",
 				Left: &builder.Node{
 					Type:  "literal",
 					Value: "string",

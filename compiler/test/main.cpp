@@ -1,9 +1,9 @@
 // Imports:
-#include <array>
-#include <string>
+// none
 
 // Includes:
-// none
+#include <array>
+#include <string>
 
 // Types:
 // none
@@ -17,6 +17,7 @@ void something() { int i = 10; }
 void another(int i, std::string s) { int j = 6666666; }
 
 // Main:
+// generated: false
 int main() {
   int i = 0;
   {
