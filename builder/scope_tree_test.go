@@ -9,10 +9,6 @@ import (
 )
 
 const (
-	astFormatString  = "ast: %+v\n"
-	errFormatString  = "err: %+v\n"
-	jsonFormatString = "JSON: %s\n"
-
 	testProgram = `
 		func main() {
 			int i = 10
@@ -21,18 +17,36 @@ const (
 )
 
 var (
-	scopeTree *ScopeTree
+	scopeTree *builder.ScopeTree
 	testNode  *builder.Node
 )
 
-func TestNew(t *testing.T) {
+func getASTFromString(test string) (*builder.Node, error) {
+	b, err := getBuilderFromString(test)
+	if err != nil {
+		return nil, err
+	}
+
+	return b.BuildAST()
+}
+
+func getStatementASTFromString(test string) (*builder.Node, error) {
+	b, err := getBuilderFromString(test)
+	if err != nil {
+		return nil, err
+	}
+
+	return b.ParseStatement()
+}
+
+func TestNewScopeTree(t *testing.T) {
 	// Parse something for a new scope
 	n, err := getASTFromString(testProgram)
 	if err != nil {
 		t.Fatalf("err %+v", err)
 	}
 
-	scopeTree = New(n)
+	scopeTree = builder.NewScopeTree(n)
 
 	fmt.Printf("scopeTree: %+v\n", scopeTree)
 }
@@ -48,7 +62,7 @@ func TestSetDeclaration(t *testing.T) {
 		t.Fatalf("err %+v", err)
 	}
 
-	err = scopeTree.Set(testNode)
+	err = scopeTree.Declare(testNode)
 	if err != nil {
 		t.Fatalf("err %+v", err)
 	}
@@ -70,7 +84,7 @@ func TestSetAssignment(t *testing.T) {
 		t.Fatalf("err %+v", err)
 	}
 
-	err = scopeTree.Set(node)
+	err = scopeTree.Assign(node)
 	if err != nil {
 		t.Fatalf("err %+v", err)
 	}

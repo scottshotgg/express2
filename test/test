@@ -1,0 +1,3 @@
+#!/bin/bash
+
+go test ./compiler -v -count=1 -run TestComp
