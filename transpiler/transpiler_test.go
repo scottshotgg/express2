@@ -202,6 +202,20 @@ func TestTranspileType(t *testing.T) {
 	fmt.Println("C++:", *cpp)
 }
 
+func TestTranspileTypeDeclaration(t *testing.T) {
+	var ast, err = getStatementASTFromString(test.Tests[test.StatementTest]["typeDef"])
+	if err != nil {
+		t.Fatalf("Could not create AST: %+v", err)
+	}
+
+	cpp, err = transpiler.TranspileTypeDeclaration(ast)
+	if err != nil {
+		t.Errorf("err: %+v", err)
+	}
+
+	fmt.Println("C++:", *cpp)
+}
+
 func TestTranspileAssignmentStatement(t *testing.T) {
 	ast, err := getStatementASTFromString(test.Tests[test.StatementTest]["simpleAssign"])
 	if err != nil {

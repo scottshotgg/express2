@@ -1,3 +1,5 @@
+typedef int myInt;
+
 // Imports:
 // none
 
@@ -9,12 +11,16 @@
 // none
 
 // Prototypes:
-void something();
 void another(int i, std::string s);
+void something();
 
 // Functions:
-void something() { int i = 10; }
 void another(int i, std::string s) { int j = 6666666; }
+void something() {
+  typedef int myInt;
+  int i = 10;
+  another(10, "s");
+}
 
 // Main:
 // generated: false

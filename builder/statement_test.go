@@ -345,7 +345,7 @@ func TestParseAssignmentFromSelectionStatement(t *testing.T) {
 	fmt.Printf(jsonFormatString, nodeJSON)
 }
 
-func TestParseTypedefStatement(t *testing.T) {
+func TestParseTypeDeclarationStatement(t *testing.T) {
 	b, err = getBuilderFromString(test.Tests[test.StatementTest]["typeDef"])
 	if err != nil {
 		t.Errorf(errFormatString, err)

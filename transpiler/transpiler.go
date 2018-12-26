@@ -201,6 +201,12 @@ func (t *Transpiler) ToCpp(extra string) string {
 	// Put the main functions before the other cpp code; I don't think
 	// there should be anything in cpp, but w/e
 
+	// TODO: need to printout // Global stuff and print out the global statements
+
+	if len(extra) > 0 {
+		extra += "\n\n"
+	}
+
 	extra += "// Imports:\n"
 	if len(t.Imports) > 0 {
 		extra += strings.Join(t.Imports, "\n")
@@ -273,9 +279,42 @@ func (t *Transpiler) generateFunctions() string {
 // 	fmt.Println(*stmtSTringP)
 // }
 
+func TranspileTypeDeclaration(n *builder.Node) (*string, error) {
+	// Format should be:
+	// `type` [ident] `=` [type]
+	// Left is the ident
+	// Right is the type
+
+	// TODO: gonna have to do something to actually enable this type in the parser/compiler
+
+	if n.Type != "typedef" {
+		return nil, errors.New("Node is not a typedef")
+	}
+
+	var nString = "typedef "
+
+	var cpp, err = TranspileType(n.Right)
+	if err != nil {
+		return nil, err
+	}
+
+	nString += *cpp + " "
+
+	// This will allow technically allow idents to be made from general expressions; not sure if we should keep this or not
+	// Might have to change it to TranspileIdent
+	cpp, err = TranspileExpression(n.Left)
+	if err != nil {
+		return nil, err
+	}
+
+	nString += *cpp + ";"
+
+	return &nString, nil
+}
+
 func TranspileIncludeStatement(n *builder.Node) (*string, error) {
 	if n.Type != "include" {
-		return nil, errors.New("Node is not an inc")
+		return nil, errors.New("Node is not an include")
 	}
 
 	lhs, err := TranspileExpression(n.Left)
@@ -377,6 +416,9 @@ func TranspileExpression(n *builder.Node) (*string, error) {
 
 func TranspileStatement(n *builder.Node) (*string, error) {
 	switch n.Type {
+
+	case "typedef":
+		return TranspileTypeDeclaration(n)
 
 	// FIXME: Why do we have expressions in here ... ?
 	case "literal":
@@ -567,14 +609,20 @@ func TranspileType(n *builder.Node) (*string, error) {
 	return &nString, nil
 }
 
+func checkTypeAdditions(kind, cpp string) *string {
+	if kind == "string" {
+		cpp = "\"" + cpp + "\""
+	}
+
+	return &cpp
+}
+
 func TranspileLiteralExpression(n *builder.Node) (*string, error) {
 	if n.Type != "literal" {
 		return nil, errors.New("Node is not an literal")
 	}
 
-	nString := fmt.Sprintf("%v", n.Value)
-
-	return &nString, nil
+	return checkTypeAdditions(n.Kind, fmt.Sprintf("%v", n.Value)), nil
 }
 
 func TranspileArrayExpression(n *builder.Node) (*string, error) {
