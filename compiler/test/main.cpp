@@ -8,7 +8,7 @@
 // Types:
 // none
 
-// Function prototypes:
+// Prototypes:
 void something();
 void another(int i, std::string s);
 
