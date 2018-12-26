@@ -13,6 +13,13 @@ func TestRun(t *testing.T) {
 	}
 }
 
+func TestCompile(t *testing.T) {
+	var err = compiler.Compile("test/test.expr")
+	if err != nil {
+		t.Fatalf("err %+v", err)
+	}
+}
+
 // //////
 
 // // Check the scope map for the variable name that was returned

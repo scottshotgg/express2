@@ -3,7 +3,6 @@ package compiler
 import (
 	"fmt"
 	"io/ioutil"
-	"os"
 	"os/exec"
 
 	"github.com/pkg/errors"
@@ -63,7 +62,7 @@ func getTranspilerFromString(test, name string) (*transpiler.Transpiler, error) 
 	return transpiler.New(ast, name), nil
 }
 
-func Run(filename string) error {
+func Compile(filename string) error {
 	var testBytes, err = ioutil.ReadFile(filename)
 	if err != nil {
 		return err
@@ -86,29 +85,47 @@ func Run(filename string) error {
 	// Write the C++ code to a file named `main.cpp`
 	err = ioutil.WriteFile("test/main.cpp", []byte(cpp), 0644)
 	if err != nil {
-		fmt.Printf("\nerr %+v\n", err)
-		os.Exit(9)
+		return err
 	}
 
 	fmt.Println("\nFormatting C++ code ...")
 
 	// Run `clang-format` in-place to format the file for human-readability
-	output, err := exec.Command("clang-format", "-i", "test/main.cpp").CombinedOutput()
+	_, err = exec.Command("clang-format", "-i", "test/main.cpp").CombinedOutput()
 	if err != nil {
-		fmt.Printf("%s\n%+v\n", output, err)
-		os.Exit(9)
+		return err
 	}
 
-	fmt.Println("\nCompiling C++ code ...")
+	fmt.Println("\nCompiling C++ to create binary ...")
 
 	// Compile the file with Clang to produce a binary
-	output, err = exec.Command("clang++", stdCppVersion, "test/main.cpp", "-o", "test/main").CombinedOutput()
+	_, err = exec.Command("clang++", stdCppVersion, "test/main.cpp", "-o", "test/main").CombinedOutput()
 	if err != nil {
-		fmt.Printf("%s\n%+v\n", output, err)
-		os.Exit(9)
+		return err
+	}
+
+	fmt.Println("\nFinished!")
+
+	return nil
+}
+
+func Run(filename string) error {
+	var err = Compile(filename)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("\nRunning binary ...")
+
+	// Compile the file with Clang to produce a binary
+	output, err := exec.Command("./test/main").CombinedOutput()
+	if err != nil {
+		return err
 	}
 
 	fmt.Println("\nDone!")
+
+	fmt.Println("\nOutput:", output)
 
 	return nil
 }
