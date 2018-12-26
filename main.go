@@ -59,7 +59,7 @@ func main() {
 		os.Exit(9)
 	}
 
-	fmt.Println("\nLexing file: %s", file)
+	fmt.Printf("\nLexing file: %s\n", file)
 
 	// Lex and tokenize the source code
 	tokens, err := lexer.Lex()
@@ -108,12 +108,12 @@ func main() {
 
 	// fmt.Println("Transpiling Express to C++ code ...")
 
-	// Transpile the AST into C++
-	t, err := transpiler.Transpile(programAST)
-	if err != nil {
-		fmt.Printf("\nerr %+v\n", err)
-		os.Exit(9)
-	}
+	// // Transpile the AST into C++
+	// t, err := transpiler.Transpile(programAST)
+	// if err != nil {
+	// 	fmt.Printf("\nerr %+v\n", err)
+	// 	os.Exit(9)
+	// }
 
 	// fmt.Println("\nWriting transpilied C++ code to main.cpp ...")
 

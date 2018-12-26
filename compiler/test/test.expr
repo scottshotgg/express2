@@ -1,7 +1,18 @@
+type myInt = int
+
 func something() {
+  type myInt = int
   int i = 10
+
+  // Functions do not have to be pre-defined
+  another(10, "s")
 }
 
+/*
+  The main function does not require a return type;
+  It can only accept `int` as the return type and
+  will automatically be injected if not supplied
+*/
 func main() {
   int i = 0
 
@@ -15,6 +26,7 @@ func main() {
     }
   }
 
+  // Functions do not have to be pre-defined
   something()
 }
 
