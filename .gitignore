@@ -4,3 +4,4 @@
 # ignore IDE folders
 .idea
 .vscode
+.history
