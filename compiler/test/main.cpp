@@ -1,26 +1,32 @@
-typedef int myInt;
-
-// Imports:
-// none
-
 // Includes:
 #include <array>
 #include <string>
+
+// Imports:
+// none
 
 // Types:
 // none
 
 // Prototypes:
-void another(int i, std::string s);
 void something();
+void another(int i, std::string s);
 
 // Functions:
-void another(int i, std::string s) { int j = 6666666; }
 void something() {
   typedef int myInt;
   int i = 10;
   another(10, "s");
 }
+
+void another(int i, std::string s) { int j = 6666666; }
+
+// Misc:
+typedef int myInt;
+struct myStruct {
+  int i = 10;
+  std::string something = "something";
+};
 
 // Main:
 // generated: false
