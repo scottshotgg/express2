@@ -202,7 +202,7 @@ func TestTranspileType(t *testing.T) {
 	fmt.Println("C++:", *cpp)
 }
 
-func TestTranspileTypeDeclaration(t *testing.T) {
+func TestTranspileTypeDeclarationStatement(t *testing.T) {
 	var ast, err = getStatementASTFromString(test.Tests[test.StatementTest]["typeDef"])
 	if err != nil {
 		t.Fatalf("Could not create AST: %+v", err)
@@ -239,6 +239,22 @@ func TestTranspileDeclarationStatement(t *testing.T) {
 	fmt.Printf("ast: %+v\n", ast.Right)
 
 	cpp, err = transpiler.TranspileDeclarationStatement(ast)
+	if err != nil {
+		t.Errorf("err: %+v", err)
+	}
+
+	fmt.Println("C++:", *cpp)
+}
+
+func TestTranspileStructDeclarationStatement(t *testing.T) {
+	ast, err := getStatementASTFromString(test.Tests[test.StatementTest]["struct"])
+	if err != nil {
+		t.Fatalf("Could not create AST: %+v", err)
+	}
+
+	fmt.Printf("ast: %+v\n", ast)
+
+	cpp, err = transpiler.TranspileStructDeclaration(ast)
 	if err != nil {
 		t.Errorf("err: %+v", err)
 	}

@@ -1,9 +1,15 @@
 package compiler
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
+	"log"
 	"os/exec"
+	"sync"
+	"time"
 
 	"github.com/pkg/errors"
 	ast "github.com/scottshotgg/express-ast"
@@ -32,14 +38,14 @@ func getTokensFromString(s string) ([]token.Token, error) {
 }
 
 func getBuilderFromString(test string) (*builder.Builder, error) {
-	tokens, err := getTokensFromString(test)
+	var tokens, err = getTokensFromString(test)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, token := range tokens {
-		fmt.Println(token)
-	}
+	// for _, token := range tokens {
+	// 	fmt.Println(token)
+	// }
 
 	return builder.New(tokens), nil
 }
@@ -62,49 +68,87 @@ func getTranspilerFromString(test, name string) (*transpiler.Transpiler, error) 
 	return transpiler.New(ast, name), nil
 }
 
+var (
+	pipelineTimes = map[string]string{}
+)
+
+func timeTrack(start time.Time, name string) {
+	// fmt.Printf("Function %s took %s\n", name, time.Since(start))
+	pipelineTimes[name] = time.Since(start).String()
+}
+
+// type PipelineTiming struct {
+// 	Total time.Duration
+// 	ReadFile time.Duration
+// 	Build time.Duration
+// 	Transpile time.Duration
+// 	Write time.Duration
+// 	Format time.Duration
+// 	Clang time.Duration
+// }
+
 func Compile(filename string) error {
-	var testBytes, err = ioutil.ReadFile(filename)
+	var globalStart = time.Now()
+
+	fmt.Println("\nReading input file ...")
+
+	var (
+		start          = time.Now()
+		testBytes, err = ioutil.ReadFile(filename)
+	)
+
 	if err != nil {
 		return err
 	}
 
+	pipelineTimes["read"] = time.Since(start).String()
+
+	fmt.Println("\nBuilding AST ...")
+
+	// Build the AST
+	start = time.Now()
 	tr, err := getTranspilerFromString(string(testBytes), "main")
 	if err != nil {
 		return err
 	}
 
+	pipelineTimes["build"] = time.Since(start).String()
+
+	fmt.Println("\nTranspiling to C++ ...")
+
+	start = time.Now()
 	cpp, err := tr.Transpile()
 	if err != nil {
 		return err
 	}
 
-	// fmt.Printf("\nC++: %s\n\n", cpp)
+	pipelineTimes["transpile"] = time.Since(start).String()
 
-	fmt.Println("\nWriting transpilied C++ code to main.cpp ...")
+	var wg sync.WaitGroup
 
-	// Write the C++ code to a file named `main.cpp`
-	err = ioutil.WriteFile("test/main.cpp", []byte(cpp), 0644)
-	if err != nil {
-		return err
-	}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		_, err := writeAndFormat(cpp, "test/main.cpp")
+		if err != nil {
+			fmt.Println("There was an error writing C++ file; this does NOT inherently effect binary generation")
+		}
+	}()
 
-	fmt.Println("\nFormatting C++ code ...")
-
-	// Run `clang-format` in-place to format the file for human-readability
-	_, err = exec.Command("clang-format", "-i", "test/main.cpp").CombinedOutput()
-	if err != nil {
-		return err
-	}
-
-	fmt.Println("\nCompiling C++ to create binary ...")
-
-	// Compile the file with Clang to produce a binary
-	_, err = exec.Command("clang++", stdCppVersion, "test/main.cpp", "-o", "test/main").CombinedOutput()
+	err = generateBinary(cpp)
 	if err != nil {
 		return err
 	}
 
 	fmt.Println("\nFinished!")
+
+	// Wait for the write/formatter to finish
+	wg.Wait()
+
+	pipelineTimes["compile"] = time.Since(globalStart).String()
+
+	var times, _ = json.MarshalIndent(pipelineTimes, "", "  ")
+	log.Println("\nPipeline timings:", string(times))
 
 	return nil
 }
@@ -117,8 +161,8 @@ func Run(filename string) error {
 
 	fmt.Println("\nRunning binary ...")
 
-	// Compile the file with Clang to produce a binary
-	output, err := exec.Command("./test/main").CombinedOutput()
+	// Run the produced binary
+	output, err := exec.Command("./test/main").Output()
 	if err != nil {
 		return err
 	}
@@ -128,4 +172,111 @@ func Run(filename string) error {
 	fmt.Println("\nOutput:", output)
 
 	return nil
+}
+
+func writeAndFormat(source, output string) (string, error) {
+	fmt.Println("\nWriting transpilied C++ code to main.cpp ...")
+
+	var (
+		start = time.Now()
+		// Write the C++ code to a file named `main.cpp`
+		err = ioutil.WriteFile(output, []byte(source), 0644)
+	)
+
+	if err != nil {
+		return "", err
+	}
+	timeTrack(start, "write")
+
+	fmt.Println("\nFormatting C++ code ...")
+
+	// Format the file in-place using `clang-format`; mainly for human readability
+	start = time.Now()
+	// TODO: pump this into clang later so that the errors that come back are formatted
+	// for now we'll just return the source
+	outputB, err := exec.Command("clang-format", "-i", output).CombinedOutput()
+	if err != nil {
+		return "", err
+	}
+	timeTrack(start, "format")
+
+	return string(outputB), nil
+}
+
+func generateBinary(source string) error {
+	// Track the time
+	defer timeTrack(time.Now(), "clang")
+
+	fmt.Println("\nUsing Clang generate create binary ...")
+
+	// Compile the file with Clang to produce a binary
+	var clangCmd = exec.Command("clang++", stdCppVersion, "-Ofast", "-x", "c++", "-o", "test/main", "-")
+
+	// Grab the stdin of the command
+	var stdin, err = clangCmd.StdinPipe()
+	if err != nil {
+		return err
+	}
+
+	// // Grab the stdout of the command
+	// stdout, err := clangCmd.StdoutPipe()
+	// if err != nil {
+	// 	return err
+	// }
+
+	// // Grab the stderr of the command
+	// stderr, err := clangCmd.StderrPipe()
+	// if err != nil {
+	// 	return err
+	// }
+
+	// Copy the bytes to Clang's stdin
+	n, err := copyToPipe(stdin, bytes.NewBufferString(source))
+	if err != nil {
+		return err
+	}
+
+	// Check that the amount copied is the amount we are expecting
+	if n != int64(len(source)) {
+		return errors.Errorf("Could not write all (%d) source bytes to clang: %d", len(source), n)
+	}
+
+	// Start Clang to have it waiting
+	output, err := clangCmd.CombinedOutput()
+	if err != nil {
+		fmt.Println("\nClang error:\n" + string(output))
+
+		return err
+	}
+
+	// // Wait for Clang to finish
+	// err = clangCmd.Wait()
+	// if err != nil {
+	// 	// output, err := ioutil.ReadAll(stdout)
+	// 	// if err != nil {
+	// 	// 	return err
+	// 	// }
+
+	// 	// fmt.Println("output", string(output))
+
+	// 	output, err := ioutil.ReadAll(stderr)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+
+	// 	fmt.Println("output", string(output))
+
+	// 	return err
+	// }
+
+	return nil
+}
+
+// This function is really just to control the defer properly
+func copyToPipe(in io.WriteCloser, out io.Reader) (int64, error) {
+	// We need to ensure that the pipe is closed so that Clang will know that we are finished
+	defer in.Close()
+
+	// Whether we error or not we need to close the pipe
+	return io.Copy(in, out)
 }

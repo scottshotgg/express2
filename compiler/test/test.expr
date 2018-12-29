@@ -1,5 +1,10 @@
 type myInt = int
 
+struct myStruct = {
+  int i = 10
+  string something = "something"
+}
+
 func something() {
   type myInt = int
   int i = 10
