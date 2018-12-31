@@ -46,7 +46,7 @@ var (
 		"selectionAssign":  "some.thing.whatever.yeah = 10",
 		"assignFromSelect": "somethingNew = some.thing",
 		"returnSomething":  "return something[\"here\"].me()",
-		"struct":           "struct something = { int i = 10 }",
+		"struct":           "struct something = { int i = 10 string s = \"hey its me\" }",
 		"simpleLet":        "let something = 99",
 		"package":          "package something",
 		"derefAssign":      "*something = 10",

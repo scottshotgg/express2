@@ -29,6 +29,7 @@ type (
 	// Props would be 0, 1, 2, 3, 4, with the base type etc
 
 	TypeValue struct {
+		// Save the node as JSON so that we can come back later and use it
 		NodeJSON  string
 		Composite bool
 		Type      TypeValueType
@@ -43,7 +44,6 @@ type (
 		OpFuncMap []map[string]opCallbackFn `json:",omitempty"`
 
 		ScopeTree *ScopeTree
-		TypeMap   map[string]*TypeValue
 	}
 )
 

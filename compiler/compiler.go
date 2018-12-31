@@ -43,9 +43,9 @@ func getBuilderFromString(test string) (*builder.Builder, error) {
 		return nil, err
 	}
 
-	// for _, token := range tokens {
-	// 	fmt.Println(token)
-	// }
+	for _, token := range tokens {
+		fmt.Println(token)
+	}
 
 	return builder.New(tokens), nil
 }

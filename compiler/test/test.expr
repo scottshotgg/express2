@@ -1,16 +1,28 @@
 type myInt = int
 
+struct AnotherOne = {
+  bool ayy = true
+}
+
 struct myStruct = {
   int i = 10
   string something = "something"
+  AnotherOne ayy
 }
 
 func something() {
-  type myInt = int
+  myStruct s = {
+    i = 100
+    something = "else"
+    ayy = {
+      ayy = false
+    }
+  }
+
   int i = 10
 
   // Functions do not have to be pre-defined
-  another(10, "s")
+  another(i, "s")
 }
 
 /*
@@ -24,6 +36,7 @@ func main() {
   for j in [1,2,3] {
     i = j
   }
+  int k = 10
 
   for j in [1,2,3] {
     for j in [4,5,6] {
