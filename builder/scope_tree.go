@@ -46,13 +46,21 @@ type ScopeTree struct {
 }
 
 // New will create a new global scope in the scopeTree variable
-func NewScopeTree(node *Node) *ScopeTree {
+// func NewScopeTree(node *Node) *ScopeTree {
+func NewScopeTree() *ScopeTree {
 	// Since this is the global scope, it has no `parent` and its `global` pointer is recursive
 	var scopeTree = &ScopeTree{
-		lock:  &sync.RWMutex{},
-		node:  node,
+		lock: &sync.RWMutex{},
+		// node:  node,
 		vars:  map[string]*Node{},
 		types: map[string]*TypeValue{},
+	}
+
+	for _, value := range primTypes {
+		scopeTree.types[value] = &TypeValue{
+			Type: PrimitiveValue,
+			Kind: value,
+		}
 	}
 
 	scopeTree.global = scopeTree
@@ -62,7 +70,7 @@ func NewScopeTree(node *Node) *ScopeTree {
 
 // NewChild enumerates a new child scope
 // func (st *ScopeTree) NewChild(node *Node) *ScopeTree {
-func (st *ScopeTree) NewChild() *ScopeTree {
+func (st *ScopeTree) NewChildScope() *ScopeTree {
 	// On a new child, it might be needed, we could either COPY everything from the other scope ...
 	// 	OR
 	// (easier) Just defer to recursing up in the Get
@@ -142,6 +150,47 @@ func (st *ScopeTree) Assign(ref *Node) error {
 
 	return nil
 	// }
+}
+
+func (st *ScopeTree) NewType(key string, ref *TypeValue) error {
+	// If we have designated this as a new declaration, we only need to search the current scope
+	// to make sure it is not already defined
+	// if ref.Type == "decl" {
+	// Lock the map
+	st.lock.Lock()
+	defer st.lock.Unlock()
+
+	st.types[key] = ref
+
+	return nil
+}
+
+func (st *ScopeTree) GetType(name string) *TypeValue {
+	// If st is nil then we have a problem
+	if st == nil {
+		log.Printf("Current scope was nil ...")
+		os.Exit(9)
+	}
+
+	// The Node in the current scope is not allowed to act as a ref as of right now
+	// Search for the reference name in the current scope's symbol table
+	st.lock.Lock()
+	// Don't know if we need to recursively lock ... it seems likely
+	defer st.lock.Unlock()
+
+	var ref = st.types[name]
+	if ref != nil {
+		// If we get something from the current scope then return
+		return ref
+	}
+
+	// If we have a parent then check that
+	if st.parent != nil {
+		// Fetch from the parent if our scope doesn't have it
+		return st.parent.GetType(name)
+	}
+
+	return nil
 }
 
 // Get will recursively search up the scope tree to verify whether that reference can be found
