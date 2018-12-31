@@ -224,10 +224,10 @@ func (t *Transpiler) ToCpp(extra string) string {
 	}
 
 	return strings.Join(append(output, []string{
+		extra,
 		t.generateTypes(),
 		t.generateFunctions(),
 		"// Misc:", // TODO: need to fix this later and properly categorize this shit
-		extra,
 		fmt.Sprintf("\n// Main:\n// generated: %v\n%s", t.GenerateMain, t.Main),
 	}...), "\n")
 
@@ -445,6 +445,10 @@ func TranspileExpression(n *builder.Node) (*string, error) {
 	case "index":
 		return TranspileIndexExpression(n)
 
+	case "block":
+		log.Println("blockExpression", n)
+		return TranspileBlockExpression(n)
+
 		// case "selection":
 		// 	return TranspileSelectExpression(n)
 	}
@@ -495,7 +499,9 @@ func TranspileStatement(n *builder.Node) (*string, error) {
 		return TranspileAssignmentStatement(n)
 
 	case "decl":
-		return TranspileDeclarationStatement(n)
+		var stmt, err = TranspileDeclarationStatement(n)
+		fmt.Println("stmt, err", *stmt, err)
+		return stmt, err
 
 	case "function":
 		funcChan <- n
@@ -749,6 +755,8 @@ func TranspileDeclarationStatement(n *builder.Node) (*string, error) {
 		return nil, err
 	}
 
+	log.Println("TYPE", *vString, n.Left)
+
 	nString = *vString + " "
 
 	// LHS is not allowed to be nil
@@ -766,6 +774,14 @@ func TranspileDeclarationStatement(n *builder.Node) (*string, error) {
 
 	// RHS is allowed to be nil to support declarations without values like `string s`
 	if n.Right == nil {
+		// If the declaration is a struct, then give it the default init if no expression is provided
+		if n.Value.(*builder.Node).Kind == "struct" {
+			nString += "={}"
+		}
+
+		// log.Printf("HEY ITS ME %+v\n", n.Value.(*builder.Node))
+
+		nString += ";"
 		return &nString, nil
 	}
 
@@ -776,6 +792,8 @@ func TranspileDeclarationStatement(n *builder.Node) (*string, error) {
 	}
 
 	nString += " = " + *vString + ";"
+
+	// fmt.Println("nString", nString)
 
 	return &nString, nil
 }
@@ -874,14 +892,54 @@ func TranspileBlockStatement(n *builder.Node) (*string, error) {
 	)
 
 	for _, stmt := range n.Value.([]*builder.Node) {
+		fmt.Println("stmt", stmt)
+
 		vString, err = TranspileStatement(stmt)
 		if err != nil {
 			return nil, err
 		}
 
+		fmt.Println("vString", *vString)
+
 		if stmt.Type != "function" {
 			nString += *vString
 		}
+	}
+
+	nString = "{" + nString + "}"
+
+	return &nString, nil
+}
+
+// TODO: for now all variables will have a `.` in front, later on it
+// should only be the public variables
+func TranspileBlockExpression(n *builder.Node) (*string, error) {
+	if n.Type != "block" {
+		return nil, errors.New("Node is not a block")
+	}
+
+	var (
+		nString = ""
+		vString *string
+		err     error
+	)
+
+	// TODO: don't have a type checker so for right now
+	// just type check in here
+	for _, stmt := range n.Value.([]*builder.Node) {
+		vString, err = TranspileStatement(stmt)
+		if err != nil {
+			return nil, err
+		}
+
+		if stmt.Type != "assignment" {
+			return nil, errors.Errorf("Structs can only contain assignment statements; %+v", stmt)
+		}
+
+		*vString = (*vString)[:len(*vString)-1]
+
+		// Add a dot in front
+		nString += "." + *vString + ","
 	}
 
 	nString = "{" + nString + "}"
@@ -931,7 +989,13 @@ func TranspileSGroup(n *builder.Node) (*string, error) {
 			return nil, err
 		}
 
-		nStrings[i] = *vString
+		// Shave off the semicolon since we don't need it
+		var vvString = *vString
+		if vvString[len(vvString)-1] == ';' {
+			vvString = (vvString)[:len(vvString)-1]
+		}
+
+		nStrings[i] = vvString
 	}
 
 	var nString = "(" + strings.Join(nStrings, ",") + ")"

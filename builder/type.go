@@ -1,8 +1,6 @@
 package builder
 
 import (
-	"fmt"
-
 	"github.com/pkg/errors"
 	"github.com/scottshotgg/express-token"
 )
@@ -18,26 +16,43 @@ import (
 func (b *Builder) AddPrimitive(key string, value *Node) (*TypeValue, error) {
 	// Check the value to make sure it is: int, char, byte, string, bool, float
 
-	switch value.Kind {
-	case "int":
-	case "float":
-	case "bool":
-	case "char":
-	case "byte":
-	case "string":
+	if value.Value == nil {
+		return nil, errors.New("wtf shit was nil")
+	}
 
-	default:
-		return nil, errors.Errorf("Type not defined in AddPrimitive: %s", value.Kind)
+	// Check whether this type has already been declared
+	if b.ScopeTree.GetType(key) != nil {
+		return nil, errors.Errorf("Type is already declared in type map: %s", key)
+	}
+
+	var sv, ok = value.Value.(string)
+	if !ok {
+		return nil, errors.New("Value was not a string")
+	}
+
+	// switch sv {
+	// case "int":
+	// case "float":
+	// case "bool":
+	// case "char":
+	// case "byte":
+	// case "string":
+
+	// default:
+	// 	return nil, errors.Errorf("Type not defined in AddPrimitive: %s", sv)
+	// }
+
+	// Check if the type we are trying to alias is in the type map
+	if b.ScopeTree.GetType(sv) == nil {
+		return nil, errors.Errorf("Type is not declared in type map: %s", sv)
 	}
 
 	var v = &TypeValue{
 		Type: PrimitiveValue,
-		Kind: value.Kind,
+		Kind: sv,
 	}
 
-	b.TypeMap[key] = v
-
-	return v, nil
+	return v, b.ScopeTree.NewType(key, v)
 }
 
 func (b *Builder) AddRepeated(key string, value *Node) (*TypeValue, error) {
@@ -45,53 +60,98 @@ func (b *Builder) AddRepeated(key string, value *Node) (*TypeValue, error) {
 }
 
 func (b *Builder) AddStructured(key string, value *Node) (*TypeValue, error) {
-	if value.Kind != "block" {
+	if value.Type != "block" {
 		return nil, errors.Errorf("Value of type is not a block: %s", value.Kind)
 	}
 
-	var props, err = extractPropsFromComposite(value)
+	var props, err = b.extractPropsFromComposite(value)
 	if err != nil {
 		return nil, err
 	}
 
-	return &TypeValue{
+	var v = &TypeValue{
 		Composite: true,
 		Type:      StruturedValue,
 		Kind:      value.Kind,
 		Props:     props,
-	}, nil
+	}
+
+	return v, b.ScopeTree.NewType(key, v)
 }
 
-func extractPropsFromStruct(n *Node) (map[string]*TypeValue, error) {
+func (b *Builder) extractPropsFromStruct(n *Node) (map[string]*TypeValue, error) {
 	// The struct actually has decl statements inside of it,
 	// so parse each of those nodes for the key : value
 	// For now I don't think we need the actual value for anything
 
-	fmt.Println("n", n)
+	var (
+		propsRaw = n.Value.([]*Node)
+		propMap  = map[string]*TypeValue{}
+	)
 
-	return nil, errors.New("something wtf")
+	for _, prop := range propsRaw {
+		var pv = prop.Value.(*Node)
+
+		// Need to check the type that we extract from here as well
+		// make a function for that
+
+		var propType = b.ScopeTree.GetType(pv.Value.(string))
+		if propType == nil {
+			return nil, errors.Errorf("Type not defined: %s, %+v", pv.Value.(string), pv)
+		}
+
+		propMap[prop.Left.Value.(string)] = propType
+	}
+
+	return propMap, nil
 }
 
 // should really change this to use a 'structBlock' or something if the parser can
 // determine the types
-func extractPropsFromComposite(n *Node) (map[string]*TypeValue, error) {
-	switch n.Kind {
+func (b *Builder) extractPropsFromComposite(n *Node) (map[string]*TypeValue, error) {
+	switch n.Type {
 	case "block":
-		return extractPropsFromStruct(n)
+		return b.extractPropsFromStruct(n)
 
 	default:
 		return nil, errors.Errorf("Not implemented in extractPropsFromComposite: %s", n.Kind)
 	}
 }
 
-func (b *Builder) GetType(key string) (*TypeValue, error) {
-	return nil, errors.New("Not implemented: GetType")
+func (b *Builder) BuildNodeFromTypeValue(t *TypeValue) (*Node, error) {
+	if t == nil {
+		return nil, errors.Errorf("TypeValue was nil ...")
+	}
+
+	switch t.Type {
+	case StruturedValue:
+		return buildStructureFromTypeValue(t)
+
+	default:
+		return nil, errors.Errorf("Not implemented: %+v", t)
+	}
+}
+
+func buildStructureFromTypeValue(t *TypeValue) (*Node, error) {
+	return nil, nil
 }
 
 func (b *Builder) ParseType() (*Node, error) {
 	// Check ourselves ...
 	if b.Tokens[b.Index].Type != token.Type {
+		// If the token is not a type then check the type map to see if it is
+		// var t = b.ScopeTree.GetType(b.Tokens[b.Index].Value.String)
+		// if t == nil {
 		return b.AppendTokenToError("Could not get type")
+		// }
+	}
+
+	var injectedType = ""
+
+	// We need to inject the original type as well
+	var t = b.ScopeTree.GetType(b.Tokens[b.Index].Value.String)
+	if t != nil {
+		injectedType = t.Kind
 	}
 
 	// TODO: we would need to implement something like this
@@ -100,7 +160,7 @@ func (b *Builder) ParseType() (*Node, error) {
 
 	// }
 
-	typeOf := b.Tokens[b.Index].Value.String
+	var typeOf = b.Tokens[b.Index].Value.String
 
 	if b.Index < len(b.Tokens)-1 &&
 		b.Tokens[b.Index+1].Type == token.LBracket {
@@ -113,6 +173,7 @@ func (b *Builder) ParseType() (*Node, error) {
 	return &Node{
 		Type:  "type",
 		Value: typeOf,
+		Kind:  injectedType,
 	}, nil
 }
 

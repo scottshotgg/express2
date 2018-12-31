@@ -40,13 +40,13 @@ func getStatementASTFromString(test string) (*builder.Node, error) {
 }
 
 func TestNewScopeTree(t *testing.T) {
-	// Parse something for a new scope
-	n, err := getASTFromString(testProgram)
-	if err != nil {
-		t.Fatalf("err %+v", err)
-	}
+	// // Parse something for a new scope
+	// n, err := getASTFromString(testProgram)
+	// if err != nil {
+	// 	t.Fatalf("err %+v", err)
+	// }
 
-	scopeTree = builder.NewScopeTree(n)
+	scopeTree = builder.NewScopeTree()
 
 	fmt.Printf("scopeTree: %+v\n", scopeTree)
 }

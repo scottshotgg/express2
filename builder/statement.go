@@ -399,6 +399,11 @@ func (b *Builder) ParseTypeDeclarationStatement() (*Node, error) {
 		return nil, err
 	}
 
+	_, err = b.AddPrimitive(ident.Value.(string), typeOf)
+	if err != nil {
+		return nil, err
+	}
+
 	// // Increment over the first part of the expression
 	// b.Index++
 
@@ -407,10 +412,6 @@ func (b *Builder) ParseTypeDeclarationStatement() (*Node, error) {
 		Left:  ident,
 		Right: typeOf,
 	}, nil
-}
-
-func (b *Builder) ParseStructDeclarationStatement() (*Node, error) {
-	return nil, errors.New("Not implemented: ParseStructDeclarationStatement")
 }
 
 func (b *Builder) ParseStructStatement() (*Node, error) {
@@ -445,8 +446,12 @@ func (b *Builder) ParseStructStatement() (*Node, error) {
 		return nil, err
 	}
 
-	// TODO: fix this
-	// b.TypeMap[ident.Value.(string)] = *body
+	body.Kind = "struct"
+
+	_, err = b.AddStructured(ident.Value.(string), body)
+	if err != nil {
+		return nil, err
+	}
 
 	// // Increment over the first part of the expression
 	// b.Index++
@@ -456,6 +461,10 @@ func (b *Builder) ParseStructStatement() (*Node, error) {
 		Left:  ident,
 		Right: body,
 	}, nil
+}
+
+func (b *Builder) ParseStructDeclarationStatement() (*Node, error) {
+	return nil, errors.New("Not implemented: ParseStructDeclarationStatement")
 }
 
 func (b *Builder) ParseLetStatement() (*Node, error) {
@@ -795,6 +804,13 @@ func (b *Builder) ParseStatement() (*Node, error) {
 		node, err = b.ParseDeclarationStatement()
 
 	case token.Ident:
+		var t = b.ScopeTree.GetType(b.Tokens[b.Index].Value.String)
+		if t != nil {
+			// Set the token value to `type` instead of `ident` if we know it is a type
+			b.Tokens[b.Index].Type = "TYPE"
+			return b.ParseDeclarationStatement()
+		}
+
 		node, err = b.ParseAssignmentStatement()
 
 	case token.Function:

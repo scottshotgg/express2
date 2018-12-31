@@ -5,6 +5,16 @@
 // Imports:
 // none
 
+typedef int myInt;
+struct AnotherOne {
+  bool ayy = true;
+};
+struct myStruct {
+  int i = 10;
+  std::string something = "something";
+  AnotherOne ayy = {};
+};
+
 // Types:
 // none
 
@@ -14,19 +24,21 @@ void another(int i, std::string s);
 
 // Functions:
 void something() {
-  typedef int myInt;
+  myStruct s = {
+      .i = 100,
+      .something = "else",
+      .ayy =
+          {
+              .ayy = false,
+          },
+  };
   int i = 10;
-  another(10, "s");
+  another(i, "s");
 }
 
 void another(int i, std::string s) { int j = 6666666; }
 
 // Misc:
-typedef int myInt;
-struct myStruct {
-  int i = 10;
-  std::string something = "something";
-};
 
 // Main:
 // generated: false
@@ -42,6 +54,7 @@ int main() {
       }
     }
   }
+  int k = 10;
   {
     int j = 0;
     auto RANDOM_NAME_LATER = {1, 2, 3};

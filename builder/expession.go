@@ -192,7 +192,11 @@ func (b *Builder) ParseFactor() (*Node, error) {
 
 	// Named block
 	case token.LBrace:
-		return b.ParseBlockStatement()
+		var a, c = b.ParseBlockStatement()
+		// If this is an expression, then whatever called ParseExpression
+		// is going to increment the index again ...
+		b.Index--
+		return a, c
 	}
 
 	return b.AppendTokenToError("Could not parse expression from token")

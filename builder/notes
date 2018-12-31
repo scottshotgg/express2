@@ -1,0 +1,49 @@
+Express Spec:
+
+Two possible types top level types are available:
+  - val: an immutable value stored in a variabled
+  - var: a encapsulation for a value inteded to be changed
+
+Existing inside of these classifications live behaviorally typed values that are used to help the compiler help you.
+For instance, you could declare a variable using:
+  `var x = 0`
+
+Let's also assume for this example that the variable is never used for different _types_ of data after declaration.
+
+There is nothing inherently wrong with this declaration, however, in our example we could easily also statically declare the variable:
+  `int x = 0`
+
+Using statically typed declarations affords us a slew of optimizations that the compiler will now be able to attain for us:
+  1) Detection of when we have incorrectly used this variable (unintended or not), such as changing the type, dereferencing an non-nullable value, or accessing a property of an unstructured variable.
+  2) Compiling will be much faster! We no longer have to hold onto unnecessary run time type information (or significantly less) that we now don't need, as well as decreasing the overall pressure on the compiler.
+  3) "More efficient"; but we'll get to that later when explaining high-level optimizations that the Express compiler can perform for us.
+
+Four classifications of static types are available:
+  - Primitive
+  - Structured
+  - Nullable
+  - Repeated
+
+Primitive types encompass familiar terms for singular values:
+  - int
+  - float
+  - bool
+  - char
+  - byte
+
+Structured types might also look familiar, but their inferred behavior will be different than how most languages use them:
+  - tuple
+  - map
+  - struct
+  - function
+  - object
+
+Nullable represents the behavior for a value to be nullified. Specific concrete types that exist with this ability inherently are:
+  - reference
+  - pointer
+  - void
+
+Repeated types manifest themselves specifically as containers for multiple values of the aforementioned types. Some of these enforce strict type consistency among the values, while others allow for dynamic consistency:
+  - array
+  - vector
+  - list

@@ -17,18 +17,19 @@ var (
 
 func New(tokens []token.Token) *Builder {
 	var b = Builder{
-		Tokens:  tokens,
-		TypeMap: map[string]*TypeValue{},
+		Tokens:    tokens,
+		ScopeTree: NewScopeTree(),
+		// TypeMap: map[string]*TypeValue{},
 	}
 
-	// Load the concrete types; we'll need to do more
-	// later if we have separate transpilers per file ...
-	for _, value := range primTypes {
-		b.TypeMap[value] = &TypeValue{
-			Type: PrimitiveValue,
-			Kind: value,
-		}
-	}
+	// // Load the concrete types; we'll need to do more
+	// // later if we have separate transpilers per file ...
+	// for _, value := range primTypes {
+	// 	b.TypeMap[value] = &TypeValue{
+	// 		Type: PrimitiveValue,
+	// 		Kind: value,
+	// 	}
+	// }
 
 	b.OpFuncMap = []map[string]opCallbackFn{
 		// Tier 1 operators
@@ -61,7 +62,7 @@ func (b *Builder) BuildAST() (*Node, error) {
 		}
 	)
 
-	b.ScopeTree = NewScopeTree(programNode)
+	b.ScopeTree = NewScopeTree()
 
 	for b.Index < len(b.Tokens)-1 {
 		stmt, err = b.ParseStatement()

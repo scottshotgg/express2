@@ -12,7 +12,7 @@ import (
 
 func getTokensFromString(s string) ([]token.Token, error) {
 	// Lex and tokenize the source code
-	tokens, err := lex.New(s).Lex()
+	var tokens, err = lex.New(s).Lex()
 	if err != nil {
 		return nil, err
 	}
@@ -25,7 +25,7 @@ func getTokensFromString(s string) ([]token.Token, error) {
 }
 
 func getBuilderFromString(test string) (*builder.Builder, error) {
-	tokens, err := getTokensFromString(test)
+	var tokens, err = getTokensFromString(test)
 	if err != nil {
 		return nil, err
 	}
