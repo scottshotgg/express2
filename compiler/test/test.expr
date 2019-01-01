@@ -1,7 +1,7 @@
 type myInt = int
 
 struct AnotherOne = {
-  bool ayy = true
+  bool abc = true
 }
 
 struct myStruct = {
@@ -15,7 +15,7 @@ func something() {
     i = 100
     something = "else"
     ayy = {
-      ayy = false
+      abc = false
     }
   }
 
