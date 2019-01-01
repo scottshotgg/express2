@@ -1,6 +1,7 @@
 package builder
 
 import (
+	"encoding/json"
 	"log"
 	"os"
 	"sync"
@@ -27,95 +28,139 @@ var (
 )
 
 type ScopeTree struct {
-	lock *sync.RWMutex
+	Lock *sync.RWMutex
 
 	// Node is the node that the spawned the scope
-	node *Node
+	// node *Node
 
 	// Table is the map of vars
-	vars map[string]*Node
+	Vars map[string]*Node
 
 	// Types is the map of types
-	types map[string]*TypeValue
-
-	// Parent is a pointer to the parent scope
-	parent *ScopeTree
+	Types map[string]*TypeValue
 
 	// Global is a pointer to the global scope
-	global *ScopeTree
+	Global *ScopeTree
+
+	// Parent is a pointer to the parent scope
+	Parent *ScopeTree
+
+	// Children ...
+	Children map[string]*ScopeTree
 }
 
-// New will create a new global scope in the scopeTree variable
+func (st ScopeTree) MarshalJSON() ([]byte, error) {
+	// Marhshal up an anonymous struct with only the data we want
+	return json.Marshal(struct {
+		Vars     map[string]*Node
+		Types    map[string]*TypeValue
+		Children map[string]*ScopeTree
+	}{
+		st.Vars,
+		st.Types,
+		st.Children,
+	})
+}
+
+// NewScopeTree will create a new global scope in the scopeTree variable
 // func NewScopeTree(node *Node) *ScopeTree {
 func NewScopeTree() *ScopeTree {
 	// Since this is the global scope, it has no `parent` and its `global` pointer is recursive
 	var scopeTree = &ScopeTree{
-		lock: &sync.RWMutex{},
+		Lock: &sync.RWMutex{},
 		// node:  node,
-		vars:  map[string]*Node{},
-		types: map[string]*TypeValue{},
+		Vars:     map[string]*Node{},
+		Types:    map[string]*TypeValue{},
+		Children: map[string]*ScopeTree{},
 	}
 
 	for _, value := range primTypes {
-		scopeTree.types[value] = &TypeValue{
+		scopeTree.Types[value] = &TypeValue{
 			Type: PrimitiveValue,
 			Kind: value,
 		}
 	}
 
-	scopeTree.global = scopeTree
+	// This might have some problems ...
+	scopeTree.Global = scopeTree
 
 	return scopeTree
 }
 
 // NewChild enumerates a new child scope
 // func (st *ScopeTree) NewChild(node *Node) *ScopeTree {
-func (st *ScopeTree) NewChildScope() *ScopeTree {
+func (st *ScopeTree) NewChildScope(name string) (*ScopeTree, error) {
 	// On a new child, it might be needed, we could either COPY everything from the other scope ...
 	// 	OR
 	// (easier) Just defer to recursing up in the Get
-	return &ScopeTree{
-		lock: &sync.RWMutex{},
+
+	// Check for a child with the same name already
+	if st.Children[name] != nil {
+		return nil, errors.Errorf("There is already a scope with that name; %s", name)
+	}
+
+	var scope = &ScopeTree{
+		Lock: &sync.RWMutex{},
 		// node:   node,
 		// TODO: fix this
-		vars:   map[string]*Node{},
-		parent: st,
-		global: st.global,
+		Vars:     map[string]*Node{},
+		Types:    map[string]*TypeValue{},
+		Parent:   st,
+		Global:   st.Global,
+		Children: map[string]*ScopeTree{},
 	}
+
+	st.Children[name] = scope
+
+	return scope, nil
 }
 
 // Leave exits the current scope and crawl up to the parent scope
 func (st *ScopeTree) Leave() (*ScopeTree, error) {
-	if st.parent == nil {
+	if st.Parent == nil {
 		return nil, errors.New("Already in top level scope")
 	}
 
-	return st.parent, nil
+	return st.Parent, nil
 }
 
 func (st *ScopeTree) Declare(ref *Node) error {
-	// ref.Left.Value should be the name of the ident
-	var refName, ok = ref.Value.(string)
-	if !ok {
-		return errors.Errorf("Node value was not a string %+v", ref)
+	var (
+		refName string
+		ok      bool
+	)
+
+	switch ref.Type {
+	case "function":
+		refName = ref.Kind
+
+	case "decl":
+		// ref.Left.Value should be the name of the ident
+		refName, ok = ref.Left.Value.(string)
+		if !ok {
+			return errors.Errorf("Node value was not a string %+v", ref)
+		}
+
+	default:
+		return errors.Errorf("Node type is not supported for declaration: %+v", ref)
 	}
 
 	// If we have designated this as a new declaration, we only need to search the current scope
 	// to make sure it is not already defined
 	// if ref.Type == "decl" {
 	// Lock the map
-	st.lock.Lock()
-	defer st.lock.Unlock()
+	st.Lock.Lock()
+	defer st.Lock.Unlock()
 
 	// Search for the reference name in the current scope's symbol table
-	var scopeRef = st.vars[refName]
+	var scopeRef = st.Vars[refName]
 	// If it is not equal to nil then we already have something under that name in the CURRENT scope
 	if scopeRef != nil {
 		return errors.Errorf("Variable already exists: \nScopeRef:%+v\nRef:%+v\n", scopeRef, ref)
 	}
 
 	// Put the ref into the table
-	st.vars[refName] = ref
+	st.Vars[refName] = ref
 
 	return nil
 	// }
@@ -123,30 +168,23 @@ func (st *ScopeTree) Declare(ref *Node) error {
 
 func (st *ScopeTree) Assign(ref *Node) error {
 	// ref.Left.Value should be the name of the ident
-	var refName, ok = ref.Value.(string)
+	var refName, ok = ref.Left.Value.(string)
 	if !ok {
-		return errors.Errorf("Node value was not a string %+v", ref)
+		return errors.Errorf("Node value was not a string %+v", ref.Left)
 	}
 
-	// If we have designated this as a new declaration, we only need to search the current scope
-	// to make sure it is not already defined
-	// if ref.Type == "decl" {
-	// Lock the map
-	st.lock.Lock()
-	defer st.lock.Unlock()
+	st.Lock.Lock()
+	defer st.Lock.Unlock()
 
-	// If the ref is an assignment then we are expecting that variable to already be there
-	// if ref.Type == "assignment" {
-	// Not sure if this is going to work
-	// Get the value
 	var scopeRef = st.get(refName)
 	// If it is equal to nil then we dont have something under that name in the ANY scope
 	if scopeRef == nil {
-		return errors.Errorf("Could not find variable: %+v", ref)
+		return errors.Errorf("Could not find variable: %+v", refName)
 	}
 
 	// assign to where ever this came from in the scope
-	*scopeRef = *ref
+	// TODO: I don't think this is going to work
+	// *scopeRef = *ref
 
 	return nil
 	// }
@@ -157,10 +195,10 @@ func (st *ScopeTree) NewType(key string, ref *TypeValue) error {
 	// to make sure it is not already defined
 	// if ref.Type == "decl" {
 	// Lock the map
-	st.lock.Lock()
-	defer st.lock.Unlock()
+	st.Lock.Lock()
+	defer st.Lock.Unlock()
 
-	st.types[key] = ref
+	st.Types[key] = ref
 
 	return nil
 }
@@ -174,20 +212,20 @@ func (st *ScopeTree) GetType(name string) *TypeValue {
 
 	// The Node in the current scope is not allowed to act as a ref as of right now
 	// Search for the reference name in the current scope's symbol table
-	st.lock.Lock()
+	st.Lock.Lock()
 	// Don't know if we need to recursively lock ... it seems likely
-	defer st.lock.Unlock()
+	defer st.Lock.Unlock()
 
-	var ref = st.types[name]
+	var ref = st.Types[name]
 	if ref != nil {
 		// If we get something from the current scope then return
 		return ref
 	}
 
 	// If we have a parent then check that
-	if st.parent != nil {
+	if st.Parent != nil {
 		// Fetch from the parent if our scope doesn't have it
-		return st.parent.GetType(name)
+		return st.Parent.GetType(name)
 	}
 
 	return nil
@@ -203,20 +241,20 @@ func (st *ScopeTree) Get(name string) *Node {
 
 	// The Node in the current scope is not allowed to act as a ref as of right now
 	// Search for the reference name in the current scope's symbol table
-	st.lock.Lock()
+	st.Lock.Lock()
 	// Don't know if we need to recursively lock ... it seems likely
-	defer st.lock.Unlock()
+	defer st.Lock.Unlock()
 
-	var ref = st.vars[name]
+	var ref = st.Vars[name]
 	if ref != nil {
 		// If we get something from the current scope then return
 		return ref
 	}
 
 	// If we have a parent then check that
-	if st.parent != nil {
+	if st.Parent != nil {
 		// Fetch from the parent if our scope doesn't have it
-		return st.parent.Get(name)
+		return st.Parent.Get(name)
 	}
 
 	return nil
@@ -230,16 +268,16 @@ func (st *ScopeTree) get(name string) *Node {
 		os.Exit(9)
 	}
 
-	var ref = st.vars[name]
+	var ref = st.Vars[name]
 	if ref != nil {
 		// If we get something from the current scope then return
 		return ref
 	}
 
 	// If we have a parent then check that
-	if st.parent != nil {
+	if st.Parent != nil {
 		// Fetch from the parent if our scope doesn't have it
-		return st.parent.Get(name)
+		return st.Parent.Get(name)
 	}
 
 	return nil
@@ -255,11 +293,11 @@ func (st *ScopeTree) Local(name string) *Node {
 
 	// The Node in the current scope is not allowed to act as a ref as of right now
 	// Search for the reference name in the current scope's symbol table
-	st.lock.Lock()
+	st.Lock.Lock()
 	// Don't know if we need to recursively lock ... it seems likely
-	defer st.lock.Unlock()
+	defer st.Lock.Unlock()
 
-	return st.vars[name]
+	return st.Vars[name]
 }
 
 // // SetGlobal will set the reference in the global scope

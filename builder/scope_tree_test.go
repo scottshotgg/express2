@@ -31,7 +31,7 @@ func getASTFromString(test string) (*builder.Node, error) {
 }
 
 func getStatementASTFromString(test string) (*builder.Node, error) {
-	b, err := getBuilderFromString(test)
+	var b, err = getBuilderFromString(test)
 	if err != nil {
 		return nil, err
 	}
