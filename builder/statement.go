@@ -358,12 +358,14 @@ func (b *Builder) ParseDeclarationStatement() (*Node, error) {
 	// Increment over the first part of the expression
 	b.Index++
 
-	return &Node{
+	var node = &Node{
 		Type:  "decl",
 		Value: typeOf,
 		Left:  ident,
 		Right: expr,
-	}, nil
+	}
+
+	return node, b.ScopeTree.Declare(node)
 }
 
 func (b *Builder) ParseTypeDeclarationStatement() (*Node, error) {
@@ -432,6 +434,12 @@ func (b *Builder) ParseStructStatement() (*Node, error) {
 	// Increment over the ident token
 	b.Index++
 
+	// Create a new child scope for the function
+	b.ScopeTree, err = b.ScopeTree.NewChildScope(ident.Value.(string))
+	if err != nil {
+		return nil, err
+	}
+
 	// Check for the equals token
 	if b.Tokens[b.Index].Type != token.Assign {
 		return b.AppendTokenToError("No equals found after ident in struct def")
@@ -448,13 +456,35 @@ func (b *Builder) ParseStructStatement() (*Node, error) {
 
 	body.Kind = "struct"
 
-	_, err = b.AddStructured(ident.Value.(string), body)
+	// _, err = b.AddStructured(ident.Value.(string), body)
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	var v = &TypeValue{
+		Composite: true,
+		Type:      StruturedValue,
+		Kind:      body.Kind,
+	}
+
+	v.Props, err = b.extractPropsFromComposite(body)
 	if err != nil {
 		return nil, err
 	}
 
 	// // Increment over the first part of the expression
 	// b.Index++
+
+	// Assign our scope back to the current one
+	b.ScopeTree, err = b.ScopeTree.Leave()
+	if err != nil {
+		return nil, err
+	}
+
+	err = b.ScopeTree.NewType(ident.Value.(string), v)
+	if err != nil {
+		return nil, err
+	}
 
 	return &Node{
 		Type:  "struct",
@@ -561,11 +591,16 @@ func (b *Builder) ParseAssignmentStatement() (*Node, error) {
 	// Increment over the first part of the expression
 	b.Index++
 
-	return &Node{
+	var node = &Node{
 		Type:  "assignment",
 		Left:  ident,
 		Right: expr,
-	}, nil
+	}
+
+	// Do one pass for declarations, and check that the assignments
+	// and usages corraborate in the type checker
+	// return node, b.ScopeTree.Assign(node)
+	return node, nil
 }
 
 func (b *Builder) ParsePackageStatement() (*Node, error) {
@@ -659,7 +694,14 @@ func (b *Builder) ParseFunctionStatement() (*Node, error) {
 		return b.AppendTokenToError("Could not get ident after function token")
 	}
 
+	// Set the name of the function
 	node.Kind = b.Tokens[b.Index].Value.String
+
+	// Create a new child scope for the function
+	b.ScopeTree, err = b.ScopeTree.NewChildScope(node.Kind)
+	if err != nil {
+		return nil, err
+	}
 
 	// Step over the ident token
 	b.Index++
@@ -722,6 +764,18 @@ func (b *Builder) ParseFunctionStatement() (*Node, error) {
 	}
 
 	node.Value, err = b.ParseBlockStatement()
+	if err != nil {
+		return nil, err
+	}
+
+	// Assign our scope back to the current one
+	b.ScopeTree, err = b.ScopeTree.Leave()
+	if err != nil {
+		return nil, err
+	}
+
+	// Declare the type in the upper scope after leaving
+	err = b.ScopeTree.Declare(&node)
 	if err != nil {
 		return nil, err
 	}
