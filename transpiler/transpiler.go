@@ -21,7 +21,6 @@ type Transpiler struct {
 	Types        map[string]string
 	Includes     []string
 	Imports      []string
-	Main         string
 	GenerateMain bool
 }
 
@@ -65,29 +64,19 @@ func (t *Transpiler) functionWorker(wg *sync.WaitGroup) {
 	for f := range funcChan {
 		functionName = f.Kind
 
+		if t.Functions[functionName] != "" {
+			// FIXME: this is an error
+			log.Printf("Function already declared: %+v\n", f)
+			os.Exit(9)
+		}
+
 		function, err = TranspileFunctionStatement(f)
 		if err != nil {
 			log.Printf("Function error: %+v %+v\n", f, err)
 			os.Exit(9)
 		}
 
-		if functionName == "main" {
-			if t.Main != "" {
-				// FIXME: this is an error
-				log.Printf("Already have a main function: %+v\n", f)
-				os.Exit(9)
-			}
-
-			t.Main = *function
-		} else {
-			if t.Functions[functionName] != "" {
-				// FIXME: this is an error
-				log.Printf("Function already declared: %+v\n", f)
-				os.Exit(9)
-			}
-
-			t.Functions[functionName] = *function
-		}
+		t.Functions[functionName] = *function
 	}
 }
 
@@ -117,11 +106,11 @@ func (t *Transpiler) Transpile() (string, error) {
 		stringP *string
 		err     error
 
-		cpp string
+		// cpp string
 	)
 
-	wg1.Add(1)
-	go t.functionWorker(&wg1)
+	wg.Add(1)
+	go t.functionWorker(&wg)
 
 	// Spin off a worker to process to imports that are found
 	wg.Add(1)
@@ -142,7 +131,7 @@ func (t *Transpiler) Transpile() (string, error) {
 				// Might want to make this go through the entire pipeline ...
 				importStringP, ierr = TranspileIncludeStatement(nodes[i])
 				if ierr != nil {
-					log.Printf("Error transpiling include statement: %+v\n", err)
+					log.Printf("Error transpiling include statement: %+v\n", ierr)
 
 					// Exit if there is a problem transpiling the import statement
 					// and we'll deal with it later
@@ -165,39 +154,48 @@ func (t *Transpiler) Transpile() (string, error) {
 	includeChan <- includes
 
 	for _, node := range nodes {
-		fmt.Println("node", node)
+		// TODO: Switch on the statement type to figure out how to process it
+		// TODO: Flatten anything with a scope
 
-		// Switch on the statement type to figure out how to process it
-		// Flatten anything with a scope
-		// switch node.Type {
-		// case "function":
-
-		stringP, err = TranspileStatement(node)
-		if err != nil {
-			return "", err
-		}
+		// TODO: need to put the function into the function chan here?
 
 		if node.Type != "function" {
-			cpp += *stringP
-		}
+			stringP, err = TranspileStatement(node)
+			if err != nil {
+				return "", err
+			}
 
-		// }
+			switch node.Type {
+			case "struct":
+				fallthrough
+
+			case "typedef":
+				t.Types[node.Left.Value.(string)] = *stringP
+
+			default:
+				return "", errors.Errorf("Node was not categorized properly: %+v\n", node)
+			}
+		}
 	}
 
 	// Close the channel and alert the import worker that we are done
 	close(funcChan)
 
-	wg1.Wait()
+	// wg1.Wait()
 
 	close(includeChan)
 
 	// Wait for all extraneous imports to be transpiled
 	wg.Wait()
 
-	return t.ToCpp(cpp), nil
+	if t.Functions["main"] == "" {
+		return "", errors.New("No main function declared")
+	}
+
+	return t.ToCpp(), nil
 }
 
-func (t *Transpiler) ToCpp(extra string) string {
+func (t *Transpiler) ToCpp() string {
 	// Put the main functions before the other cpp code; I don't think
 	// there should be anything in cpp, but w/e
 
@@ -223,16 +221,19 @@ func (t *Transpiler) ToCpp(extra string) string {
 		output = append(output, "// none\n")
 	}
 
+	// Save the main function to separate it from the rest of functions since it has a
+	// special purpose.
+
 	return strings.Join(append(output, []string{
-		extra,
+		// t.generateMisc(), // TODO: fix this shit
 		t.generateTypes(),
 		t.generateFunctions(),
-		"// Misc:", // TODO: need to fix this later and properly categorize this shit
-		fmt.Sprintf("\n// Main:\n// generated: %v\n%s", t.GenerateMain, t.Main),
 	}...), "\n")
-
-	// return output
 }
+
+// func (t *Transpiler) generateMisc() string {
+// 	"// Misc:\n//none", // TODO: need to fix this later and properly categorize this shit
+// }
 
 func (t *Transpiler) generateTypes() string {
 	var typesString = "\n\n// Types:\n"
@@ -254,6 +255,10 @@ func (t *Transpiler) generateFunctions() string {
 		functionString string
 	)
 
+	fmt.Println("mainFunc", t.Functions["main"])
+	var mainFunc = t.Functions["main"]
+	delete(t.Functions, "main")
+
 	// Put the functions at the top of the file before the main function
 	for _, f := range t.Functions {
 		// TODO: just hack this in here for now to make the function prototypes
@@ -262,27 +267,9 @@ func (t *Transpiler) generateFunctions() string {
 	}
 
 	return "\n// Prototypes:\n" + strings.Join(prototypes, "\n") +
-		"\n\n// Functions:" + functionString
+		"\n\n// Functions:" + functionString +
+		fmt.Sprintf("\n// Main:\n// generated: %v\n%s", t.GenerateMain, mainFunc)
 }
-
-// // just grab the first one for now
-// var node = t.AST.Value.([]*builder.Node)[0]
-
-// fmt.Println("ndoe", node)
-
-// // // first flatten the nodes
-// tree_flattener.Flatten(node.Value.(*builder.Node))
-// fmt.Println("nodes", node.Value.(*builder.Node))
-
-// for _, stmt := range node.Value.(*builder.Node).Value.([]*builder.Node) {
-// 	fmt.Printf("stmt %+v\n", stmt)
-// 	stmtSTringP, err := TranspileStatement(stmt)
-// 	if err != nil {
-// 		return "", err
-// 	}
-
-// 	fmt.Println(*stmtSTringP)
-// }
 
 func TranspileTypeDeclaration(n *builder.Node) (*string, error) {
 	// Format should be:
@@ -656,8 +643,10 @@ func TranspileType(n *builder.Node) (*string, error) {
 	return &nString, nil
 }
 
+// This changes an Express literal to be formatted the way C++ expects
 func prepLiteral(kind, cpp string) *string {
-	if kind == "string" {
+	switch kind {
+	case "string":
 		cpp = "\"" + cpp + "\""
 	}
 
