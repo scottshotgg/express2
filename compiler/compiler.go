@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os/exec"
+	"strings"
 	"sync"
 	"time"
 
@@ -88,6 +89,15 @@ func timeTrack(start time.Time, name string) {
 // }
 
 func Compile(filename string) error {
+	if !strings.HasSuffix(filename, ".expr") {
+		return errors.Errorf("File does not have `.expr` suffix: %s", filename)
+	}
+
+	// var rawExprFile = strings.Split(filename, "/")
+	// if len(rawExprFile) == 0 {
+	// 	return errors.Errorf("Filename is not valid: %s", filename)
+	// }
+
 	var globalStart = time.Now()
 
 	fmt.Println("\nReading input file ...")
@@ -126,16 +136,18 @@ func Compile(filename string) error {
 
 	var wg sync.WaitGroup
 
+	var rawFilename = strings.TrimSuffix(filename, ".expr")
+
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		_, err := writeAndFormat(cpp, "test/main.cpp")
+		result, err := writeAndFormat(cpp, rawFilename+".cpp")
 		if err != nil {
-			fmt.Println("There was an error writing C++ file; this does NOT inherently effect binary generation")
+			fmt.Printf("There was an error writing C++ file; this does NOT inherently effect binary generation: %s : %+v\n", result, err)
 		}
 	}()
 
-	err = generateBinary(cpp)
+	err = generateBinary(cpp, rawFilename)
 	if err != nil {
 		return err
 	}
@@ -162,7 +174,8 @@ func Run(filename string) error {
 	fmt.Println("\nRunning binary ...")
 
 	// Run the produced binary
-	output, err := exec.Command("./test/main").Output()
+	var rawFilename = strings.TrimSuffix(filename, ".expr")
+	output, err := exec.Command(rawFilename).Output()
 	if err != nil {
 		return err
 	}
@@ -175,7 +188,7 @@ func Run(filename string) error {
 }
 
 func writeAndFormat(source, output string) (string, error) {
-	fmt.Println("\nWriting transpilied C++ code to main.cpp ...")
+	fmt.Println("\nWriting transpilied C++ code to " + output + ".cpp ...")
 
 	var (
 		start = time.Now()
@@ -203,32 +216,20 @@ func writeAndFormat(source, output string) (string, error) {
 	return string(outputB), nil
 }
 
-func generateBinary(source string) error {
+func generateBinary(source, outputName string) error {
 	// Track the time
 	defer timeTrack(time.Now(), "clang")
 
 	fmt.Println("\nUsing Clang generate create binary ...")
 
 	// Compile the file with Clang to produce a binary
-	var clangCmd = exec.Command("clang++", stdCppVersion, "-Ofast", "-x", "c++", "-o", "test/main", "-")
+	var clangCmd = exec.Command("clang++", stdCppVersion, "-Ofast", "-x", "c++", "-o", outputName, "-")
 
 	// Grab the stdin of the command
 	var stdin, err = clangCmd.StdinPipe()
 	if err != nil {
 		return err
 	}
-
-	// // Grab the stdout of the command
-	// stdout, err := clangCmd.StdoutPipe()
-	// if err != nil {
-	// 	return err
-	// }
-
-	// // Grab the stderr of the command
-	// stderr, err := clangCmd.StderrPipe()
-	// if err != nil {
-	// 	return err
-	// }
 
 	// Copy the bytes to Clang's stdin
 	n, err := copyToPipe(stdin, bytes.NewBufferString(source))
@@ -248,26 +249,6 @@ func generateBinary(source string) error {
 
 		return err
 	}
-
-	// // Wait for Clang to finish
-	// err = clangCmd.Wait()
-	// if err != nil {
-	// 	// output, err := ioutil.ReadAll(stdout)
-	// 	// if err != nil {
-	// 	// 	return err
-	// 	// }
-
-	// 	// fmt.Println("output", string(output))
-
-	// 	output, err := ioutil.ReadAll(stderr)
-	// 	if err != nil {
-	// 		return err
-	// 	}
-
-	// 	fmt.Println("output", string(output))
-
-	// 	return err
-	// }
 
 	return nil
 }

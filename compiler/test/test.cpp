@@ -7,7 +7,7 @@
 
 typedef int myInt;
 struct AnotherOne {
-  bool ayy = true;
+  bool abc = true;
 };
 struct myStruct {
   int i = 10;
@@ -29,7 +29,7 @@ void something() {
       .something = "else",
       .ayy =
           {
-              .ayy = false,
+              .abc = false,
           },
   };
   int i = 10;
