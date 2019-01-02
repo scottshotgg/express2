@@ -21,10 +21,30 @@ type Transpiler struct {
 	Types        map[string]string
 	Includes     []string
 	Imports      []string
+	Structs      []string
 	GenerateMain bool
 }
 
-var appendChan = make(chan string, 5)
+func emit(line string) {
+	appendChan <- line
+}
+
+var (
+	wg          sync.WaitGroup
+	wg1         sync.WaitGroup
+	funcChan    = make(chan *builder.Node, 100)
+	typeChan    = make(chan *builder.Node, 100)
+	structChan  = make(chan *builder.Node, 100)
+	includeChan = make(chan *builder.Node, 100)
+	importChan  = make(chan *builder.Node, 100)
+	appendChan  = make(chan string, 5)
+)
+
+/*
+	Transpile needs to work like this:
+	- recurse through each statement
+	- if the statement contains ANY block, then flatten on the node
+*/
 
 func appendWorker(wg *sync.WaitGroup) {
 	defer wg.Done()
@@ -37,20 +57,6 @@ func appendWorker(wg *sync.WaitGroup) {
 
 	fmt.Println("totalFile", totalFile)
 }
-
-func emit(line string) {
-	appendChan <- line
-}
-
-var wg sync.WaitGroup
-var wg1 sync.WaitGroup
-var funcChan = make(chan *builder.Node, 100)
-
-/*
-	Transpile needs to work like this:
-	- recurse through each statement
-	- if the statement contains ANY block, then flatten on the node
-*/
 
 func (t *Transpiler) functionWorker(wg *sync.WaitGroup) {
 	defer wg.Done()
@@ -96,54 +102,34 @@ func New(ast *builder.Node, name string) *Transpiler {
 }
 
 // This will give use some problems with multiple compilers ...
-var includeChan = make(chan []*builder.Node, 10)
 
 func (t *Transpiler) Transpile() (string, error) {
 	// Extract the nodes
 	var (
 		// flattenedImports []*builder.Node
-		nodes   = t.AST.Value.([]*builder.Node)
-		stringP *string
-		err     error
+		nodes = t.AST.Value.([]*builder.Node)
+		// stringP *string
+		err error
 
 		// cpp string
 	)
 
+	// Spin off workers for each type of statement
+
+	wg1.Add(1)
+	go t.functionWorker(&wg1)
+
+	wg1.Add(1)
+	go t.typeWorker(&wg1)
+
+	wg1.Add(1)
+	go t.structWorker(&wg1)
+
 	wg.Add(1)
-	go t.functionWorker(&wg)
+	go t.includeWorker(&wg)
 
-	// Spin off a worker to process to imports that are found
 	wg.Add(1)
-	go func() {
-		defer wg.Done()
-
-		var (
-			importStringP *string
-			// Why does this shadow ...
-			// Is the gofunc "capturing" variables that aren't passed?
-			ierr error
-		)
-
-		for nodes := range includeChan {
-			fmt.Println("includes", nodes)
-			for i := range nodes {
-				fmt.Println("include", nodes[i].Value)
-				// Might want to make this go through the entire pipeline ...
-				importStringP, ierr = TranspileIncludeStatement(nodes[i])
-				if ierr != nil {
-					log.Printf("Error transpiling include statement: %+v\n", ierr)
-
-					// Exit if there is a problem transpiling the import statement
-					// and we'll deal with it later
-					os.Exit(9)
-				}
-
-				// TODO: should really check the deref on all of these, but the usage/running
-				// is pretty predictable right now
-				t.Includes = append(t.Includes, *importStringP)
-			}
-		}
-	}()
+	go t.importWorker(&wg)
 
 	// Flatten the tree
 	includes, err := tree_flattener.Flatten(t.AST)
@@ -151,41 +137,46 @@ func (t *Transpiler) Transpile() (string, error) {
 		return "", err
 	}
 
-	includeChan <- includes
+	for i := range includes {
+		includeChan <- includes[i]
+	}
 
-	for _, node := range nodes {
+	for i := range nodes {
 		// TODO: Switch on the statement type to figure out how to process it
 		// TODO: Flatten anything with a scope
 
 		// TODO: need to put the function into the function chan here?
 
-		if node.Type != "function" {
-			stringP, err = TranspileStatement(node)
-			if err != nil {
-				return "", err
-			}
+		switch nodes[i].Type {
+		case "function":
+			funcChan <- nodes[i]
 
-			switch node.Type {
-			case "struct":
-				fallthrough
+		case "struct":
+			structChan <- nodes[i]
 
-			case "typedef":
-				t.Types[node.Left.Value.(string)] = *stringP
+		case "typedef":
+			typeChan <- nodes[i]
 
-			default:
-				return "", errors.Errorf("Node was not categorized properly: %+v\n", node)
-			}
+		case "import":
+			includeChan <- nodes[i]
+
+		default:
+			return "", errors.Errorf("Node was not categorized properly: %+v\n", nodes[i])
 		}
 	}
 
-	// Close the channel and alert the import worker that we are done
+	// Close the channel and alert the worker that we are done
 	close(funcChan)
+	close(typeChan)
+	close(structChan)
 
-	// wg1.Wait()
+	// Wait for everything to be transpiled
+	wg1.Wait()
 
+	close(importChan)
 	close(includeChan)
 
-	// Wait for all extraneous imports to be transpiled
+	// Wait for everything to be transpiled
 	wg.Wait()
 
 	if t.Functions["main"] == "" {
@@ -193,6 +184,100 @@ func (t *Transpiler) Transpile() (string, error) {
 	}
 
 	return t.ToCpp(), nil
+}
+
+func (t *Transpiler) typeWorker(wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	var (
+		stringP *string
+		err     error
+	)
+
+	for node := range typeChan {
+		stringP, err = TranspileStatement(node)
+		if err != nil {
+			fmt.Printf("err %+v\n", err)
+			os.Exit(9)
+			// return "", err
+		}
+
+		t.Types[node.Left.Value.(string)] = *stringP
+	}
+}
+
+func (t *Transpiler) structWorker(wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	var (
+		stringP *string
+		err     error
+	)
+
+	for node := range structChan {
+		stringP, err = TranspileStatement(node)
+		if err != nil {
+			fmt.Printf("err %+v\n", err)
+			os.Exit(9)
+			// return "", err
+		}
+
+		t.Structs = append(t.Structs, *stringP)
+	}
+}
+
+func (t *Transpiler) includeWorker(wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	var (
+		includeStringP *string
+		// Why does this shadow ...
+		// Is the gofunc "capturing" variables that aren't passed?
+		ierr error
+	)
+
+	for node := range includeChan {
+		// Might want to make this go through the entire pipeline ...
+		includeStringP, ierr = TranspileIncludeStatement(node)
+		if ierr != nil {
+			log.Printf("Error transpiling include statement: %+v\n", ierr)
+
+			// Exit if there is a problem transpiling the import statement
+			// and we'll deal with it later
+			os.Exit(9)
+		}
+
+		// TODO: should really check the deref on all of these, but the usage/running
+		// is pretty predictable right now
+		t.Includes = append(t.Includes, *includeStringP)
+	}
+}
+
+func (t *Transpiler) importWorker(wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	var (
+		importStringP *string
+		// Why does this shadow ...
+		// Is the gofunc "capturing" variables that aren't passed?
+		ierr error
+	)
+
+	for node := range importChan {
+		// Might want to make this go through the entire pipeline ...
+		importStringP, ierr = TranspileImportStatement(node)
+		if ierr != nil {
+			log.Printf("Error transpiling import statement: %+v\n", ierr)
+
+			// Exit if there is a problem transpiling the import statement
+			// and we'll deal with it later
+			os.Exit(9)
+		}
+
+		// TODO: should really check the deref on all of these, but the usage/running
+		// is pretty predictable right now
+		t.Imports = append(t.Imports, *importStringP)
+	}
 }
 
 func (t *Transpiler) ToCpp() string {
@@ -225,15 +310,10 @@ func (t *Transpiler) ToCpp() string {
 	// special purpose.
 
 	return strings.Join(append(output, []string{
-		// t.generateMisc(), // TODO: fix this shit
 		t.generateTypes(),
 		t.generateFunctions(),
 	}...), "\n")
 }
-
-// func (t *Transpiler) generateMisc() string {
-// 	"// Misc:\n//none", // TODO: need to fix this later and properly categorize this shit
-// }
 
 func (t *Transpiler) generateTypes() string {
 	var typesString = "\n\n// Types:\n"
@@ -242,11 +322,20 @@ func (t *Transpiler) generateTypes() string {
 		typesString += t + "\n"
 	}
 
-	if len(typesString) == len("\n\n// Types:\n") {
+	if len(typesString) == len(typesString) {
 		typesString += "// none\n"
 	}
+	var structsString = "\n\n// Structs:\n"
 
-	return typesString
+	for _, t := range t.Structs {
+		structsString += t + "\n"
+	}
+
+	if len(structsString) == len(structsString) {
+		structsString += "// none\n"
+	}
+
+	return typesString + structsString
 }
 
 func (t *Transpiler) generateFunctions() string {
@@ -629,13 +718,11 @@ func TranspileType(n *builder.Node) (*string, error) {
 		nString = "std::" + nString
 
 		// TODO: switch this to just use a damn string later
-		includeChan <- []*builder.Node{
-			&builder.Node{
-				Type: "include",
-				Left: &builder.Node{
-					Type:  "literal",
-					Value: "string",
-				},
+		includeChan <- &builder.Node{
+			Type: "include",
+			Left: &builder.Node{
+				Type:  "literal",
+				Value: "string",
 			},
 		}
 	}
