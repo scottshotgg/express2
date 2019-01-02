@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/scottshotgg/express2/compiler"
 )
@@ -12,7 +11,6 @@ func main() {
 
 	var err = compiler.Compile(file)
 	if err != nil {
-		fmt.Println("error: %+v", err)
-		os.Exit(9)
+		fmt.Printf("\nerror: %s\n", err)
 	}
 }
