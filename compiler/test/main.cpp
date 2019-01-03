@@ -1,18 +1,11 @@
 // Includes:
 #include <array>
-#include <map>
 #include <string>
-#include "../../lib/var.cpp"
-#include <iostream>
 
 // Imports:
 // none
 
-// Types:
 typedef int myInt;
-// none
-
-// Structs:
 struct AnotherOne {
   bool abc = true;
 };
@@ -21,45 +14,41 @@ struct myStruct {
   std::string something = "something";
   AnotherOne ayy = {};
 };
+
+// Types:
 // none
 
 // Prototypes:
 void something();
 void another(int i, std::string s);
+void woah();
 
 // Functions:
 void something() {
   myStruct s = {
-      .i = 100 * 7 / 3,
+      .i = 100,
       .something = "else",
       .ayy =
           {
-              .abc = true,
+              .abc = false,
           },
   };
   int i = 10;
   another(i, "s");
 }
 
-void another(int i, std::string s) { int j = 6666666; }
+void another(int i, std::string s) {
+  int j = 6666666;
+  woah();
+}
+
+void woah() { int j = 90; }
+
+// Misc:
 
 // Main:
 // generated: false
 int main() {
-  std::string thing = "thing";
-  std::string nothing = "nothing";
-  std::map<var, var> m = {
-      {thing, "thing"},
-      {"not_a_thing", 78301},
-      {6, nothing},
-      {true, 982.321},
-  };
-
-  std::cout << m[true] << std::endl;
-  std::cout << m["thing"] << std::endl;
-  std::cout << m[6] << std::endl;
-  std::cout << m["not_a_thing"] << std::endl;
-
   int i = 0;
   {
     int j = 0;

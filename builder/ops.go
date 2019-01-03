@@ -4,8 +4,30 @@ import (
 	"github.com/scottshotgg/express-token"
 )
 
+func (b *Builder) ParseSet(n *Node) (*Node, error) {
+	// This will be encountered when we have:
+	// <expr> `:` <expr>
+
+	// Step over the set token
+	b.Index++
+
+	right, err := b.ParseExpression()
+	if err != nil {
+		return nil, err
+	}
+
+	// Step over the Expression
+	b.Index++
+
+	return &Node{
+		Type:  "kv",
+		Left:  n,
+		Right: right,
+	}, nil
+}
+
 func (b *Builder) ParseBinOp(n *Node) (*Node, error) {
-	op := b.Tokens[b.Index].Value.String
+	var op = b.Tokens[b.Index].Value.String
 
 	// Step over the operator token
 	b.Index++
@@ -129,7 +151,7 @@ func (b *Builder) ParseSelection(n *Node) (*Node, error) {
 		return nil, err
 	}
 
-	b.Index++
+	// b.Index++
 
 	return &Node{
 		Type: "selection",

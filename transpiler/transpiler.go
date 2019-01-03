@@ -17,6 +17,7 @@ type Transpiler struct {
 	Name         string
 	ASTCloneJSON []byte
 	AST          *builder.Node
+	Extra        []string
 	Functions    map[string]string
 	Types        map[string]string
 	Includes     []string
@@ -159,6 +160,17 @@ func (t *Transpiler) Transpile() (string, error) {
 
 		case "import":
 			includeChan <- nodes[i]
+
+		case "map":
+			// Just transpile the statement for now
+			stringP, err := TranspileStatement(nodes[i])
+			if err != nil {
+				fmt.Printf("err %+v\n", err)
+				os.Exit(9)
+				// return "", err
+			}
+
+			t.Extra = append(t.Extra, *stringP)
 
 		default:
 			return "", errors.Errorf("Node was not categorized properly: %+v\n", nodes[i])
@@ -311,6 +323,7 @@ func (t *Transpiler) ToCpp() string {
 
 	return strings.Join(append(output, []string{
 		t.generateTypes(),
+		strings.Join(t.Extra, "\n"),
 		t.generateFunctions(),
 	}...), "\n")
 }
@@ -532,8 +545,80 @@ func TranspileExpression(n *builder.Node) (*string, error) {
 	return nil, errors.Errorf("Not implemented expression: %+v", n)
 }
 
+func TranspileMapStatement(n *builder.Node) (*string, error) {
+	/*
+		This should transpile to:
+		struct something = {} : struct something {}
+		Type is struct
+		Left is the ident
+		Right is the value
+	*/
+
+	if n.Type != "map" {
+		return nil, errors.New("Node is not a map")
+	}
+
+	// Transpile the ident
+	var vString, err = TranspileExpression(n.Left)
+	if err != nil {
+		return nil, err
+	}
+
+	// Could just have it add `struct` here but this will show us changes
+	var nString = "std::map<std::string, std::string>" + " " + *vString + "= "
+
+	// Transpile the block for the value
+	vString, err = TranspileMapBlockStatement(n.Right)
+	if err != nil {
+		return nil, err
+	}
+
+	// Include std::map from C++
+	includeChan <- &builder.Node{
+		Type: "include",
+		Left: &builder.Node{
+			Type:  "literal",
+			Value: "map",
+		},
+	}
+
+	/*
+		For each key:value pair we need to split them and generate
+		`{ <ident>, <value>}`
+	*/
+
+	nString += *vString + ";"
+
+	return &nString, nil
+
+	var thing = "i am not implemented"
+	return &thing, nil
+}
+
+func TranspileKeyValueStatement(n *builder.Node) (*string, error) {
+	var left, err = TranspileExpression(n.Left)
+	if err != nil {
+		return nil, err
+	}
+
+	right, err := TranspileExpression(n.Right)
+	if err != nil {
+		return nil, err
+	}
+
+	var nString = "{" + *left + "," + *right + "}"
+
+	return &nString, nil
+}
+
 func TranspileStatement(n *builder.Node) (*string, error) {
 	switch n.Type {
+
+	case "kv":
+		return TranspileKeyValueStatement(n)
+
+	case "map":
+		return TranspileMapStatement(n)
 
 	case "typedef":
 		return TranspileTypeDeclaration(n)
@@ -980,6 +1065,35 @@ func TranspileBlockStatement(n *builder.Node) (*string, error) {
 		if stmt.Type != "function" {
 			nString += *vString
 		}
+	}
+
+	nString = "{" + nString + "}"
+
+	return &nString, nil
+}
+
+func TranspileMapBlockStatement(n *builder.Node) (*string, error) {
+	if n.Type != "block" {
+		return nil, errors.New("Node is not a block")
+	}
+
+	var (
+		nString = ""
+		vString *string
+		err     error
+	)
+
+	for _, stmt := range n.Value.([]*builder.Node) {
+		if stmt.Type != "kv" {
+			return nil, errors.Errorf("All statements in a map have to be key-value pairs: %+v\n", stmt)
+		}
+
+		vString, err = TranspileStatement(stmt)
+		if err != nil {
+			return nil, err
+		}
+
+		nString += *vString + ","
 	}
 
 	nString = "{" + nString + "}"
