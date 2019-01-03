@@ -49,16 +49,28 @@ int main() {
   std::string thing = "thing";
   std::string nothing = "nothing";
   std::map<var, var> m = {
-      {thing, "thing"},
-      {"not_a_thing", 78301},
+      {thing, true},
+      {{"not_a_thing","nothi"}, 33378301},
+      {{{false,"hi"},"something"}, 78301},
+      {{{false,"hi"},"some"}, 72228301},
       {6, nothing},
       {true, 982.321},
   };
 
-  std::cout << m[true] << std::endl;
-  std::cout << m["thing"] << std::endl;
-  std::cout << m[6] << std::endl;
-  std::cout << m["not_a_thing"] << std::endl;
+  std::cout << "Testing object keying:" << std::endl;
+  std::cout << "true :" << m[true] << std::endl;
+  std::cout << "thing :" << m["thing"] << std::endl;
+  std::cout << "6: " << m[6] << std::endl;
+  // std::cout << "{{\"not_a_thing\",\"hi\"},\"some\"} :" << m[{{"not_a_thing","hi"},"some"}] << std::endl;
+  std::cout << std::endl;
+
+  var h = 77;
+  var g;
+
+  std::cout << "Testing null:" << std::endl;
+  std::cout << g << std::endl;
+  std::cout << h << std::endl;
+  std::cout << h["thing"] << std::endl;
 
   int i = 0;
   {
