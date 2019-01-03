@@ -46,6 +46,7 @@ func New(tokens []token.Token) *Builder {
 		// Tier 2 operators
 		1: map[string]opCallbackFn{
 			token.SecOp: b.ParseBinOp,
+			// token.Set:   b.ParseSet,
 		},
 	}
 

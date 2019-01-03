@@ -410,6 +410,8 @@ bool operator>(const var &left, const var &right) {
       // }
     }
   }
+
+  // return false;
   
   return *(int *)left.data > *(int *)right.data;
 }
@@ -462,8 +464,8 @@ bool operator<(const var &left, const var &right) {
   }
 
   // TODO: got to do something if htere is a bool type becuase of the weak typing
-  if (left.type == boolType || right.type == boolType)
-    return true;
+  // if (left.type == boolType || right.type == boolType)
+  //   return true;
 
   return *(int *)left.data < *(int *)right.data;
 }
