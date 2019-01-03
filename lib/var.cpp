@@ -8,6 +8,7 @@
 using namespace std;
 
 enum varType {
+  nullType,
   pointerType,
   intType,
   boolType,
@@ -88,9 +89,10 @@ public:
   //   }
 
   // }
-
-  var(void) : type(objectType), data(new map<var, var>) {}
+  var(void) : type(nullType), data(nullptr) {}
+  var(int *value) : type(pointerType), data(value) {}
   var(void *value) : type(pointerType), data(value) {}
+  // var(nullptr) : type(pointerType), data(value){}
 
   var(int value) : type(intType), data(new int(value)) {
     // cout << "int cons; Type: " << type << " Value: " << value
@@ -126,29 +128,32 @@ public:
     //    << "\" Pointer: " << data << endl;
   }
 
-  var(map<var, var> propMap)
-      : type(objectType), data(new map<var, var>(propMap)) {
+  var(map<var, var> propMap) : type(objectType), data(new map<var, var>(propMap)) {
     // cout << "object cons; Type: " << type << " Value: \""
     //    << "\" Pointer: " << data << endl;
     // data = new map<var,var>(propMap);
   }
 
   var(initializer_list<var> propList) : type(objectType) {
-
     // TODO: need to merge in the var changes
     map<var, var> object;
 
-    int i = 0;
+    // int i = 0;
     for (auto prop : propList) {
-      object[i] = prop;
+      // object[i] = prop;
 
-      i++;
+      // i++;
+      if (prop.Type() == objectType) {
+        auto mapThing = (*(map<var, var> *)prop.data);
+        for (auto pair : mapThing) {
+          object[pair.first] = pair.second;
+        }
+      }
     }
 
     // something weird is happening here....
-    data = &object;
-    // FIXME: ... somehow this will work ...
-    // *(map<var, var>*)data = object;
+    // data = &object;
+    data = new map<var, var>(object);
   }
 
   // TODO: will have to do something special here, maybe code generation?
@@ -163,6 +168,8 @@ public:
     // //printf("void*\n");
   }
 
+  // var null(void) : type(nullType), data(nullptr) {}
+
   varType Type(void) const { return type; }
 
   void *Value(void) const { return data; }
@@ -171,12 +178,14 @@ public:
     if (type == objectType) {
       return (*(map<var, var> *)data)[attribute];
     } else {
-      type = objectType;
-      map<var, var> object;
-      object[attribute] = 0;
+      // type = objectType;
+      // map<var, var> object;
+      // object[attribute] = 0;
 
-      data = (void *)&object;
-      return (*(map<var, var> *)data)[attribute];
+      // data = (void *)&object;
+      // return (*(map<var, var> *)data)[attribute];
+      var something = var(nullType, nullptr);
+      return something;
     }
   }
 
@@ -304,7 +313,7 @@ public:
     // Pointer: " << data << endl;
     // cout << "object cons; Type: " << type << " Pointer: " << data << endl;
     type = objectType;
-    data = var(propList).data;
+    // data = var(propList).data;
     // var thing = propList;
     // //cout << thing << endl;
     // data = thing.data;
@@ -312,6 +321,9 @@ public:
 
   friend ostream &operator<<(ostream &stream, var v) {
     switch (v.type) {
+    case nullType:
+      return stream << "undefined ";
+
     case intType:
       // //printf("printing int\n");
       return stream << *(int *)v.data;
@@ -320,6 +332,7 @@ public:
       if (*(bool *)v.data) {
         return stream << "true";
       }
+      
       return stream << "false";
 
     case charType:
@@ -366,6 +379,7 @@ typedef var object;
 // https://stackoverflow.com/questions/4972795/how-do-i-typecast-with-type-info
 // https://stackoverflow.com/questions/2136998/using-a-stl-map-of-function-pointer
 
+// TODO: im pretty sure this isn't even doing anything ...
 // FIXME: for some reason this is already working
 bool operator>(const var &left, const var &right) {
   // FIXME: gotta switch on the type here
@@ -405,8 +419,8 @@ bool operator>(const var &left, const var &right) {
       }
 
       // case objectType: {
-      //   cout << "objectType" << endl;
-      //   return *(map<var, var> *)left.data > *(map<var, var> *)right.data;
+      //   cout << "objectType hey me" << endl;
+      //   return *(map<var, var> *)left.data >= *(map<var, var> *)right.data;
       // }
     }
   }
@@ -455,7 +469,9 @@ bool operator<(const var &left, const var &right) {
       }
 
       case objectType: {
-        // cout << "objectType" << endl;
+        auto deref = (map<var, var> *)left.data;
+        // cout << "objectType " << (*deref)["thing"] << " " << endl;
+        // return 0;
         // *(map<var, var> *)left.data < *(map<var, var> *)right.data;
         // cout << "hey its me " << endl;
         return *(map<var, var> *)left.data < *(map<var, var> *)right.data;
