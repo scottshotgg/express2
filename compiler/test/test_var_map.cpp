@@ -1,11 +1,12 @@
 // Includes:
-// none
-
-// Imports:
-#include "/home/scottshotgg/Development/go/src/github.com/scottshotgg/express2/lib/defer.cpp"
 #include <array>
 #include <map>
 #include <string>
+#include "../../lib/var.cpp"
+#include <iostream>
+
+// Imports:
+// none
 
 // Types:
 typedef int myInt;
@@ -28,7 +29,6 @@ void another(int i, std::string s);
 
 // Functions:
 void something() {
-  defer onReturn, onExit;
   myStruct s = {
       .i = 100 * 7 / 3,
       .something = "else",
@@ -41,27 +41,25 @@ void something() {
   another(i, "s");
 }
 
-void another(int i, std::string s) {
-  defer onReturn, onExit;
-  int j = 6666666;
-}
+void another(int i, std::string s) { int j = 6666666; }
 
 // Main:
 // generated: false
 int main() {
-  defer onReturn, onExit;
-  onReturn.deferStack.push([=](...) { something(); });
-  enum {
-    some,
-    one = some + 2,
-    here,
-  };
   std::string thing = "thing";
   std::string nothing = "nothing";
-  std::map<std::string, std::string> m = {
+  std::map<var, var> m = {
       {thing, "thing"},
-      {"not_a_thing", nothing},
+      {"not_a_thing", 78301},
+      {6, nothing},
+      {true, 982.321},
   };
+
+  std::cout << m[true] << std::endl;
+  std::cout << m["thing"] << std::endl;
+  std::cout << m[6] << std::endl;
+  std::cout << m["not_a_thing"] << std::endl;
+
   int i = 0;
   {
     int j = 0;

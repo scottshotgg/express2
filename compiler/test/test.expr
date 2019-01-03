@@ -31,6 +31,13 @@ func something() {
   will automatically be injected if not supplied
 */
 func main() {
+  defer something()
+
+  enum {
+    some
+    one = some + 2
+    here
+  }
 
   string thing = "thing"
   string nothing = "nothing"

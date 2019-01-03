@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -20,8 +21,8 @@ type Transpiler struct {
 	Extra        []string
 	Functions    map[string]string
 	Types        map[string]string
-	Includes     []string
-	Imports      []string
+	Includes     map[string]string
+	Imports      map[string]string
 	Structs      []string
 	GenerateMain bool
 }
@@ -93,6 +94,8 @@ func New(ast *builder.Node, name string) *Transpiler {
 		AST:       ast,
 		Functions: map[string]string{},
 		Types:     map[string]string{},
+		Imports:   map[string]string{},
+		Includes:  map[string]string{},
 	}
 
 	// go appendWorker(&wg)
@@ -261,7 +264,7 @@ func (t *Transpiler) includeWorker(wg *sync.WaitGroup) {
 
 		// TODO: should really check the deref on all of these, but the usage/running
 		// is pretty predictable right now
-		t.Includes = append(t.Includes, *includeStringP)
+		t.Includes[node.Left.Value.(string)] = *includeStringP
 	}
 }
 
@@ -288,7 +291,7 @@ func (t *Transpiler) importWorker(wg *sync.WaitGroup) {
 
 		// TODO: should really check the deref on all of these, but the usage/running
 		// is pretty predictable right now
-		t.Imports = append(t.Imports, *importStringP)
+		t.Imports[node.Left.Value.(string)] = *importStringP
 	}
 }
 
@@ -305,15 +308,26 @@ func (t *Transpiler) ToCpp() string {
 	}
 
 	output = append(output, "// Includes:")
-	if len(t.Includes) > 0 {
-		output = append(output, strings.Join(t.Includes, "\n")+"\n")
+	if len(t.Imports) > 0 {
+		// output = append(output, strings.Join(t.Includes, "\n")+"\n")
+		var importString string
+		for _, t := range t.Imports {
+			importString += t + "\n"
+		}
+		output = append(output, importString)
 	} else {
 		output = append(output, "// none\n")
 	}
 
 	output = append(output, "// Imports:")
-	if len(t.Imports) > 0 {
-		output = append(output, strings.Join(t.Imports, "\n")+"\n")
+	if len(t.Includes) > 0 {
+		// output = append(output, strings.Join(t.Imports, "\n")+"\n")
+		var includeString string
+		for _, t := range t.Includes {
+			includeString += t + "\n"
+		}
+		output = append(output, includeString)
+
 	} else {
 		output = append(output, "// none\n")
 	}
@@ -449,7 +463,16 @@ func TranspileIncludeStatement(n *builder.Node) (*string, error) {
 		return nil, err
 	}
 
-	*lhs = "#include<" + *lhs + ">"
+	if n.Kind == "path" {
+		abs, err := filepath.Abs(*lhs)
+		if err != nil {
+			return nil, err
+		}
+
+		*lhs = "#include \"" + abs + "\""
+	} else {
+		*lhs = "#include<" + *lhs + ">"
+	}
 
 	return lhs, nil
 }
@@ -546,14 +569,6 @@ func TranspileExpression(n *builder.Node) (*string, error) {
 }
 
 func TranspileMapStatement(n *builder.Node) (*string, error) {
-	/*
-		This should transpile to:
-		struct something = {} : struct something {}
-		Type is struct
-		Left is the ident
-		Right is the value
-	*/
-
 	if n.Type != "map" {
 		return nil, errors.New("Node is not a map")
 	}
@@ -582,17 +597,57 @@ func TranspileMapStatement(n *builder.Node) (*string, error) {
 		},
 	}
 
-	/*
-		For each key:value pair we need to split them and generate
-		`{ <ident>, <value>}`
-	*/
-
 	nString += *vString + ";"
 
 	return &nString, nil
+}
 
-	var thing = "i am not implemented"
-	return &thing, nil
+func TranspileEnumBlockStatement(n *builder.Node) (*string, error) {
+	if n.Type != "block" {
+		return nil, errors.New("Node is not a block")
+	}
+
+	var (
+		nString = ""
+		vString *string
+		err     error
+	)
+
+	for _, stmt := range n.Value.([]*builder.Node) {
+		if stmt.Type != "assignment" && stmt.Type != "ident" {
+			return nil, errors.Errorf("All statements in an enum have to be assignment or ident: %+v\n", stmt)
+		}
+
+		vString, err = TranspileStatement(stmt)
+		if err != nil {
+			return nil, err
+		}
+
+		if stmt.Type == "assignment" {
+			*vString = (*vString)[:len(*vString)-1]
+		}
+
+		nString += *vString + ","
+	}
+
+	nString = "{" + nString + "}"
+
+	return &nString, nil
+}
+
+func TranspileEnumStatement(n *builder.Node) (*string, error) {
+	if n.Type != "enum" {
+		return nil, errors.New("Node is not a map")
+	}
+
+	var enum, err = TranspileEnumBlockStatement(n.Left)
+	if err != nil {
+		return nil, err
+	}
+
+	var nString = "enum " + *enum + ";"
+
+	return &nString, err
 }
 
 func TranspileKeyValueStatement(n *builder.Node) (*string, error) {
@@ -611,8 +666,26 @@ func TranspileKeyValueStatement(n *builder.Node) (*string, error) {
 	return &nString, nil
 }
 
+func TranspileDeferStatement(n *builder.Node) (*string, error) {
+	var stmt, err = TranspileStatement(n.Left)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: only onReturn is supported for now
+	var nString = "onReturn.deferStack.push([=](...){" + *stmt + "});"
+
+	return &nString, nil
+}
+
 func TranspileStatement(n *builder.Node) (*string, error) {
 	switch n.Type {
+
+	case "defer":
+		return TranspileDeferStatement(n)
+
+	case "enum":
+		return TranspileEnumStatement(n)
 
 	case "kv":
 		return TranspileKeyValueStatement(n)
@@ -724,6 +797,16 @@ func TranspileFunctionStatement(n *builder.Node) (*string, error) {
 		return nil, errors.New("Node is not an function")
 	}
 
+	// Include std::map from C++
+	includeChan <- &builder.Node{
+		Type: "include",
+		Kind: "path",
+		Left: &builder.Node{
+			Type:  "literal",
+			Value: "../lib/defer.cpp",
+		},
+	}
+
 	/*
 		A map with keys for `returns` and `args` will be egroups in the Metadata
 		`Kind` is the name of the function
@@ -771,9 +854,23 @@ func TranspileFunctionStatement(n *builder.Node) (*string, error) {
 		return nil, err
 	}
 
+	addDeferToBlock(blockString)
+
 	nString += *blockString
 
 	return &nString, nil
+}
+
+func addDeferToBlock(blockP *string) {
+	if blockP == nil {
+		return
+	}
+
+	var block = *blockP
+
+	block = block[0:1] + "defer onReturn, onExit;\n" + block[1:]
+
+	*blockP = block
 }
 
 func TranspileIdentExpression(n *builder.Node) (*string, error) {
