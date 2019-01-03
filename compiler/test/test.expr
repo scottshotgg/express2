@@ -1,5 +1,3 @@
-
-
 type myInt = int
 
 struct AnotherOne = {
@@ -14,7 +12,7 @@ struct myStruct = {
 
 func something() {
   myStruct s = {
-    i = 100
+    i = 100 * 7 / 3
     something = "else"
     ayy = {
       abc = true
@@ -33,6 +31,24 @@ func something() {
   will automatically be injected if not supplied
 */
 func main() {
+  launch something()
+
+  defer something()
+
+  enum {
+    some
+    one = some + 2
+    here
+  }
+
+  string thing = "thing"
+  string nothing = "nothing"
+
+  map m = {
+    thing : "thing"
+    "not_a_thing" : nothing
+  }
+
   int i = 0
 
   for j in [1,2,3] {

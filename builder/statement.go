@@ -1,9 +1,35 @@
 package builder
 
 import (
+	"fmt"
+
 	"github.com/pkg/errors"
 	"github.com/scottshotgg/express-token"
 )
+
+var (
+	ErrNoEqualsFoundAfterIdent = errors.New("No equals found after ident in assignment")
+)
+
+func (b *Builder) ParseDeferStatement() (*Node, error) {
+	// Check ourselves
+	if b.Tokens[b.Index].Type != token.Defer {
+		return b.AppendTokenToError("Could not get group of statements")
+	}
+
+	// Step over the defer token
+	b.Index++
+
+	var stmt, err = b.ParseStatement()
+	if err != nil {
+		return nil, err
+	}
+
+	return &Node{
+		Type: "defer",
+		Left: stmt,
+	}, nil
+}
 
 func (b *Builder) ParseGroupOfStatements() (*Node, error) {
 	// Check ourselves
@@ -231,6 +257,93 @@ func (b *Builder) ParseIfStatement() (*Node, error) {
 	}
 
 	return &n, nil
+}
+
+func (b *Builder) ParseMapBlockStatement() (*Node, error) {
+	// Check ourselves ...
+	if b.Tokens[b.Index].Type != token.LBrace {
+		return b.AppendTokenToError("Could not get left brace")
+	}
+
+	// Increment over the left brace token
+	b.Index++
+
+	var (
+		stmt  *Node
+		stmts []*Node
+		err   error
+	)
+
+	for b.Index < len(b.Tokens) &&
+		b.Tokens[b.Index].Type != token.RBrace {
+		stmt, err = b.ParseStatement()
+		if err != nil {
+			return nil, err
+		}
+
+		// All statements in a map have to be key-value pairs
+		if stmt.Type != "kv" {
+			return nil, errors.Errorf("All statements in a map have to be key-value pairs: %+v\n", stmt)
+		}
+
+		stmts = append(stmts, stmt)
+	}
+
+	// Step over the right brace token
+	b.Index++
+
+	return &Node{
+		Type:  "block",
+		Value: stmts,
+	}, nil
+}
+
+func (b *Builder) ParseEnumBlockStatement() (*Node, error) {
+	// Increment over the enum keyword
+	b.Index++
+
+	// Check ourselves ...
+	if b.Tokens[b.Index].Type != token.LBrace {
+		return b.AppendTokenToError("Could not get left brace")
+	}
+
+	// Increment over the left brace token
+	b.Index++
+
+	var (
+		stmt  *Node
+		stmts []*Node
+		err   error
+	)
+
+	for b.Index < len(b.Tokens) &&
+		b.Tokens[b.Index].Type != token.RBrace {
+		stmt, err = b.ParseStatement()
+		if err != nil {
+			// Recover the parse if it gets the right error
+			if err != ErrNoEqualsFoundAfterIdent {
+				return nil, err
+			}
+		}
+
+		// All statements in a map have to be key-value pairs
+		if stmt.Type != "assignment" && stmt.Type != "ident" {
+			return nil, errors.Errorf("All statements in a enum have to be assignment or ident: %+v\n", stmt)
+		}
+
+		stmts = append(stmts, stmt)
+	}
+
+	// Step over the right brace token
+	b.Index++
+
+	return &Node{
+		Type: "enum",
+		Left: &Node{
+			Type:  "block",
+			Value: stmts,
+		},
+	}, nil
 }
 
 func (b *Builder) ParseBlockStatement() (*Node, error) {
@@ -493,6 +606,59 @@ func (b *Builder) ParseStructStatement() (*Node, error) {
 	}, nil
 }
 
+func (b *Builder) ParseMapStatement() (*Node, error) {
+	// Check ourselves ...
+	if b.Tokens[b.Index].Type != token.Map {
+		return b.AppendTokenToError("Could not get map declaration statement")
+	}
+
+	// Skip over the `map` token
+	b.Index++
+
+	// Create the ident
+	ident, err := b.ParseExpression()
+	if err != nil {
+		return nil, err
+	}
+
+	// Increment over the ident token
+	b.Index++
+
+	// Create a new child scope for the function
+	b.ScopeTree, err = b.ScopeTree.NewChildScope(ident.Value.(string))
+	if err != nil {
+		return nil, err
+	}
+
+	// Check for the equals token
+	if b.Tokens[b.Index].Type != token.Assign {
+		return b.AppendTokenToError("No equals found after ident in map declaration")
+	}
+
+	// Increment over the equals
+	b.Index++
+
+	// Parse the right hand side
+	body, err := b.ParseMapBlockStatement()
+	if err != nil {
+		return nil, err
+	}
+
+	body.Kind = "map"
+
+	// Assign our scope back to the current one
+	b.ScopeTree, err = b.ScopeTree.Leave()
+	if err != nil {
+		return nil, err
+	}
+
+	return &Node{
+		Type:  "map",
+		Left:  ident,
+		Right: body,
+	}, nil
+}
+
 func (b *Builder) ParseStructDeclarationStatement() (*Node, error) {
 	return nil, errors.New("Not implemented: ParseStructDeclarationStatement")
 }
@@ -541,6 +707,29 @@ func (b *Builder) ParseLetStatement() (*Node, error) {
 	}, nil
 }
 
+func (b *Builder) ParseLiteralStatement() (*Node, error) {
+	// Parse an expession
+	// check the next token for a `:`
+	// Parse another expression
+	// Return a key-value pair
+
+	// Get the expression
+	var left, err = b.ParseExpression()
+	if err != nil {
+		return nil, err
+	}
+
+	b.Index++
+
+	switch b.Tokens[b.Index].Type {
+	case token.Set:
+		return b.ParseSet(left)
+
+	default:
+		return nil, errors.Errorf("ParseLiteralStatement not implemented for: %+v", b.Tokens[b.Index].Type)
+	}
+}
+
 func (b *Builder) ParseAssignmentStatement() (*Node, error) {
 	// into: [expr] = [expr]
 	// Check that the next token is an ident
@@ -561,13 +750,17 @@ func (b *Builder) ParseAssignmentStatement() (*Node, error) {
 	// 	return nil, errors.Errorf("Use of undeclared identifier: %+v\n", ident)
 	// }
 
-	// *ident = *node
-
 	// Increment over the ident token
 	b.Index++
 
+	// fmt.Println("ident", ident.Left, ident.Right, ident.Right.Left, ident.Right.Right)
+
 	if b.Index > len(b.Tokens)-1 {
 		return ident, nil
+	}
+
+	if b.Tokens[b.Index].Type == token.Set {
+		return b.ParseSet(ident)
 	}
 
 	// Check for the equals token
@@ -576,7 +769,10 @@ func (b *Builder) ParseAssignmentStatement() (*Node, error) {
 			return ident, nil
 		}
 
-		return b.AppendTokenToError("No equals found after ident in assignment")
+		// TODO: this is where we need to check for `:`
+
+		// return b.AppendTokenToError("No equals found after ident in assignment")
+		return ident, ErrNoEqualsFoundAfterIdent
 	}
 
 	// Increment over the equals
@@ -672,6 +868,30 @@ func (b *Builder) ParseIncludeStatement() (*Node, error) {
 	}, nil
 }
 
+func (b *Builder) ParseLaunchStatement() (*Node, error) {
+	// Check ourselves ...
+	if b.Tokens[b.Index].Type != token.Launch {
+		return b.AppendTokenToError("Could not get launch statement")
+	}
+
+	// Step over the import token
+	b.Index++
+
+	// Might need to make this an explicit function call later
+	expr, err := b.ParseStatement()
+	if err != nil {
+		return nil, err
+	}
+
+	// Step over the literal
+	b.Index++
+
+	return &Node{
+		Type: "launch",
+		Left: expr,
+	}, nil
+}
+
 func (b *Builder) ParseFunctionStatement() (*Node, error) {
 	// Check ourselves
 	if b.Tokens[b.Index].Type != token.Function {
@@ -763,10 +983,17 @@ func (b *Builder) ParseFunctionStatement() (*Node, error) {
 		}
 	}
 
+	// block, err := b.ParseBlockStatement()
+	// if err != nil {
+	// 	return nil, err
+	// }
+
 	node.Value, err = b.ParseBlockStatement()
 	if err != nil {
 		return nil, err
 	}
+
+	// node.Value = addDeferDeclarationToBlock(block)
 
 	// Assign our scope back to the current one
 	b.ScopeTree, err = b.ScopeTree.Leave()
@@ -782,6 +1009,13 @@ func (b *Builder) ParseFunctionStatement() (*Node, error) {
 
 	return &node, nil
 }
+
+// func addDeferDeclarationToBlock(n *Node) *Node {
+// 	var stmts, ok = n.Value.([]*builder.Node)
+// 	stmts = append([]*builder.Node(&Node{
+// 		Type: "defer"
+// 	}, stmts...))
+// }
 
 func (b *Builder) ParseDerefStatement() (*Node, error) {
 	// if b.Tokens[b.Index].Type != token.Ident {
@@ -832,32 +1066,46 @@ func (b *Builder) ParseDerefStatement() (*Node, error) {
 
 // ParseStatement ** does ** not look ahead
 func (b *Builder) ParseStatement() (*Node, error) {
-	var (
-		node *Node
-		err  error
-	)
-
 	switch b.Tokens[b.Index].Type {
 
+	case token.Launch:
+		return b.ParseLaunchStatement()
+
+	case token.Defer:
+		return b.ParseDeferStatement()
+
+	case token.Enum:
+		return b.ParseEnumBlockStatement()
+
+	case token.Map:
+		return b.ParseMapStatement()
+
 	case token.PriOp:
-		node, err = b.ParseDerefStatement()
+		return b.ParseDerefStatement()
 
 	case token.Package:
-		node, err = b.ParsePackageStatement()
+		return b.ParsePackageStatement()
 
 	case token.Import:
-		node, err = b.ParseImportStatement()
+		return b.ParseImportStatement()
 
 	case token.Include:
-		node, err = b.ParseIncludeStatement()
+		return b.ParseIncludeStatement()
 
 	case token.TypeDef:
-		node, err = b.ParseTypeDeclarationStatement()
+		return b.ParseTypeDeclarationStatement()
 
 	case token.Type:
-		node, err = b.ParseDeclarationStatement()
+		return b.ParseDeclarationStatement()
+
+	// For literal and idents, we will need to figure out what
+	// kind of statement it is
+	case token.Literal:
+		return b.ParseLiteralStatement()
 
 	case token.Ident:
+		// Check the type before deciding whether it is an ident or a type
+		// TODO: this might need some more work
 		var t = b.ScopeTree.GetType(b.Tokens[b.Index].Value.String)
 		if t != nil {
 			// Set the token value to `type` instead of `ident` if we know it is a type
@@ -865,32 +1113,30 @@ func (b *Builder) ParseStatement() (*Node, error) {
 			return b.ParseDeclarationStatement()
 		}
 
-		node, err = b.ParseAssignmentStatement()
+		return b.ParseAssignmentStatement()
 
 	case token.Function:
-		node, err = b.ParseFunctionStatement()
+		return b.ParseFunctionStatement()
 
 	case token.LBrace:
-		node, err = b.ParseBlockStatement()
+		return b.ParseBlockStatement()
 
 	case token.Struct:
-		node, err = b.ParseStructStatement()
+		return b.ParseStructStatement()
 
 	case token.Let:
-		node, err = b.ParseLetStatement()
+		return b.ParseLetStatement()
 
 	case token.If:
-		node, err = b.ParseIfStatement()
+		return b.ParseIfStatement()
 
 	case token.For:
-		node, err = b.ParseForStatement()
+		return b.ParseForStatement()
 
 	case token.Return:
-		node, err = b.ParseReturnStatement()
+		return b.ParseReturnStatement()
 
 	default:
-		return b.AppendTokenToError("Could not get statement from")
+		return b.AppendTokenToError(fmt.Sprintf("Could not create statement from: %+v", b.Tokens[b.Index].Type))
 	}
-
-	return node, err
 }

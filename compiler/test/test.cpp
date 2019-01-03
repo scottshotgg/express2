@@ -1,9 +1,13 @@
 // Includes:
-#include <array>
-#include <string>
+// none
 
 // Imports:
-// none
+#include "/home/scottshotgg/Development/go/src/github.com/scottshotgg/express2/lib/defer.cpp"
+#include <array>
+#include <map>
+#include <string>
+
+#include <libmill.h>
 
 // Types:
 typedef int myInt;
@@ -19,13 +23,19 @@ struct myStruct {
 };
 
 // Prototypes:
-void something();
 void another(int i, std::string s);
+void something();
 
 // Functions:
+void another(int i, std::string s) {
+  defer onReturn, onExit;
+  int j = 6666666;
+}
+
 void something() {
+  defer onReturn, onExit;
   myStruct s = {
-      .i = 100,
+      .i = 100 * 7 / 3,
       .something = "else",
       .ayy =
           {
@@ -36,11 +46,23 @@ void something() {
   another(i, "s");
 }
 
-void another(int i, std::string s) { int j = 6666666; }
-
 // Main:
 // generated: false
 int main() {
+  defer onReturn, onExit;
+  go([=](...) { something(); }());
+  something();
+  enum {
+    some,
+    one = some + 2,
+    here,
+  };
+  std::string thing = "thing";
+  std::string nothing = "nothing";
+  std::map<std::string, std::string> m = {
+      {thing, "thing"},
+      {"not_a_thing", nothing},
+  };
   int i = 0;
   {
     int j = 0;

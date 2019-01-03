@@ -1,7 +1,6 @@
 package compiler
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -22,6 +21,17 @@ import (
 
 const (
 	stdCppVersion = "-std=c++2a"
+)
+
+var (
+	compilerFlags = []string{
+		stdCppVersion,
+		"-Ofast",
+		// "-x",
+		// "c++",
+	}
+
+	libmill string
 )
 
 func getTokensFromString(s string) ([]token.Token, error) {
@@ -134,6 +144,10 @@ func Compile(filename string) error {
 
 	pipelineTimes["transpile"] = time.Since(start).String()
 
+	if len(tr.Includes["libmill.h"]) > 0 {
+		libmill = "/usr/local/lib/libmill.a"
+	}
+
 	var wg sync.WaitGroup
 
 	var rawFilename = strings.TrimSuffix(filename, ".expr")
@@ -224,24 +238,29 @@ func generateBinary(source, outputName string) error {
 	fmt.Println("\nUsing Clang generate create binary ...")
 
 	// Compile the file with Clang to produce a binary
-	var clangCmd = exec.Command("clang++", stdCppVersion, "-Ofast", "-x", "c++", "-o", outputName, "-")
+	compilerFlags = append(compilerFlags, outputName+".cpp", "-o", outputName, libmill)
 
-	// Grab the stdin of the command
-	var stdin, err = clangCmd.StdinPipe()
-	if err != nil {
-		return err
-	}
+	fmt.Printf("Using command: `clang++ %s`\n", strings.Join(compilerFlags, " "))
+	// os.Exit(9)
+	var clangCmd = exec.Command("clang++", compilerFlags...)
+	// os.Exit(9)
 
-	// Copy the bytes to Clang's stdin
-	n, err := copyToPipe(stdin, bytes.NewBufferString(source))
-	if err != nil {
-		return err
-	}
+	// // Grab the stdin of the command
+	// var stdin, err = clangCmd.StdinPipe()
+	// if err != nil {
+	// 	return err
+	// }
 
-	// Check that the amount copied is the amount we are expecting
-	if n != int64(len(source)) {
-		return errors.Errorf("Could not write all (%d) source bytes to clang: %d", len(source), n)
-	}
+	// // Copy the bytes to Clang's stdin
+	// n, err := copyToPipe(stdin, bytes.NewBufferString(source))
+	// if err != nil {
+	// 	return err
+	// }
+
+	// // Check that the amount copied is the amount we are expecting
+	// if n != int64(len(source)) {
+	// 	return errors.Errorf("Could not write all (%d) source bytes to clang: %d", len(source), n)
+	// }
 
 	// Start Clang to have it waiting
 	output, err := clangCmd.CombinedOutput()

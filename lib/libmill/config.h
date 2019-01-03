@@ -1,0 +1,27 @@
+/* confdefs.h */
+#define PACKAGE_NAME "libmill"
+#define PACKAGE_TARNAME "libmill"
+#define PACKAGE_VERSION "1.18"
+#define PACKAGE_STRING "libmill 1.18"
+#define PACKAGE_BUGREPORT "libmill@freelists.org"
+#define PACKAGE_URL "http://libmill.org/"
+#define PACKAGE "libmill"
+#define VERSION "1.18"
+#define HAVE_POSIX_MEMALIGN 1
+#define HAVE_MPROTECT 1
+#define HAVE_LIBRT 1
+#define HAVE_CLOCK_GETTIME 1
+#define HAVE_EPOLL_CREATE 1
+#define MILL_NO_KQUEUE 1
+#define STDC_HEADERS 1
+#define HAVE_SYS_TYPES_H 1
+#define HAVE_SYS_STAT_H 1
+#define HAVE_STDLIB_H 1
+#define HAVE_STRING_H 1
+#define HAVE_MEMORY_H 1
+#define HAVE_STRINGS_H 1
+#define HAVE_INTTYPES_H 1
+#define HAVE_STDINT_H 1
+#define HAVE_UNISTD_H 1
+#define HAVE_DLFCN_H 1
+#define LT_OBJDIR ".libs/"
