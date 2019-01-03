@@ -7,6 +7,8 @@
 #include <map>
 #include <string>
 
+#include <libmill.h>
+
 // Types:
 typedef int myInt;
 // none
@@ -23,10 +25,15 @@ struct myStruct {
 // none
 
 // Prototypes:
-void something();
 void another(int i, std::string s);
+void something();
 
 // Functions:
+void another(int i, std::string s) {
+  defer onReturn, onExit;
+  int j = 6666666;
+}
+
 void something() {
   defer onReturn, onExit;
   myStruct s = {
@@ -41,16 +48,12 @@ void something() {
   another(i, "s");
 }
 
-void another(int i, std::string s) {
-  defer onReturn, onExit;
-  int j = 6666666;
-}
-
 // Main:
 // generated: false
 int main() {
   defer onReturn, onExit;
-  onReturn.deferStack.push([=](...) { something(); });
+  go([=](...) { something(); }());
+  something();
   enum {
     some,
     one = some + 2,

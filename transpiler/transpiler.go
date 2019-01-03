@@ -322,11 +322,24 @@ func (t *Transpiler) ToCpp() string {
 	output = append(output, "// Imports:")
 	if len(t.Includes) > 0 {
 		// output = append(output, strings.Join(t.Imports, "\n")+"\n")
-		var includeString string
+		var (
+			includeString string
+			libmill       string
+		)
 		for _, t := range t.Includes {
+			if strings.Contains(t, "libmill") {
+				libmill = t
+				continue
+			}
+
 			includeString += t + "\n"
 		}
+
 		output = append(output, includeString)
+
+		if len(libmill) > 0 {
+			output = append(output, libmill)
+		}
 
 	} else {
 		output = append(output, "// none\n")
@@ -602,6 +615,40 @@ func TranspileMapStatement(n *builder.Node) (*string, error) {
 	return &nString, nil
 }
 
+func TranspileLaunchStatement(n *builder.Node) (*string, error) {
+	if n.Type != "launch" {
+		return nil, errors.New("Node is not a launch node")
+	}
+
+	// Transpile the ident
+	var vString, err = TranspileStatement(n.Left)
+	if err != nil {
+		return nil, err
+	}
+
+	// Include libmill for coroutines
+	// includeChan <- &builder.Node{
+	// 	Type: "include",
+	// 	Kind: "path",
+	// 	Left: &builder.Node{
+	// 		Type:  "literal",
+	// 		Value: "../lib/libmill/libmill.h",
+	// 	},
+	// }
+	includeChan <- &builder.Node{
+		Type: "include",
+		// Kind: "path",
+		Left: &builder.Node{
+			Type:  "literal",
+			Value: "libmill.h",
+		},
+	}
+
+	var nString = "go([=](...){" + *vString + "}());"
+
+	return &nString, nil
+}
+
 func TranspileEnumBlockStatement(n *builder.Node) (*string, error) {
 	if n.Type != "block" {
 		return nil, errors.New("Node is not a block")
@@ -684,6 +731,9 @@ func TranspileDeferStatement(n *builder.Node) (*string, error) {
 
 func TranspileStatement(n *builder.Node) (*string, error) {
 	switch n.Type {
+
+	case "launch":
+		return TranspileLaunchStatement(n)
 
 	case "defer":
 		return TranspileDeferStatement(n)

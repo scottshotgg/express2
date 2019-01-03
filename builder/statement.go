@@ -868,6 +868,30 @@ func (b *Builder) ParseIncludeStatement() (*Node, error) {
 	}, nil
 }
 
+func (b *Builder) ParseLaunchStatement() (*Node, error) {
+	// Check ourselves ...
+	if b.Tokens[b.Index].Type != token.Launch {
+		return b.AppendTokenToError("Could not get launch statement")
+	}
+
+	// Step over the import token
+	b.Index++
+
+	// Might need to make this an explicit function call later
+	expr, err := b.ParseStatement()
+	if err != nil {
+		return nil, err
+	}
+
+	// Step over the literal
+	b.Index++
+
+	return &Node{
+		Type: "launch",
+		Left: expr,
+	}, nil
+}
+
 func (b *Builder) ParseFunctionStatement() (*Node, error) {
 	// Check ourselves
 	if b.Tokens[b.Index].Type != token.Function {
@@ -1043,6 +1067,9 @@ func (b *Builder) ParseDerefStatement() (*Node, error) {
 // ParseStatement ** does ** not look ahead
 func (b *Builder) ParseStatement() (*Node, error) {
 	switch b.Tokens[b.Index].Type {
+
+	case token.Launch:
+		return b.ParseLaunchStatement()
 
 	case token.Defer:
 		return b.ParseDeferStatement()

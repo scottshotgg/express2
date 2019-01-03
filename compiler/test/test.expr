@@ -31,6 +31,8 @@ func something() {
   will automatically be injected if not supplied
 */
 func main() {
+  launch something()
+
   defer something()
 
   enum {
