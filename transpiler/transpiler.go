@@ -672,6 +672,10 @@ func TranspileDeferStatement(n *builder.Node) (*string, error) {
 		return nil, err
 	}
 
+	// TODO: we need to wipe the defer stacks unless they are explicitly used
+	//		[=] - value
+	//		[&] - reference
+
 	// TODO: only onReturn is supported for now
 	var nString = "onReturn.deferStack.push([=](...){" + *stmt + "});"
 
