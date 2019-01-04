@@ -27,10 +27,6 @@ type Transpiler struct {
 	GenerateMain bool
 }
 
-func emit(line string) {
-	appendChan <- line
-}
-
 var (
 	wg          sync.WaitGroup
 	wg1         sync.WaitGroup
@@ -42,11 +38,9 @@ var (
 	appendChan  = make(chan string, 5)
 )
 
-/*
-	Transpile needs to work like this:
-	- recurse through each statement
-	- if the statement contains ANY block, then flatten on the node
-*/
+func emit(line string) {
+	appendChan <- line
+}
 
 func appendWorker(wg *sync.WaitGroup) {
 	defer wg.Done()
@@ -105,7 +99,13 @@ func New(ast *builder.Node, name string) *Transpiler {
 	return &t
 }
 
-// This will give use some problems with multiple compilers ...
+/*
+	Transpile needs to work like this:
+	- recurse through each statement
+	- if the statement contains ANY block, then flatten on the node
+*/
+
+// TODO: This will give use some problems with multiple instance possibly ...
 
 func (t *Transpiler) Transpile() (string, error) {
 	// Extract the nodes
