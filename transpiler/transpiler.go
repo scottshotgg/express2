@@ -644,6 +644,7 @@ func TranspileLaunchStatement(n *builder.Node) (*string, error) {
 		},
 	}
 
+	// This has a lambda in it since you can launch any statement ...
 	var nString = "go([=](...){" + *vString + "}());"
 
 	return &nString, nil
