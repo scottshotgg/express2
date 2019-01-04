@@ -21,10 +21,10 @@ type Transpiler struct {
 	ASTCloneJSON []byte
 	Extra        []string
 	Functions    map[string]string
-	Types        map[string]string
-	Includes     map[string]string
 	Imports      map[string]string
-	Structs      []string
+	Includes     map[string]string
+	Types        map[string]string
+	Structs      map[string]string
 	GenerateMain bool
 }
 
@@ -89,9 +89,10 @@ func New(ast *builder.Node, b *builder.Builder, name string) *Transpiler {
 		AST:       ast,
 		Builder:   b,
 		Functions: map[string]string{},
-		Types:     map[string]string{},
 		Imports:   map[string]string{},
 		Includes:  map[string]string{},
+		Structs:   map[string]string{},
+		Types:     map[string]string{},
 	}
 
 	// go appendWorker(&wg)
@@ -238,7 +239,7 @@ func (t *Transpiler) structWorker(wg *sync.WaitGroup) {
 			os.Exit(9)
 		}
 
-		t.Structs = append(t.Structs, *stringP)
+		t.Structs[node.Left.Value.(string)] = *stringP
 	}
 }
 

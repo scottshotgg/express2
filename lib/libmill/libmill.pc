@@ -8,5 +8,5 @@ Description: Go-style concurrency in C
 URL: http://libmill.org/
 Version: 19.1.1
 Requires:
-Libs: -L${libdir} -lmill -lrt 
+Libs: -L${libdir} -lmill 
 Cflags: -I${includedir}

@@ -24,16 +24,15 @@ const (
 )
 
 var (
+	libmill string
+
+	pipelineTimes = map[string]string{}
 	compilerFlags = []string{
 		stdCppVersion,
 		"-Ofast",
 		// "-x",
 		// "c++",
 	}
-
-	libmill string
-
-	pipelineTimes = map[string]string{}
 )
 
 func getTokensFromString(s string) ([]token.Token, error) {
@@ -95,15 +94,86 @@ func timeTrack(start time.Time, name string) {
 	pipelineTimes[name] = time.Since(start).String()
 }
 
-// type PipelineTiming struct {
-// 	Total time.Duration
-// 	ReadFile time.Duration
-// 	Build time.Duration
-// 	Transpile time.Duration
-// 	Write time.Duration
-// 	Format time.Duration
-// 	Clang time.Duration
-// }
+func writeAndFormat(source, output string) (string, error) {
+	fmt.Println("\nWriting transpilied C++ code to " + output + ".cpp ...")
+
+	var (
+		start = time.Now()
+		// Write the C++ code to a file named `main.cpp`
+		err = ioutil.WriteFile(output, []byte(source), 0644)
+	)
+
+	if err != nil {
+		return "", err
+	}
+	timeTrack(start, "write")
+
+	fmt.Println("\nFormatting C++ code ...")
+
+	// TODO: later on format before writing to save the reading
+	// Format the file in-place using `clang-format`; mainly for human readability
+	start = time.Now()
+	// TODO: pump this into clang later so that the errors that come back are formatted
+	// for now we'll just return the source
+	outputB, err := exec.Command("clang-format", "-i", output).CombinedOutput()
+	if err != nil {
+		return "", err
+	}
+	timeTrack(start, "format")
+
+	return string(outputB), nil
+}
+
+func generateBinary(source, outputName string) error {
+	// Track the time
+	defer timeTrack(time.Now(), "clang")
+
+	fmt.Println("\nUsing Clang generate create binary ...")
+
+	// Compile the file with Clang to produce a binary
+	compilerFlags = append(compilerFlags, outputName+".cpp", "-o", outputName, libmill)
+
+	fmt.Printf("Using command: `clang++ %s`\n", strings.Join(compilerFlags, " "))
+	// os.Exit(9)
+	var clangCmd = exec.Command("clang++", compilerFlags...)
+	// os.Exit(9)
+
+	// // Grab the stdin of the command
+	// var stdin, err = clangCmd.StdinPipe()
+	// if err != nil {
+	// 	return err
+	// }
+
+	// // Copy the bytes to Clang's stdin
+	// n, err := copyToPipe(stdin, bytes.NewBufferString(source))
+	// if err != nil {
+	// 	return err
+	// }
+
+	// // Check that the amount copied is the amount we are expecting
+	// if n != int64(len(source)) {
+	// 	return errors.Errorf("Could not write all (%d) source bytes to clang: %d", len(source), n)
+	// }
+
+	// Start Clang to have it waiting
+	output, err := clangCmd.CombinedOutput()
+	if err != nil {
+		fmt.Println("\nClang error:\n" + string(output))
+
+		return err
+	}
+
+	return nil
+}
+
+// This function is really just to control the defer properly
+func copyToPipe(in io.WriteCloser, out io.Reader) (int64, error) {
+	// We need to ensure that the pipe is closed so that Clang will know that we are finished
+	defer in.Close()
+
+	// Whether we error or not we need to close the pipe
+	return io.Copy(in, out)
+}
 
 func Compile(filename string) error {
 	if !strings.HasSuffix(filename, ".expr") {
@@ -201,85 +271,4 @@ func Run(filename string) error {
 	fmt.Println("\nOutput:", output)
 
 	return nil
-}
-
-func writeAndFormat(source, output string) (string, error) {
-	fmt.Println("\nWriting transpilied C++ code to " + output + ".cpp ...")
-
-	var (
-		start = time.Now()
-		// Write the C++ code to a file named `main.cpp`
-		err = ioutil.WriteFile(output, []byte(source), 0644)
-	)
-
-	if err != nil {
-		return "", err
-	}
-	timeTrack(start, "write")
-
-	fmt.Println("\nFormatting C++ code ...")
-
-	// TODO: later on format before writing to save the reading
-	// Format the file in-place using `clang-format`; mainly for human readability
-	start = time.Now()
-	// TODO: pump this into clang later so that the errors that come back are formatted
-	// for now we'll just return the source
-	outputB, err := exec.Command("clang-format", "-i", output).CombinedOutput()
-	if err != nil {
-		return "", err
-	}
-	timeTrack(start, "format")
-
-	return string(outputB), nil
-}
-
-func generateBinary(source, outputName string) error {
-	// Track the time
-	defer timeTrack(time.Now(), "clang")
-
-	fmt.Println("\nUsing Clang generate create binary ...")
-
-	// Compile the file with Clang to produce a binary
-	compilerFlags = append(compilerFlags, outputName+".cpp", "-o", outputName, libmill)
-
-	fmt.Printf("Using command: `clang++ %s`\n", strings.Join(compilerFlags, " "))
-	// os.Exit(9)
-	var clangCmd = exec.Command("clang++", compilerFlags...)
-	// os.Exit(9)
-
-	// // Grab the stdin of the command
-	// var stdin, err = clangCmd.StdinPipe()
-	// if err != nil {
-	// 	return err
-	// }
-
-	// // Copy the bytes to Clang's stdin
-	// n, err := copyToPipe(stdin, bytes.NewBufferString(source))
-	// if err != nil {
-	// 	return err
-	// }
-
-	// // Check that the amount copied is the amount we are expecting
-	// if n != int64(len(source)) {
-	// 	return errors.Errorf("Could not write all (%d) source bytes to clang: %d", len(source), n)
-	// }
-
-	// Start Clang to have it waiting
-	output, err := clangCmd.CombinedOutput()
-	if err != nil {
-		fmt.Println("\nClang error:\n" + string(output))
-
-		return err
-	}
-
-	return nil
-}
-
-// This function is really just to control the defer properly
-func copyToPipe(in io.WriteCloser, out io.Reader) (int64, error) {
-	// We need to ensure that the pipe is closed so that Clang will know that we are finished
-	defer in.Close()
-
-	// Whether we error or not we need to close the pipe
-	return io.Copy(in, out)
 }

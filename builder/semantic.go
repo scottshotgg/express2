@@ -1,18 +1,28 @@
 package builder
 
+// Essentially create a semantic parser ...
+// This may involve using a different token architecture :(
+
 // Check attempts to ensure that node makes sense when viewed with a particular scope tree
 func Check(n *Node, st *ScopeTree) {
 	/*
 		Need to do:
+		- Type checking
+		- Access/Selection checking
+		- Bounds checking
+		- Nil checking
+		- Unused type/function/variable checking
+		- Unused path execution
+		- De/ref checking
+		- Insert automatic void* deref from var and object
+		- Type hardening / gradient descent typing
+		- Immutable/val creation
+		- Type inference
+		- Type optimization from vars
+		- Copy/reference warnings
 
-		1) Type checking
+		- Other optimizations ???
 
-		2) Index/bounds checking
-		3) Selection checking
-		4) Nil checking
-		5) Unused type/function/variable checking
-		6) Unused path execution
-		7 Optimization?
 	*/
 
 	// Type check works generically on a node and just decends recursively down all lineage paths
