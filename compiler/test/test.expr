@@ -45,8 +45,10 @@ func main() {
   string nothing = "nothing"
 
   map m = {
-    thing : "thing"
     "not_a_thing" : nothing
+    6 : 6
+    80.999 * 7 : false
+    thing : "thing"
   }
 
   int i = 0
