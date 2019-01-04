@@ -135,18 +135,20 @@ public:
   }
 
   var(initializer_list<var> propList) : type(objectType) {
-    // TODO: need to merge in the var changes
     map<var, var> object;
 
     int i = 0;
+    var lastItem;
     for (auto prop : propList) {
-      object[i] = prop;
+      if (i % 2 == 1) {
+        object[lastItem] = prop;
+      } else {
+        lastItem = prop;
+      }
 
       i++;
     }
 
-    // something weird is happening here....
-    // data = &object;
     data = new map<var, var>(object);
   }
 
@@ -300,18 +302,13 @@ public:
     }
   }
 
-  // FIXME: fix this
-  void operator=(initializer_list<var> propList) {
-    deallocate();
-    // //cout << "object cons; Type: " << type << " Value: " << propList << "
-    // Pointer: " << data << endl;
-    // cout << "object cons; Type: " << type << " Pointer: " << data << endl;
-    type = objectType;
-    // data = var(propList).data;
-    // var thing = propList;
-    // //cout << thing << endl;
-    // data = thing.data;
-  }
+  // // FIXME: fix this
+  // void operator=(initializer_list<var> propList) {
+  //   deallocate();
+  //   type = objectType;
+  //   var obj = var(propList);
+  //   data = &obj;
+  // }
 
   friend ostream &operator<<(ostream &stream, var v) {
     switch (v.type) {
@@ -538,16 +535,16 @@ var operator+(const var &left, const char *right) {
   return var(*(string *)left.Value() + right);
 }
 
-// int operator+(const var &left, const var &right) {
-//     //printf("hey its me");
-//   return *(int*)left.Value() + *(int*)right.Value();
-// }
-
-// Generic constructor for right side value
-template <typename T> var operator+(const var &left, T right) {
-  // FIXME: this is kinda inefficient
-  return var(right + left);
+int operator+(const var &left, const var &right) {
+    // printf("hey its me")
+  return *(int*)left.Value() + *(int*)right.Value();
 }
+
+// // Generic constructor for right side value
+// template <typename T> var operator+(const var &left, T right) {
+//   // FIXME: this is kinda inefficient
+//   return var(right + left);
+// }
 
 // Generic constructor for right side value
 template <typename T> var operator-(const var &left, T right) {
