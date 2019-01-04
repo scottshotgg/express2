@@ -58,6 +58,8 @@
 - make an install script
 - make a build-and-test-all script
 - build a docker image to do the testing automatically
+- write documentation
+- fill out tests
 - hook up a build pipeline (CI) to test everything on push
 - use circleCI and deploy to there?
 - make the cmd folder and implement the commands
