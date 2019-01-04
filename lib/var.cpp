@@ -138,17 +138,11 @@ public:
     // TODO: need to merge in the var changes
     map<var, var> object;
 
-    // int i = 0;
+    int i = 0;
     for (auto prop : propList) {
-      // object[i] = prop;
+      object[i] = prop;
 
-      // i++;
-      if (prop.Type() == objectType) {
-        auto mapThing = (*(map<var, var> *)prop.data);
-        for (auto pair : mapThing) {
-          object[pair.first] = pair.second;
-        }
-      }
+      i++;
     }
 
     // something weird is happening here....
