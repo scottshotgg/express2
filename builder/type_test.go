@@ -23,6 +23,48 @@ import (
 // 		nodeJSON, _ = json.Marshal(node) 	fmt.Printf(jsonFormatString, nodeJSON)
 // }
 
+func TestParseTypeAnnotation(t *testing.T) {
+	var test = "int<int:string>"
+
+	/*
+		map
+			annotation
+				pair
+					int
+					string
+	*/
+
+	b, err = getBuilderFromString(test)
+	if err != nil {
+		t.Errorf(errFormatString, err)
+	}
+
+	node, err = b.ParseType()
+	if err != nil {
+		t.Errorf(errFormatString, err)
+	}
+
+	nodeJSON, _ = json.Marshal(node)
+	fmt.Printf(jsonFormatString, nodeJSON)
+}
+
+func TestParsePointerType(t *testing.T) {
+	var test = "int* p"
+
+	b, err = getBuilderFromString(test)
+	if err != nil {
+		t.Errorf(errFormatString, err)
+	}
+
+	node, err = b.ParseType()
+	if err != nil {
+		t.Errorf(errFormatString, err)
+	}
+
+	nodeJSON, _ = json.Marshal(node)
+	fmt.Printf(jsonFormatString, nodeJSON)
+}
+
 func TestParseType(t *testing.T) {
 	// test := "float"
 	test := "int[][5]"

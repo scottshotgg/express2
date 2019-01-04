@@ -32,6 +32,8 @@ var (
 	}
 
 	libmill string
+
+	pipelineTimes = map[string]string{}
 )
 
 func getTokensFromString(s string) ([]token.Token, error) {
@@ -71,17 +73,22 @@ func getASTFromString(test string) (*builder.Node, error) {
 }
 
 func getTranspilerFromString(test, name string) (*transpiler.Transpiler, error) {
-	ast, err := getASTFromString(test)
+	b, err := getBuilderFromString(test)
 	if err != nil {
-		return nil, errors.Errorf("Could not create AST: %+v", err)
+		return nil, err
 	}
 
-	return transpiler.New(ast, name), nil
-}
+	ast, err := b.BuildAST()
+	if err != nil {
+		return nil, err
+	}
 
-var (
-	pipelineTimes = map[string]string{}
-)
+	var astJSON, _ = json.Marshal(ast)
+
+	fmt.Println("AST:", string(astJSON))
+
+	return transpiler.New(ast, b, name), nil
+}
 
 func timeTrack(start time.Time, name string) {
 	// fmt.Printf("Function %s took %s\n", name, time.Since(start))
@@ -103,16 +110,10 @@ func Compile(filename string) error {
 		return errors.Errorf("File does not have `.expr` suffix: %s", filename)
 	}
 
-	// var rawExprFile = strings.Split(filename, "/")
-	// if len(rawExprFile) == 0 {
-	// 	return errors.Errorf("Filename is not valid: %s", filename)
-	// }
-
-	var globalStart = time.Now()
-
 	fmt.Println("\nReading input file ...")
 
 	var (
+		globalStart    = time.Now()
 		start          = time.Now()
 		testBytes, err = ioutil.ReadFile(filename)
 	)
@@ -145,6 +146,7 @@ func Compile(filename string) error {
 	pipelineTimes["transpile"] = time.Since(start).String()
 
 	if len(tr.Includes["libmill.h"]) > 0 {
+		// TODO: fix this later
 		libmill = "/usr/local/lib/libmill.a"
 	}
 

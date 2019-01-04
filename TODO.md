@@ -1,3 +1,50 @@
 # TODO:
 
-- make `map` type
+---- parser/typecheck/transpiler ----
+
+- object - **normal priority**
+  this will be a struct essentially on the backend with an integrated map and a constructor function
+  objects can't be created at runtime; dynamic json would expand into a map<var:var>
+  therefore, just have the compiler use void\* to pass around the object and then have it deref it before it
+  their code starts so that it seems like you can pass an object
+  --- HOLD OFF ON THIS FOR NOW ---
+
+- fix forof - **normal priority**
+- test/fix forstd - **normal priority**
+
+- type annotations - **normal priority**
+
+---- parser? ----
+
+- adding printf/println from stdlib - **high priority**
+- Add typing ability on enums - **not high priority**
+- Need to add he enum'ed types to the type scope - **normal priority**
+- Need to add all flattened values to scope - **normal priority**
+- include and imports need to be looked at more - low priority until imports are needed
+- rewrite ParseArrayType to fix multi dimensional arrays and support the direct array types - **high priority**
+  - generate types using std::array, will be much easier to generate since the type is completely separate
+  - https://www.quora.com/Can-std-array-type-size-be-used-for-a-multidimensional-array-like-myarray-L-M-N-in-c++11
+
+---- transpiler ----
+
+- need to do vectors - **not high priority**
+- char[] should support string literals - **not high priority**
+
+---- type checker ----
+
+- type annotations - **not high priority**
+- type checker that will run BEFORE the transpiler and apply types to EVERYTHING - **high priority**
+  - this is where block types should be figured out, ident types resolved, etc
+- automatic derefing like go but using the arrow operator behind the scenes
+- integrated, automatic map with object
+- val - **not high priority**
+- let - **not high priority**
+- add types to blocks, will make it easier to transpile; use these types to check the blocks for invalid statements - **normal priority**
+  - i.e, non-kv pairs in maps, etc. Can also use it for type inference of maps, etc
+
+---- finished ----
+
+- var
+- access operator
+- selection operator
+- de/ref operator
