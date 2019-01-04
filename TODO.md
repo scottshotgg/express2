@@ -25,6 +25,7 @@
 - rewrite ParseArrayType to fix multi dimensional arrays and support the direct array types - **high priority**
   - generate types using std::array, will be much easier to generate since the type is completely separate
   - https://www.quora.com/Can-std-array-type-size-be-used-for-a-multidimensional-array-like-myarray-L-M-N-in-c++11
+- fix no-main ability for "scripting"
 
 ---- semantic ----
 
@@ -58,7 +59,7 @@
 - make an install script
 - make a build-and-test-all script
 - build a docker image to do the testing automatically
-- write documentation
+- write documentation; include the type lineage map
 - fill out tests
 - hook up a build pipeline (CI) to test everything on push
 - use circleCI and deploy to there?
@@ -66,7 +67,7 @@
 - purge current logging
 - add more logging
 - reorganize code
-- organize project folder
+- organize project folder; move everything into the `stages` folder
 - organize the builder folder; try splitting out some stuff
 - experiment with custom clang/LLVM compilation
 - research custom pass in LLVM
