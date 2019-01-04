@@ -25,15 +25,10 @@ struct myStruct {
 // none
 
 // Prototypes:
-void another(int i, std::string s);
 void something();
+void another(int i, std::string s);
 
 // Functions:
-void another(int i, std::string s) {
-  defer onReturn, onExit;
-  int j = 6666666;
-}
-
 void something() {
   defer onReturn, onExit;
   myStruct s = {
@@ -46,6 +41,11 @@ void something() {
   };
   int i = 10;
   another(i, "s");
+}
+
+void another(int i, std::string s) {
+  defer onReturn, onExit;
+  int j = 6666666;
 }
 
 // Main:
