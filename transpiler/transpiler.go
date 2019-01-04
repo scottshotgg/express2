@@ -559,6 +559,66 @@ func (t *Transpiler) TranspileIndexExpression(n *builder.Node) (*string, error) 
 	return &nString, nil
 }
 
+// The type checker should produce arrow function ones as well
+func (t *Transpiler) TranspileSelectExpression(n *builder.Node) (*string, error) {
+	/*
+		Left is an expression
+		Right is an expression
+	*/
+
+	if n.Type != "selection" {
+		return nil, errors.New("Node is not an index")
+	}
+
+	lhs, err := t.TranspileExpression(n.Left)
+	if err != nil {
+		return nil, err
+	}
+
+	rhs, err := t.TranspileExpression(n.Right)
+	if err != nil {
+		return nil, err
+	}
+
+	var nString = *lhs + "." + *rhs
+
+	return &nString, nil
+}
+
+// The type checker should produce arrow function ones as well
+func (t *Transpiler) TranspileDerefExpression(n *builder.Node) (*string, error) {
+	if n.Type != "deref" {
+		return nil, errors.New("Node is not an deref")
+	}
+
+	// Left is the ident; right is nothing
+	lhs, err := t.TranspileExpression(n.Left)
+	if err != nil {
+		return nil, err
+	}
+
+	var nString = "*" + *lhs
+
+	return &nString, nil
+}
+
+// The type checker should produce arrow function ones as well
+func (t *Transpiler) TranspileRefExpression(n *builder.Node) (*string, error) {
+	if n.Type != "ref" {
+		return nil, errors.New("Node is not an ref")
+	}
+
+	// Left is the ident; right is nothing
+	lhs, err := t.TranspileExpression(n.Left)
+	if err != nil {
+		return nil, err
+	}
+
+	var nString = "&" + *lhs
+
+	return &nString, nil
+}
+
 func (t *Transpiler) TranspileExpression(n *builder.Node) (*string, error) {
 	switch n.Type {
 
@@ -584,11 +644,16 @@ func (t *Transpiler) TranspileExpression(n *builder.Node) (*string, error) {
 		return t.TranspileIndexExpression(n)
 
 	case "block":
-		log.Println("blockExpression", n)
 		return t.TranspileBlockExpression(n)
 
-		// case "selection":
-		// 	return t.TranspileSelectExpression(n)
+	case "selection":
+		return t.TranspileSelectExpression(n)
+
+	case "deref":
+		return t.TranspileDerefExpression(n)
+
+	case "ref":
+		return t.TranspileRefExpression(n)
 	}
 
 	return nil, errors.Errorf("Not implemented expression: %+v", n)
@@ -977,7 +1042,7 @@ func (t *Transpiler) TranspileType(n *builder.Node) (*string, error) {
 		}
 
 	case "map":
-		nString = "std::map"
+		nString = "map"
 
 		includeChan <- &builder.Node{
 			Type: "include",
@@ -996,6 +1061,17 @@ func (t *Transpiler) TranspileType(n *builder.Node) (*string, error) {
 			},
 		}
 
+	case "array":
+		nString = "std::array<"
+
+	case "pointer":
+		nString = "*"
+		var typeStringP, err = t.TranspileType(n.Left)
+		if err != nil {
+			return nil, err
+		}
+
+		nString = *typeStringP + nString
 	}
 
 	return &nString, nil
@@ -1006,6 +1082,9 @@ func prepLiteral(kind, cpp string) *string {
 	switch kind {
 	case "string":
 		cpp = "\"" + cpp + "\""
+
+	case "char":
+		cpp = "'" + cpp + "'"
 	}
 
 	return &cpp
@@ -1133,12 +1212,12 @@ func (t *Transpiler) TranspileDeclarationStatement(n *builder.Node) (*string, er
 	// Translate the ident expression (lhs)
 	// May have to change this down the line or something
 	switch *typeOf {
-	case "std::map":
+	case "map":
 		vString, err = t.TranspileMapBlockStatement(n.Right)
 		// typeOfBlock, err := t.DeduceMapBlockType(n.Right)
 		// fmt.Println("typeOfBlock, err", *typeOfBlock, err)
 		// os.Exit(9)
-		nString = *typeOf + "<var, var>" + nString
+		nString = "std::" + *typeOf + "<var, var>" + nString
 
 	default:
 		nString = *typeOf + " " + nString
@@ -1363,9 +1442,10 @@ func (t *Transpiler) TranspileBlockExpression(n *builder.Node) (*string, error) 
 			return nil, err
 		}
 
-		if stmt.Type != "assignment" {
-			return nil, errors.Errorf("Structs can only contain assignment statements; %+v", stmt)
-		}
+		// Don't check this here; leave it to the type checker
+		// if stmt.Type != "assignment" {
+		// 	return nil, errors.Errorf("Structs can only contain assignment statements; %+v", stmt)
+		// }
 
 		*vString = (*vString)[:len(*vString)-1]
 

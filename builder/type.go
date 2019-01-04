@@ -146,37 +146,167 @@ func (b *Builder) ParseType() (*Node, error) {
 		// }
 	}
 
-	var injectedType = ""
+	var (
+		injectedType = ""
 
-	// We need to inject the original type as well
-	var t = b.ScopeTree.GetType(b.Tokens[b.Index].Value.String)
-	if t != nil {
-		injectedType = t.Kind
+		// We need to inject the original type as well
+		t = b.ScopeTree.GetType(b.Tokens[b.Index].Value.String)
+	)
+
+	if t == nil {
+		return nil, errors.Errorf("Type could not be found in scope: %s", b.Tokens[b.Index].Value.String)
 	}
 
-	// TODO: we would need to implement something like this
-	// TODO: this is where we would also do pointers, need to do function types, etc
-	// if typeOf == "map" {
+	injectedType = t.Kind
 
-	// }
+	var (
+		err    error
+		typeOf = b.Tokens[b.Index].Value.String
+		node   = &Node{
+			Type:  "type",
+			Value: typeOf,
+			Kind:  injectedType,
+		}
+	)
 
-	var typeOf = b.Tokens[b.Index].Value.String
+	defer func() {
+		b.Index++
+	}()
 
-	if b.Index < len(b.Tokens)-1 &&
-		b.Tokens[b.Index+1].Type == token.LBracket {
-		return b.ParseArrayType(typeOf)
+	for b.Index < len(b.Tokens)-1 {
+		switch b.Tokens[b.Index+1].Type {
+
+		// Array operator
+		case token.LBracket:
+			node, err = b.ParseArrayType(typeOf)
+
+		// Pointer operator
+		case token.PriOp:
+			node, err = b.ParsePointerType(node)
+
+		// TODO: reworking typing from a more expression oriented architecture
+		// almost as if they were expressions
+		// // Type annotation
+		// case token.LThan:
+		// 	var n *Node
+		// 	n, err = b.ParseAnnotatedType(node)
+
+		default:
+			return node, nil
+		}
+
+		if err != nil {
+			return nil, err
+		}
+
+		// Increment over the type
+		b.Index++
 	}
 
-	// Increment over the type
-	b.Index++
+	return node, nil
+}
+
+// TODO: ParseType needs to be completely redone to have the same sort of
+// architecture as Expression, that way we can use some of the same
+// techniques for parsing as we did in array, group, etc
+
+// // Embed the incoming type node in an annotation
+// func (b *Builder) ParseAnnotatedType() (*Node, error) {
+// 	// Need to parse the types
+// 	// Can have:
+// 	//	- <k:v>
+// 	//	- a,b
+
+// 	// Increment over the type
+// 	b.Index++
+
+// 	// Increment over the lthan
+// 	b.Index++
+
+// 	// Parse the type that should be inside of it
+// 	var node, err = b.ParseType()
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	defer func() {
+// 		b.Index++
+// 	}()
+
+// 	for b.Index < len(b.Tokens)-1 {
+// 		switch b.Tokens[b.Index].Type {
+
+// 		// Pair operator
+// 		case token.Set:
+// 			// Increment over the set
+// 			b.Index++
+// 			node.Left, err = b.ParseType()
+// 			if err != nil {
+// 				return nil, err
+// 			}
+
+// 			node = &Node{
+// 				Type:  "type",
+// 				Kind:  "pair",
+// 				Value: "pair",
+// 				Left:  node,
+// 				Right: n,
+// 			}
+
+// 		// List operator
+// 		// TODO: this needs to be revisited when its actually needed ...
+// 		case token.Comma:
+// 			n.Left, err = b.ParseType()
+// 			if err != nil {
+// 				return nil, err
+// 			}
+
+// 			node = &Node{
+// 				Type:  "type",
+// 				Kind:  "list",
+// 				Value: "list",
+// 				Left:  node,
+// 				Right: n,
+// 			}
+
+// 		default:
+// 			return node, nil
+// 		}
+
+// 		if err != nil {
+// 			return nil, err
+// 		}
+
+// 		// Increment over the type
+// 		b.Index++
+// 	}
+
+// 	return node, nil
+
+// 	return &Node{
+// 		Type:  "type",
+// 		Kind:  "annotation",
+// 		Value: "annotation",
+// 		Left:  n,
+// 	}, nil
+// }
+
+// Embed the incoming type node in another type node that has pointer
+func (b *Builder) ParsePointerType(n *Node) (*Node, error) {
+	if n.Type != "type" {
+		return nil, errors.Errorf("Node was not a type: %+v", n)
+	}
 
 	return &Node{
 		Type:  "type",
-		Value: typeOf,
-		Kind:  injectedType,
+		Kind:  "pointer",
+		Value: "pointer",
+		Left:  n,
 	}, nil
 }
 
+// TODO: this need to be rewritten to take the node type and embed it in
+// the array type
 func (b *Builder) ParseArrayType(typeOf string) (*Node, error) {
 	var dim []*Index
 

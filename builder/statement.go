@@ -353,7 +353,7 @@ func (b *Builder) ParseBlockStatement() (*Node, error) {
 	}
 
 	// Increment over the left brace token
-	b.Index++
+	b.Index++ // Create a new child scope for the function
 
 	var (
 		stmt  *Node
@@ -432,6 +432,14 @@ func (b *Builder) ParseDeclarationStatement() (*Node, error) {
 		return nil, err
 	}
 
+	var typeString = typeOf.Value.(string)
+	if typeString == "map" || typeString == "object" || typeString == "struct" {
+		b.ScopeTree, err = b.ScopeTree.NewChildScope(ident.Value.(string))
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	// // Check the scope map to make sure this hasn't been declared for the current scope
 	// var node = b.ScopeTree.Local(ident.Value.(string))
 
@@ -470,6 +478,17 @@ func (b *Builder) ParseDeclarationStatement() (*Node, error) {
 
 	// Increment over the first part of the expression
 	b.Index++
+
+	// Leave the scope if we entered it above
+	if typeString == "map" || typeString == "object" || typeString == "struct" {
+		// Assign our scope back to the current one
+		b.ScopeTree, err = b.ScopeTree.Leave()
+		if err != nil {
+			return nil, err
+		}
+
+		// Could defer this and then exit when we error?
+	}
 
 	var node = &Node{
 		Type:  "decl",
@@ -979,11 +998,6 @@ func (b *Builder) ParseFunctionStatement() (*Node, error) {
 			Value: "int",
 		}
 	}
-
-	// block, err := b.ParseBlockStatement()
-	// if err != nil {
-	// 	return nil, err
-	// }
 
 	node.Value, err = b.ParseBlockStatement()
 	if err != nil {
