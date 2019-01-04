@@ -234,7 +234,6 @@ func (t *Transpiler) structWorker(wg *sync.WaitGroup) {
 		if err != nil {
 			fmt.Printf("err %+v\n", err)
 			os.Exit(9)
-			// return "", err
 		}
 
 		t.Structs = append(t.Structs, *stringP)
@@ -357,21 +356,20 @@ func (t *Transpiler) ToCpp() string {
 
 func (t *Transpiler) generateTypes() string {
 	var typesString = "\n\n// Types:\n"
-
 	for _, t := range t.Types {
 		typesString += t + "\n"
 	}
 
-	if len(typesString) == len(typesString) {
+	if len(typesString) == len("\n\n// Types:\n") {
 		typesString += "// none\n"
 	}
-	var structsString = "\n\n// Structs:\n"
 
+	var structsString = "\n\n// Structs:\n"
 	for _, t := range t.Structs {
 		structsString += t + "\n"
 	}
 
-	if len(structsString) == len(structsString) {
+	if len(structsString) == len("\n\n// Structs:\n") {
 		structsString += "// none\n"
 	}
 
@@ -395,8 +393,21 @@ func (t *Transpiler) generateFunctions() string {
 		functionString += "\n" + f + "\n"
 	}
 
-	return "\n// Prototypes:\n" + strings.Join(prototypes, "\n") +
-		"\n\n// Functions:" + functionString +
+	var fullString = "\n// Prototypes:\n"
+	if len(prototypes) == 0 {
+		fullString += "// none"
+	} else {
+		fullString += strings.Join(prototypes, "\n")
+	}
+
+	fullString += "\n\n// Functions:"
+	if len(functionString) == 0 {
+		fullString += "// none"
+	} else {
+		fullString += functionString
+	}
+
+	return fullString +
 		fmt.Sprintf("\n// Main:\n// generated: %v\n%s", t.GenerateMain, mainFunc)
 }
 

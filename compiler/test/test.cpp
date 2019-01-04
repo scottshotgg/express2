@@ -11,7 +11,6 @@
 
 // Types:
 typedef int myInt;
-// none
 
 // Structs:
 struct AnotherOne {
@@ -22,7 +21,6 @@ struct myStruct {
   std::string something = "something";
   AnotherOne ayy = {};
 };
-// none
 
 // Prototypes:
 void something();
