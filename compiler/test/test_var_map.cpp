@@ -48,14 +48,16 @@ void another(int i, std::string s) { int j = 6666666; }
 int main() {
   std::string thing = "thing";
   std::string nothing = "nothing";
-  std::map<var, var> m = {
+  map<var, var> m = {
       {thing, {"here", {"i", "am"}}},
       {{"not_a_thing","nothi"}, 33378301},
       {{{false,"hi"},"something"}, 78301},
       {{{false,"hi"},"some"}, 72228301},
       {6, nothing},
-      {true, 982.321},
+      {true, 982},
   };
+
+  cout << m[true] + m[{{false,"hi"},"something"}] << endl;
 
   std::cout << "Testing object keying:" << std::endl;
   std::cout << "true :" << m[true] << std::endl;
