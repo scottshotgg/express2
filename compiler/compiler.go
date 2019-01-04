@@ -54,9 +54,9 @@ func getBuilderFromString(test string) (*builder.Builder, error) {
 		return nil, err
 	}
 
-	for _, token := range tokens {
-		fmt.Println(token)
-	}
+	// for _, token := range tokens {
+	// 	fmt.Println(token)
+	// }
 
 	return builder.New(tokens), nil
 }
@@ -217,6 +217,7 @@ func writeAndFormat(source, output string) (string, error) {
 
 	fmt.Println("\nFormatting C++ code ...")
 
+	// TODO: later on format before writing to save the reading
 	// Format the file in-place using `clang-format`; mainly for human readability
 	start = time.Now()
 	// TODO: pump this into clang later so that the errors that come back are formatted
