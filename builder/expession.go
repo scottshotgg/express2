@@ -65,10 +65,36 @@ func (b *Builder) ParseDerefExpression() (*Node, error) {
 		return ident, err
 	}
 
-	b.Index++
-
 	return &Node{
 		Type: "deref",
+		Left: ident,
+	}, nil
+}
+
+func (b *Builder) ParseRefExpression() (*Node, error) {
+	// Check ourselves ...
+	if b.Tokens[b.Index].Type != token.Ampersand &&
+		b.Tokens[b.Index].Value.String == "&" {
+		return b.AppendTokenToError("Could not get ref")
+	}
+
+	// Look ahead and make sure it is an ident; you can't ref anything...
+	if b.Tokens[b.Index+1].Type != token.Ident {
+		return b.AppendTokenToError("Could not get ident to ref")
+	}
+
+	// Step over the deref
+	b.Index++
+
+	// Will probably have to change this to just parse the ident instead
+	// so we don't have problems with operator precedence
+	ident, err := b.ParseExpression()
+	if err != nil {
+		return ident, err
+	}
+
+	return &Node{
+		Type: "ref",
 		Left: ident,
 	}, nil
 }
@@ -181,6 +207,10 @@ func (b *Builder) ParseFactor() (*Node, error) {
 	// Deref operator
 	case token.PriOp:
 		return b.ParseDerefExpression()
+
+	// Ref operator
+	case token.Ampersand:
+		return b.ParseRefExpression()
 
 	// Nested expression
 	case token.LParen:
