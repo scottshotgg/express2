@@ -883,9 +883,6 @@ func (b *Builder) ParseLaunchStatement() (*Node, error) {
 		return nil, err
 	}
 
-	// Step over the literal
-	b.Index++
-
 	return &Node{
 		Type: "launch",
 		Left: expr,

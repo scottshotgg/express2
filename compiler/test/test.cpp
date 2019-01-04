@@ -3,6 +3,7 @@
 
 // Imports:
 #include "/home/scottshotgg/Development/go/src/github.com/scottshotgg/express2/lib/defer.cpp"
+#include "/home/scottshotgg/Development/go/src/github.com/scottshotgg/express2/lib/var.cpp"
 #include <array>
 #include <map>
 #include <string>
@@ -51,7 +52,7 @@ void another(int i, std::string s) {
 int main() {
   defer onReturn, onExit;
   go([=](...) { something(); }());
-  something();
+  onReturn.deferStack.push([=](...) { something(); });
   enum {
     some,
     one = some + 2,
@@ -59,9 +60,11 @@ int main() {
   };
   std::string thing = "thing";
   std::string nothing = "nothing";
-  std::map<std::string, std::string> m = {
-      {thing, "thing"},
+  std::map<var, var> m = {
       {"not_a_thing", nothing},
+      {6, 6},
+      {80.999 * 7, false},
+      {thing, "thing"},
   };
   int i = 0;
   {

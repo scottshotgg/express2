@@ -71,12 +71,17 @@ func getASTFromString(test string) (*builder.Node, error) {
 }
 
 func getTranspilerFromString(test, name string) (*transpiler.Transpiler, error) {
-	ast, err := getASTFromString(test)
+	b, err := getBuilderFromString(test)
 	if err != nil {
-		return nil, errors.Errorf("Could not create AST: %+v", err)
+		return nil, err
 	}
 
-	return transpiler.New(ast, name), nil
+	ast, err := b.BuildAST()
+	if err != nil {
+		return nil, err
+	}
+
+	return transpiler.New(ast, b, name), nil
 }
 
 var (
