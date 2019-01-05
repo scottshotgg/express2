@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/pkg/errors"
+	"github.com/scottshotgg/express-token"
 )
 
 // Add symbols to the map when parsing
@@ -74,7 +75,8 @@ func NewScopeTree() *ScopeTree {
 		Children: map[string]*ScopeTree{},
 	}
 
-	for _, value := range primTypes {
+	// Grab all the types from the typemap and insert them into the scope trees typemap
+	for value := range token.TypeMap {
 		scopeTree.Types[value] = &TypeValue{
 			Type: PrimitiveValue,
 			Kind: value,
