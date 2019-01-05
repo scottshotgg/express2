@@ -73,6 +73,12 @@
 - research custom pass in LLVM
 - research generating LLVM code directly
 
+---- other/research ----
+
+- think about generics/templates
+  - computed at compile-time like c++
+- what can we use a `temp` type for
+
 ---- finished ----
 
 - var
