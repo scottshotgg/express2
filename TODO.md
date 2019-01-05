@@ -55,6 +55,7 @@
 ---- infrastructure ----
 
 - make a test folder and put individual tests
+-
 - rig up test suite for lex/parse/semantic/flatten/transpile like we had in Express 1
 - make an install script
 - make a build-and-test-all script
@@ -65,7 +66,7 @@
 - use circleCI and deploy to there?
 - make the cmd folder and implement the commands
 - purge current logging
-- add more logging
+- add more logging, make a logging channel that takes a flag and stuff
 - reorganize code
 - organize project folder; move everything into the `stages` folder
 - organize the builder folder; try splitting out some stuff
@@ -79,3 +80,4 @@
 - access operator
 - selection operator
 - de/ref operator
+- implement if-else statement in transpiler

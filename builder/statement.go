@@ -487,6 +487,24 @@ func (b *Builder) ParseDeclarationStatement() (*Node, error) {
 			return nil, err
 		}
 
+		if typeString == "struct" {
+			var v = &TypeValue{
+				Composite: true,
+				Type:      StruturedValue,
+				Kind:      expr.Kind,
+			}
+
+			v.Props, err = b.extractPropsFromComposite(expr)
+			if err != nil {
+				return nil, err
+			}
+
+			err = b.ScopeTree.NewType(ident.Value.(string), v)
+			if err != nil {
+				return nil, err
+			}
+		}
+
 		// Could defer this and then exit when we error?
 	}
 
@@ -1029,17 +1047,17 @@ func (b *Builder) ParseFunctionStatement() (*Node, error) {
 // }
 
 func (b *Builder) ParseDerefStatement() (*Node, error) {
-	// if b.Tokens[b.Index].Type != token.Ident {
-	// 	return b.AppendTokenToError("Could not get assignment statement without ident")
-	// }
+	if b.Tokens[b.Index].Type != token.PriOp {
+		return b.AppendTokenToError("Could not get deref statement without *")
+	}
 
 	deref, err := b.ParseDerefExpression()
 	if err != nil {
 		return nil, err
 	}
 
-	// // Increment over the ident token
-	// b.Index++
+	// Increment over the ident token
+	b.Index++
 
 	if b.Index > len(b.Tokens) {
 		return deref, nil
@@ -1106,7 +1124,16 @@ func (b *Builder) ParseStatement() (*Node, error) {
 	case token.TypeDef:
 		return b.ParseTypeDeclarationStatement()
 
+	case token.Struct:
+		return b.ParseStructStatement()
+
 	case token.Type:
+		// // Struct is a keyword and a type so if we get it as a type statment
+		// // then we need to divert the parsing
+		// if b.Tokens[b.Index].Value.String == token.StructType {
+		// 	return b.ParseStructStatement()
+		// }
+
 		return b.ParseDeclarationStatement()
 
 	// For literal and idents, we will need to figure out what
@@ -1131,9 +1158,6 @@ func (b *Builder) ParseStatement() (*Node, error) {
 
 	case token.LBrace:
 		return b.ParseBlockStatement()
-
-	case token.Struct:
-		return b.ParseStructStatement()
 
 	case token.Let:
 		return b.ParseLetStatement()

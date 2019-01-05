@@ -812,6 +812,9 @@ func (t *Transpiler) TranspileDeferStatement(n *builder.Node) (*string, error) {
 func (t *Transpiler) TranspileStatement(n *builder.Node) (*string, error) {
 	switch n.Type {
 
+	case "if":
+		return t.TranspileIfStatement(n)
+
 	case "launch":
 		return t.TranspileLaunchStatement(n)
 
@@ -1704,7 +1707,7 @@ func (t *Transpiler) TranspileWhileStatement(n *builder.Node) (*string, error) {
 	*/
 
 	if n.Type != "while" {
-		return nil, errors.New("Node is not a forof")
+		return nil, errors.New("Node is not a while")
 	}
 
 	var (
@@ -1727,6 +1730,70 @@ func (t *Transpiler) TranspileWhileStatement(n *builder.Node) (*string, error) {
 	}
 
 	nString += *block + "}"
+
+	return &nString, nil
+}
+
+func (t *Transpiler) TranspileIfStatement(n *builder.Node) (*string, error) {
+	/*
+		Form:
+		`if` [expr] [block] {`else` {epxr} [block]}
+
+		Value is the condition
+		Left is the block
+		Right is the else statement
+	*/
+
+	if n.Type != "if" {
+		return nil, errors.Errorf("Node is not an if: %+v", n)
+	}
+
+	var (
+		nString = "if ("
+		vString *string
+		err     error
+	)
+
+	vString, err = t.TranspileExpression(n.Value.(*builder.Node))
+	if err != nil {
+		return nil, err
+	}
+
+	// Add the condition and the parenthesis
+	nString += *vString + ")"
+
+	vString, err = t.TranspileBlockStatement(n.Left)
+	if err != nil {
+		return nil, err
+	}
+
+	// Add the block; this should already come with the curly braces
+	nString += *vString
+
+	// If the Right child is non-nil then we have an else block in the form of an if statement
+	if n.Right != nil {
+		// Check whether it is an elseif of just an else
+		switch n.Right.Type {
+		case "if":
+			vString, err = t.TranspileIfStatement(n.Right)
+			if err != nil {
+				return nil, err
+			}
+
+		case "block":
+			vString, err = t.TranspileBlockStatement(n.Right)
+			if err != nil {
+				return nil, err
+			}
+
+		default:
+			return nil, errors.Errorf("Node is not an if or block: %+v", n.Right)
+		}
+
+		// Add the else block and nest the if statement inside of it
+		// TODO: research what implication this has in LLVM
+		nString += "else " + *vString
+	}
 
 	return &nString, nil
 }

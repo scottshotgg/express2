@@ -26,9 +26,15 @@ var (
 	}
 
 	statementTestMap = map[string]string{
-		"sgroup":       "(int i, string s)",
-		"decl":         "int i = 10",
-		"ifElse":       "if something { } else if somethingElse { }",
+		"sgroup": "(int i, string s)",
+		"decl":   "int i = 10",
+		"ifElse": `  if something {
+    int x = 7
+  } else if true {
+    string y = "1000000" + true
+  } else {
+    launch something()
+  }`,
 		"funcDef":      "func something(int i, string s) int { return 10 }",
 		"simpleAssign": "i = 10",
 		"callAssign":   "something = something(5, i, s)",
