@@ -2,8 +2,8 @@
 // none
 
 // Imports:
-#include "/home/scottshotgg/Development/go/src/github.com/scottshotgg/express2/lib/defer.cpp"
-#include "/home/scottshotgg/Development/go/src/github.com/scottshotgg/express2/lib/var.cpp"
+#include "/home/scottshotgg/Development/go/src/github.com/scottshotgg/lib/defer.cpp"
+#include "/home/scottshotgg/Development/go/src/github.com/scottshotgg/lib/var.cpp"
 #include <array>
 #include <map>
 #include <string>
@@ -51,11 +51,7 @@ void another(int i, std::string s) {
 // generated: false
 int main() {
   defer onReturn, onExit;
-  object o = {
-    .{
-        i,
-        "7",
-    };
+  object o = {};
   enum {
     some,
     one = some + 2,
