@@ -1,1 +1,3 @@
-libmill_la-ssl.lo: ssl.c
+libmill_la-ssl.lo: ssl.c /usr/include/stdc-predef.h
+
+/usr/include/stdc-predef.h:

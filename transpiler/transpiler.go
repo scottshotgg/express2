@@ -14,7 +14,13 @@ import (
 	"github.com/scottshotgg/express2/tree_flattener"
 )
 
+type WithPriority struct {
+	Priority int
+	Value    string
+}
+
 type Transpiler struct {
+	LibBase      string
 	Name         string
 	Builder      *builder.Builder
 	AST          *builder.Node
@@ -24,7 +30,7 @@ type Transpiler struct {
 	Imports      map[string]string
 	Includes     map[string]string
 	Types        map[string]string
-	Structs      map[string]string
+	Structs      map[string]WithPriority
 	GenerateMain bool
 }
 
@@ -83,15 +89,16 @@ func (t *Transpiler) functionWorker(wg *sync.WaitGroup) {
 	}
 }
 
-func New(ast *builder.Node, b *builder.Builder, name string) *Transpiler {
+func New(ast *builder.Node, b *builder.Builder, name, libBase string) *Transpiler {
 	var t = Transpiler{
+		LibBase:   libBase,
 		Name:      name,
 		AST:       ast,
 		Builder:   b,
 		Functions: map[string]string{},
 		Imports:   map[string]string{},
 		Includes:  map[string]string{},
-		Structs:   map[string]string{},
+		Structs:   map[string]WithPriority{},
 		Types:     map[string]string{},
 	}
 
@@ -232,6 +239,7 @@ func (t *Transpiler) structWorker(wg *sync.WaitGroup) {
 		err     error
 	)
 
+	var i int
 	for node := range structChan {
 		stringP, err = t.TranspileStatement(node)
 		if err != nil {
@@ -239,7 +247,12 @@ func (t *Transpiler) structWorker(wg *sync.WaitGroup) {
 			os.Exit(9)
 		}
 
-		t.Structs[node.Left.Value.(string)] = *stringP
+		t.Structs[node.Left.Value.(string)] = WithPriority{
+			Priority: i,
+			Value:    *stringP,
+		}
+
+		i++
 	}
 }
 
@@ -367,13 +380,16 @@ func (t *Transpiler) generateTypes() string {
 		typesString += "// none\n"
 	}
 
-	var structsString = "\n\n// Structs:\n"
+	var structs = make([]string, len(t.Structs))
 	for _, t := range t.Structs {
-		structsString += t + "\n"
+		structs[t.Priority] = t.Value
 	}
 
-	if len(structsString) == len("\n\n// Structs:\n") {
+	var structsString = "\n\n// Structs:\n"
+	if len(structs) == len("\n\n// Structs:\n") {
 		structsString += "// none\n"
+	} else {
+		structsString += strings.Join(structs, "\n")
 	}
 
 	return typesString + structsString
@@ -711,7 +727,7 @@ func (t *Transpiler) TranspileLaunchStatement(n *builder.Node) (*string, error) 
 	// 	Kind: "path",
 	// 	Left: &builder.Node{
 	// 		Type:  "literal",
-	// 		Value: "../lib/libmill/libmill.h",
+	// 		Value: t.LibBase + "libmill/libmill.h",
 	// 	},
 	// }
 	includeChan <- &builder.Node{
@@ -939,7 +955,7 @@ func (t *Transpiler) TranspileFunctionStatement(n *builder.Node) (*string, error
 		Kind: "path",
 		Left: &builder.Node{
 			Type:  "literal",
-			Value: "../lib/defer.cpp",
+			Value: t.LibBase + "defer.cpp",
 		},
 	}
 
@@ -1061,7 +1077,7 @@ func (t *Transpiler) TranspileType(n *builder.Node) (*string, error) {
 			Kind: "path",
 			Left: &builder.Node{
 				Type:  "literal",
-				Value: "../lib/var.cpp",
+				Value: t.LibBase + "var.cpp",
 			},
 		}
 
