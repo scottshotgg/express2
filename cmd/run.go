@@ -71,31 +71,31 @@ to quickly create a Cobra application.`,
 
 		var c = compiler.New(viper.GetString("output"))
 
-		// Might just make this a config file
-		if viper.GetBool("emit-lex") || viper.GetBool("emit-all") {
-			c.Output = append(c.Output, "lex")
-		}
-
-		if viper.GetBool("emit-compress") || viper.GetBool("emit-all") {
-			c.Output = append(c.Output, "compress")
-		}
-
-		if viper.GetBool("emit-ast") || viper.GetBool("emit-all") {
-			c.Output = append(c.Output, "ast")
-		}
-
-		// if viper.GetBool("emit-flatten") || viper.GetBool("emit-all") {
-		// 	c.Output = append(c.Output, "flatten")
+		// // Might just make this a config file
+		// if viper.GetBool("emit-lex") || viper.GetBool("emit-all") {
+		// 	c.Output = append(c.Output, "lex")
 		// }
 
-		// if viper.GetBool("emit-sem") || viper.GetBool("emit-all") {
-		// 	c.Output = append(c.Output, "sem")
+		// if viper.GetBool("emit-compress") || viper.GetBool("emit-all") {
+		// 	c.Output = append(c.Output, "compress")
 		// }
 
-		if viper.GetBool("emit-cpp") || viper.GetBool("emit-all") {
-			// Need to be able to set the path here; should change it back to a map
-			c.Output = append(c.Output, "cpp")
-		}
+		// if viper.GetBool("emit-ast") || viper.GetBool("emit-all") {
+		// 	c.Output = append(c.Output, "ast")
+		// }
+
+		// // if viper.GetBool("emit-flatten") || viper.GetBool("emit-all") {
+		// // 	c.Output = append(c.Output, "flatten")
+		// // }
+
+		// // if viper.GetBool("emit-sem") || viper.GetBool("emit-all") {
+		// // 	c.Output = append(c.Output, "sem")
+		// // }
+
+		// if viper.GetBool("emit-cpp") || viper.GetBool("emit-all") {
+		// 	// Need to be able to set the path here; should change it back to a map
+		// 	c.Output = append(c.Output, "cpp")
+		// }
 
 		err = c.RunFile(filenameArg)
 		if err != nil {
