@@ -23,13 +23,20 @@ const (
 )
 
 type Compiler struct {
+	Raw     string
 	LibBase string
 	// Libmill       string
 	PipelineTimes map[string]string
 	Flags         []string
 	path          string
-	Output        []string
+	Outputs       map[string]string
 	OutputData    map[string][]byte
+}
+
+func (c *Compiler) SetOutput(o map[string]string) {
+	if o != nil {
+		c.Outputs = o
+	}
 }
 
 // New creates a compiler with default flags, base lib and others
@@ -37,6 +44,7 @@ func New(output string) *Compiler {
 	return &Compiler{
 		path:       output,
 		OutputData: map[string][]byte{},
+		Outputs:    map[string]string{},
 		// LibBase: os.Getenv("EXPRPATH")
 		LibBase:       "/home/scottshotgg/Development/go/src/github.com/scottshotgg/express2/lib/",
 		PipelineTimes: map[string]string{},
@@ -212,14 +220,15 @@ func (c *Compiler) ProduceOutput(raw string) error {
 		ok   bool
 	)
 
-	for _, f := range c.Output {
-		data, ok = c.OutputData[f]
+	for t, f := range c.Outputs {
+		data, ok = c.OutputData[t]
 		if !ok {
 			// TODO: handle this later
 			continue
 		}
 
-		err = ioutil.WriteFile(c.path+raw+"."+f+".json", data, 0666)
+		fmt.Println("writing file", f)
+		err = ioutil.WriteFile(f, data, 0666)
 		if err != nil {
 			return err
 		}
@@ -318,7 +327,7 @@ func (c *Compiler) compileFile(filename string) error {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		result, err := c.writeAndFormat(cpp, rawFilename+".cpp")
+		var result, err = c.writeAndFormat(cpp, rawFilename+".cpp")
 		if err != nil {
 			fmt.Printf("There was an error writing C++ file; this does NOT inherently effect binary generation: %s : %+v\n", result, err)
 		}

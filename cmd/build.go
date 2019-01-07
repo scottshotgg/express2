@@ -17,15 +17,17 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/scottshotgg/express2/compiler"
+
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
 var (
-	run            bool
 	outputFileName string
 )
 
@@ -54,6 +56,7 @@ to quickly create a Cobra application.`,
 
 		// TODO: need to check it for all the available characters
 		var filenameArg = args[len(args)-1]
+		fmt.Println("args", args)
 		// filenameFull, err := filepath.Abs()
 		stat, err := os.Stat(filenameArg)
 		if err != nil {
@@ -65,6 +68,11 @@ to quickly create a Cobra application.`,
 			fmt.Println("Directory level compilation is not currently supported.")
 			os.Exit(0)
 		}
+
+		// if filepath.Ext(stat.Name()) != ".expr" {
+		// 	fmt.Println("Directory level compilation is not currently supported.")
+		// 	os.Exit(0)
+		// }
 
 		// This is where we get the transpiler name from... so it needs to be passed through?
 		// var filename = stat.Name()
@@ -85,42 +93,79 @@ to quickly create a Cobra application.`,
 
 		// If they set it to a directory or there are one or more options
 		// enabled then make a directory
-		var path = viper.GetString("output")
-		// stat, err = os.Stat(path)
-		// if err != nil {
-		// 	fmt.Println("ERROR:", err)
-		// 	return
-		// }
+		var output = viper.GetString("output")
 
-		var c = compiler.New(path)
+		abs, err := filepath.Abs(output)
+		if err != nil {
+			fmt.Println("err", err)
+			os.Exit(9)
+		}
+
+		if output != "" {
+			stat, err = os.Stat(abs)
+			if err != nil {
+				fmt.Println("ERROR:", err)
+				return
+			}
+
+			// If its a directory then just return
+			if stat.IsDir() {
+				fmt.Println("ERROR: Specified path is directory; must be file name")
+				os.Exit(9)
+			}
+		} else {
+			abs, err = filepath.Abs(stat.Name())
+			if err != nil {
+				fmt.Println("err", err)
+				os.Exit(9)
+			}
+		}
+
+		// Trim off the extension to get the raw filename
+		var (
+			rawPath = strings.TrimSuffix(abs, filepath.Ext(abs))
+			c       = compiler.New(rawPath)
+			outputs = map[string]string{}
+		)
+
+		fmt.Println("Using: rawPath", rawPath)
+
+		// If they specified a filepath then use that
+		// Else just output to the current directory
 
 		// Might just make this a config file
 		if viper.GetBool("emit-lex") || viper.GetBool("emit-all") {
-			c.Output = append(c.Output, "lex")
+			outputs["lex"] = rawPath + ".lex.json"
 		}
 		if viper.GetBool("emit-compress") || viper.GetBool("emit-all") {
-			c.Output = append(c.Output, "compress")
+			outputs["compress"] = rawPath + ".compress.json"
 		}
 
-		if viper.GetBool("emit-syn") || viper.GetBool("emit-all") {
-			c.Output = append(c.Output, "syn")
-		}
+		// if viper.GetBool("emit-syn") || viper.GetBool("emit-all") {
+		// 	c.Output = append(c.Output, "syn")
+		// }
 
 		if viper.GetBool("emit-ast") || viper.GetBool("emit-all") {
-			c.Output = append(c.Output, "ast")
+			outputs["ast"] = rawPath + ".ast.json"
 		}
 
 		if viper.GetBool("emit-flatten") || viper.GetBool("emit-all") {
-			c.Output = append(c.Output, "flatten")
+			outputs["flatten"] = rawPath + ".flatten.json"
 		}
 
-		if viper.GetBool("emit-sem") || viper.GetBool("emit-all") {
-			c.Output = append(c.Output, "sem")
-		}
+		// if viper.GetBool("emit-sem") || viper.GetBool("emit-all") {
+		// 	c.Output = append(c.Output, "sem")
+		// 	outputs["lex"] = abs + ".semantic.json"
+		// }
 
 		if viper.GetBool("emit-cpp") || viper.GetBool("emit-all") {
-			c.Output = append(c.Output, "cpp")
+			outputs["cpp"] = rawPath + ".cpp"
 		}
+
+		fmt.Println("outputs", outputs)
+		// os.Exit(9)
+
+		c.SetOutput(outputs)
 
 		err = c.CompileFile(filenameArg)
 		if err != nil {
