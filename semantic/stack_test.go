@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/scottshotgg/express2/typecheck"
+	"github.com/scottshotgg/express2/semantic"
 )
 
 var (

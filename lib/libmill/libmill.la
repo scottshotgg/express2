@@ -5,19 +5,19 @@
 # It is necessary for linking the library.
 
 # The name that we can dlopen(3).
-dlname='libmill.18.dylib'
+dlname='libmill.so.18'
 
 # Names of this library.
-library_names='libmill.18.dylib libmill.dylib'
+library_names='libmill.so.18.1.1 libmill.so.18 libmill.so'
 
 # The name of the static archive.
 old_library='libmill.a'
 
 # Linker flags that cannot go in dependency_libs.
-inherited_linker_flags=' '
+inherited_linker_flags=''
 
 # Libraries that this one depends upon.
-dependency_libs=''
+dependency_libs=' -lrt'
 
 # Names of additional weak libraries provided by this library
 weak_library_names=''

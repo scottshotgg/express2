@@ -9,9 +9,10 @@
 #define VERSION "1.18"
 #define HAVE_POSIX_MEMALIGN 1
 #define HAVE_MPROTECT 1
+#define HAVE_LIBRT 1
 #define HAVE_CLOCK_GETTIME 1
-#define MILL_NO_EPOLL 1
-#define HAVE_KQUEUE 1
+#define HAVE_EPOLL_CREATE 1
+#define MILL_NO_KQUEUE 1
 #define STDC_HEADERS 1
 #define HAVE_SYS_TYPES_H 1
 #define HAVE_SYS_STAT_H 1

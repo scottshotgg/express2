@@ -136,6 +136,7 @@ func buildStructureFromTypeValue(t *TypeValue) (*Node, error) {
 	return nil, nil
 }
 
+// FIXME: rewrite me ffs
 func (b *Builder) ParseType() (*Node, error) {
 	// Check ourselves ...
 	if b.Tokens[b.Index].Type != token.Type {

@@ -457,3 +457,17 @@ func TestTranspileIncludeStatement(t *testing.T) {
 
 	fmt.Println("C++:", *cpp)
 }
+
+func TestTranspileIfStatement(t *testing.T) {
+	var tr, err = getStatementTranspilerFromString(test.Tests[test.StatementTest]["ifElse"])
+	if err != nil {
+		t.Fatalf("Could not create AST: %+v", err)
+	}
+
+	cpp, err := tr.TranspileIfStatement(tr.AST)
+	if err != nil {
+		t.Errorf("err: %+v", err)
+	}
+
+	fmt.Println("C++:", *cpp)
+}
