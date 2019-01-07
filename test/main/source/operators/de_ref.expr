@@ -1,0 +1,5 @@
+func main() {
+  int a = 8008135
+  int* b = &a
+  int c = *b
+}

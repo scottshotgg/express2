@@ -1,0 +1,8 @@
+func something() {
+  
+}
+
+func main() {
+  // TODO: show off function stuff here, everything you can do with them
+  //  put lambda here
+}

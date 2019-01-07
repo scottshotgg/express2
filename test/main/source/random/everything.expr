@@ -1,0 +1,75 @@
+type myInt = int
+
+struct AnotherOne = {
+  bool abc = true
+}
+
+struct myStruct = {
+  int i = 10
+  string something = "something"
+  AnotherOne ayy
+}
+
+func something() {
+  myStruct s = {
+    i = 100 * 7 / 3
+    something = "else"
+    ayy = {
+      abc = true
+    }
+  }
+
+  int i = 10
+
+  // Functions do not have to be pre-defined
+  another(i, "s")
+}
+
+/*
+  The main function does not require a return type;
+  It can only accept `int` as the return type and
+  will automatically be injected if not supplied
+*/
+func main() {
+  launch something()
+
+  defer something()
+
+  enum {
+    some
+    one = some + 2
+    here
+  }
+
+  string thing = "thing"
+  string nothing = "nothing"
+
+//  map m = {
+//    thing : "thing"
+//    "not_a_thing" : nothing
+//  }
+
+  int a = 0
+  int* b = &a
+  int c = *b
+
+  int i = 800008
+
+  for j in [1,2,3] {
+    i = j
+  }
+  int k = 10
+
+  for j in [1,2,3] {
+    for j in [4,5,6] {
+      i = j
+    }
+  }
+
+  // Functions do not have to be pre-defined
+  something()
+}
+
+func another(int i, string s) {
+  int j = 6666666
+}

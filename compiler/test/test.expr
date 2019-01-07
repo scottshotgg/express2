@@ -31,9 +31,8 @@ func something() {
   will automatically be injected if not supplied
 */
 func main() {
-  launch something()
-
-  defer something()
+  // Cannot set member variables yet
+  object o = {}
 
   enum {
     some
@@ -41,13 +40,26 @@ func main() {
     here
   }
 
+  if 69 > one + 20 {
+    int x = 7
+  } else if some {
+    var y = "1000000" + true
+  } else {
+    launch something()
+  }
+
+
+  launch something()
+
+  defer something()
+
   string thing = "thing"
   string nothing = "nothing"
 
-//  map m = {
-//    thing : "thing"
-//    "not_a_thing" : nothing
-//  }
+  map m = {
+    thing : "thing"
+    "not_a_thing" : nothing
+  }
 
   int a = 0
   int* b = &a

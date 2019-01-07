@@ -2,8 +2,10 @@
 // none
 
 // Imports:
-#include "/Users/scottshotgg/Development/go/src/github.com/scottshotgg/express2/lib/defer.cpp"
+#include "/home/scottshotgg/Development/go/src/github.com/scottshotgg/lib/defer.cpp"
+#include "/home/scottshotgg/Development/go/src/github.com/scottshotgg/lib/var.cpp"
 #include <array>
+#include <map>
 #include <string>
 
 #include <libmill.h>
@@ -49,15 +51,27 @@ void another(int i, std::string s) {
 // generated: false
 int main() {
   defer onReturn, onExit;
-  go([=](...) { something(); }());
-  onReturn.deferStack.push([=](...) { something(); });
+  object o = {};
   enum {
     some,
     one = some + 2,
     here,
   };
+  if (69 > one + 20) {
+    int x = 7;
+  } else if (some) {
+    var y = "1000000" + true;
+  } else {
+    go([=](...) { something(); }());
+  }
+  go([=](...) { something(); }());
+  onReturn.deferStack.push([=](...) { something(); });
   std::string thing = "thing";
   std::string nothing = "nothing";
+  std::map<var, var> m = {
+      {thing, "thing"},
+      {"not_a_thing", nothing},
+  };
   int a = 0;
   int *b = &a;
   int c = *b;

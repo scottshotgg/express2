@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"os/exec"
 	"strings"
 	"sync"
@@ -23,17 +22,40 @@ const (
 	stdCppVersion = "-std=c++2a"
 )
 
-var (
-	libmill string
+type Compiler struct {
+	Raw     string
+	LibBase string
+	// Libmill       string
+	PipelineTimes map[string]string
+	Flags         []string
+	path          string
+	Outputs       map[string]string
+	OutputData    map[string][]byte
+}
 
-	pipelineTimes = map[string]string{}
-	compilerFlags = []string{
-		stdCppVersion,
-		"-Ofast",
-		// "-x",
-		// "c++",
+func (c *Compiler) SetOutput(o map[string]string) {
+	if o != nil {
+		c.Outputs = o
 	}
-)
+}
+
+// New creates a compiler with default flags, base lib and others
+func New(output string) *Compiler {
+	return &Compiler{
+		path:       output,
+		OutputData: map[string][]byte{},
+		Outputs:    map[string]string{},
+		// LibBase: os.Getenv("EXPRPATH")
+		LibBase:       "/home/scottshotgg/Development/go/src/github.com/scottshotgg/express2/lib/",
+		PipelineTimes: map[string]string{},
+		Flags: []string{
+			stdCppVersion,
+			"-Ofast",
+			// "-x",
+			// "c++",
+		},
+	}
+}
 
 func getTokensFromString(s string) ([]token.Token, error) {
 	// Lex and tokenize the source code
@@ -86,16 +108,16 @@ func getTranspilerFromString(test, name string) (*transpiler.Transpiler, error) 
 
 	fmt.Println("AST:", string(astJSON))
 
-	return transpiler.New(ast, b, name), nil
+	return transpiler.New(ast, b, name, "idk"), nil
 }
 
-func timeTrack(start time.Time, name string) {
+func (c *Compiler) timeTrack(start time.Time, name string) {
 	// fmt.Printf("Function %s took %s\n", name, time.Since(start))
-	pipelineTimes[name] = time.Since(start).String()
+	c.PipelineTimes[name] = time.Since(start).String()
 }
 
-func writeAndFormat(source, output string) (string, error) {
-	fmt.Println("\nWriting transpilied C++ code to " + output + ".cpp ...")
+func (c *Compiler) writeAndFormat(source, output string) (string, error) {
+	fmt.Println("\nWriting transpilied C++ code to " + output + " ...")
 
 	var (
 		start = time.Now()
@@ -106,7 +128,7 @@ func writeAndFormat(source, output string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	timeTrack(start, "write")
+	c.timeTrack(start, "write")
 
 	fmt.Println("\nFormatting C++ code ...")
 
@@ -119,23 +141,24 @@ func writeAndFormat(source, output string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	timeTrack(start, "format")
+	c.timeTrack(start, "format")
 
 	return string(outputB), nil
 }
 
-func generateBinary(source, outputName string) error {
+func (c *Compiler) generateBinary(source, outputName string) error {
 	// Track the time
-	defer timeTrack(time.Now(), "clang")
+	defer c.timeTrack(time.Now(), "clang")
 
 	fmt.Println("\nUsing Clang generate create binary ...")
 
+	// TODO: its fine to use the local lib, we should do that, but we need to make an install script that will compile it
 	// Compile the file with Clang to produce a binary
-	compilerFlags = append(compilerFlags, outputName+".cpp", "-o", outputName, libmill)
+	c.Flags = append(c.Flags, outputName+".cpp", "-o", outputName, c.LibBase+"libmill/.libs/libmill.a")
 
-	fmt.Printf("Using command: `clang++ %s`\n", strings.Join(compilerFlags, " "))
+	fmt.Printf("Using command: `clang++ %s`\n", strings.Join(c.Flags, " "))
 	// os.Exit(9)
-	var clangCmd = exec.Command("clang++", compilerFlags...)
+	var clangCmd = exec.Command("clang++", c.Flags...)
 	// os.Exit(9)
 
 	// // Grab the stdin of the command
@@ -175,7 +198,69 @@ func copyToPipe(in io.WriteCloser, out io.Reader) (int64, error) {
 	return io.Copy(in, out)
 }
 
-func Compile(filename string) error {
+func (c *Compiler) setOutput(name string, output interface{}) error {
+	// For now just disregard the error, also this may bite us in the ass in
+	// the future. Might have to make some sort of encoding streamer to
+	// save on memory usage vs storing everything
+	var outputJSON, err = json.Marshal(output)
+	if err != nil {
+		return err
+	}
+
+	c.OutputData[name] = outputJSON
+
+	return nil
+}
+
+func (c *Compiler) ProduceOutput(raw string) error {
+	// C++ will not be in this
+	var (
+		err  error
+		data []byte
+		ok   bool
+	)
+
+	for t, f := range c.Outputs {
+		data, ok = c.OutputData[t]
+		if !ok {
+			// TODO: handle this later
+			continue
+		}
+
+		fmt.Println("writing file", f)
+		err = ioutil.WriteFile(f, data, 0666)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (c *Compiler) CompileFile(filename string) error {
+	var (
+		globalStart = time.Now()
+		err         = c.compileFile(filename)
+	)
+
+	c.PipelineTimes["compile"] = time.Since(globalStart).String()
+
+	if err != nil {
+		return err
+	}
+
+	var times, _ = json.MarshalIndent(c.PipelineTimes, "", "  ")
+	fmt.Println("\nPipeline timings:", string(times))
+
+	var (
+		rawPath      = strings.Trim(filename, ".expr")
+		rawPathSplit = strings.Split(rawPath, "/")
+	)
+
+	return c.ProduceOutput(rawPathSplit[len(rawPathSplit)-1])
+}
+
+func (c *Compiler) compileFile(filename string) error {
 	if !strings.HasSuffix(filename, ".expr") {
 		return errors.Errorf("File does not have `.expr` suffix: %s", filename)
 	}
@@ -183,76 +268,86 @@ func Compile(filename string) error {
 	fmt.Println("\nReading input file ...")
 
 	var (
-		globalStart    = time.Now()
-		start          = time.Now()
-		testBytes, err = ioutil.ReadFile(filename)
+		start       = time.Now()
+		source, err = ioutil.ReadFile(filename)
+		rawFilename = strings.TrimSuffix(filename, ".expr")
+		wg          sync.WaitGroup
 	)
 
 	if err != nil {
 		return err
 	}
 
-	pipelineTimes["read"] = time.Since(start).String()
+	c.PipelineTimes["read"] = time.Since(start).String()
+
+	fmt.Println("\nTokenizing source ...")
+
+	// Lex and tokenize the source code
+	tokens, err := lex.New(string(source)).Lex()
+	if err != nil {
+		return err
+	}
+	c.setOutput("lex", tokens)
+
+	fmt.Println("\nCompressing tokens ...")
+
+	// Compress certain tokens;
+	// i.e: `:` and `=` compress into `:=`
+	tokens, err = ast.CompressTokens(tokens)
+	if err != nil {
+		return err
+	}
+	c.setOutput("compress", tokens)
 
 	fmt.Println("\nBuilding AST ...")
 
 	// Build the AST
 	start = time.Now()
-	tr, err := getTranspilerFromString(string(testBytes), "main")
+	var b = builder.New(tokens)
+	ast, err := b.BuildAST()
+	c.PipelineTimes["build"] = time.Since(start).String()
 	if err != nil {
 		return err
 	}
+	c.setOutput("ast", ast)
 
-	pipelineTimes["build"] = time.Since(start).String()
+	// Change "main" to something else later
 
 	fmt.Println("\nTranspiling to C++ ...")
-
 	start = time.Now()
+	var tr = transpiler.New(ast, b, "main", c.LibBase)
 	cpp, err := tr.Transpile()
+	c.PipelineTimes["transpile"] = time.Since(start).String()
 	if err != nil {
 		return err
 	}
-
-	pipelineTimes["transpile"] = time.Since(start).String()
-
-	if len(tr.Includes["libmill.h"]) > 0 {
-		// TODO: fix this later
-		libmill = "/usr/local/lib/libmill.a"
-	}
-
-	var wg sync.WaitGroup
-
-	var rawFilename = strings.TrimSuffix(filename, ".expr")
+	// TODO: fix this ... :*(
+	// c.OutputData["cpp"] = []byte(cpp)
 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		result, err := writeAndFormat(cpp, rawFilename+".cpp")
+		var result, err = c.writeAndFormat(cpp, rawFilename+".cpp")
 		if err != nil {
 			fmt.Printf("There was an error writing C++ file; this does NOT inherently effect binary generation: %s : %+v\n", result, err)
 		}
 	}()
 
-	err = generateBinary(cpp, rawFilename)
+	err = c.generateBinary(cpp, rawFilename)
 	if err != nil {
 		return err
 	}
 
-	fmt.Println("\nFinished!")
-
 	// Wait for the write/formatter to finish
 	wg.Wait()
 
-	pipelineTimes["compile"] = time.Since(globalStart).String()
-
-	var times, _ = json.MarshalIndent(pipelineTimes, "", "  ")
-	log.Println("\nPipeline timings:", string(times))
+	fmt.Println("\nFinished!")
 
 	return nil
 }
 
-func Run(filename string) error {
-	var err = Compile(filename)
+func (c *Compiler) RunFile(filename string) error {
+	var err = c.CompileFile(filename)
 	if err != nil {
 		return err
 	}

@@ -25,6 +25,7 @@
 - rewrite ParseArrayType to fix multi dimensional arrays and support the direct array types - **high priority**
   - generate types using std::array, will be much easier to generate since the type is completely separate
   - https://www.quora.com/Can-std-array-type-size-be-used-for-a-multidimensional-array-like-myarray-L-M-N-in-c++11
+- fix no-main ability for "scripting"
 
 ---- semantic ----
 
@@ -54,23 +55,30 @@
 ---- infrastructure ----
 
 - make a test folder and put individual tests
+-
 - rig up test suite for lex/parse/semantic/flatten/transpile like we had in Express 1
 - make an install script
 - make a build-and-test-all script
 - build a docker image to do the testing automatically
-- write documentation
+- write documentation; include the type lineage map
 - fill out tests
 - hook up a build pipeline (CI) to test everything on push
 - use circleCI and deploy to there?
 - make the cmd folder and implement the commands
 - purge current logging
-- add more logging
+- add more logging, make a logging channel that takes a flag and stuff
 - reorganize code
-- organize project folder
+- organize project folder; move everything into the `stages` folder
 - organize the builder folder; try splitting out some stuff
 - experiment with custom clang/LLVM compilation
 - research custom pass in LLVM
 - research generating LLVM code directly
+
+---- other/research ----
+
+- think about generics/templates
+  - computed at compile-time like c++
+- what can we use a `temp` type for
 
 ---- finished ----
 
@@ -78,3 +86,4 @@
 - access operator
 - selection operator
 - de/ref operator
+- implement if-else statement in transpiler
