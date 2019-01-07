@@ -57,9 +57,14 @@ func main() {
   string nothing = "nothing"
 
   map m = {
-    thing : "thing"
+    thing : 6
     "not_a_thing" : nothing
+    6 : true
+    false : "thing"
   }
+
+  // Compiler cannot squash types right now so maps have unravel into vars
+  var m_thing = m[thing]
 
   int a = 0
   int* b = &a
