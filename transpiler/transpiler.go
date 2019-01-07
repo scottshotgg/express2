@@ -97,7 +97,11 @@ func New(ast *builder.Node, b *builder.Builder, name string) *Transpiler {
 
 	// go appendWorker(&wg)
 
-	t.ASTCloneJSON, _ = json.Marshal(ast)
+	var err error
+	t.ASTCloneJSON, err = json.Marshal(ast)
+	if err != nil {
+		log.Printf("Error: %+v\n", err)
+	}
 
 	return &t
 }
@@ -122,7 +126,7 @@ func (t *Transpiler) Transpile() (string, error) {
 	)
 
 	// Spin off workers for each type of statement
-
+	// TODO: fix this shit, make better async stuff mayne
 	wg1.Add(1)
 	go t.functionWorker(&wg1)
 
