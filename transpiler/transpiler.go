@@ -14,7 +14,13 @@ import (
 	"github.com/scottshotgg/express2/tree_flattener"
 )
 
+type WithPriority struct {
+	Priority int
+	Value    string
+}
+
 type Transpiler struct {
+	LibBase      string
 	Name         string
 	Builder      *builder.Builder
 	AST          *builder.Node
@@ -24,7 +30,7 @@ type Transpiler struct {
 	Imports      map[string]string
 	Includes     map[string]string
 	Types        map[string]string
-	Structs      map[string]string
+	Structs      map[string]WithPriority
 	GenerateMain bool
 }
 
@@ -83,25 +89,22 @@ func (t *Transpiler) functionWorker(wg *sync.WaitGroup) {
 	}
 }
 
-func New(ast *builder.Node, b *builder.Builder, name string) *Transpiler {
+func New(ast *builder.Node, b *builder.Builder, name, libBase string) *Transpiler {
 	var t = Transpiler{
+		LibBase:   libBase,
 		Name:      name,
 		AST:       ast,
 		Builder:   b,
 		Functions: map[string]string{},
 		Imports:   map[string]string{},
 		Includes:  map[string]string{},
-		Structs:   map[string]string{},
+		Structs:   map[string]WithPriority{},
 		Types:     map[string]string{},
 	}
 
 	// go appendWorker(&wg)
 
-	var err error
-	t.ASTCloneJSON, err = json.Marshal(ast)
-	if err != nil {
-		log.Printf("Error: %+v\n", err)
-	}
+	t.ASTCloneJSON, _ = json.Marshal(ast)
 
 	return &t
 }
@@ -126,7 +129,7 @@ func (t *Transpiler) Transpile() (string, error) {
 	)
 
 	// Spin off workers for each type of statement
-	// TODO: fix this shit, make better async stuff mayne
+
 	wg1.Add(1)
 	go t.functionWorker(&wg1)
 
@@ -236,6 +239,7 @@ func (t *Transpiler) structWorker(wg *sync.WaitGroup) {
 		err     error
 	)
 
+	var i int
 	for node := range structChan {
 		stringP, err = t.TranspileStatement(node)
 		if err != nil {
@@ -243,7 +247,12 @@ func (t *Transpiler) structWorker(wg *sync.WaitGroup) {
 			os.Exit(9)
 		}
 
-		t.Structs[node.Left.Value.(string)] = *stringP
+		t.Structs[node.Left.Value.(string)] = WithPriority{
+			Priority: i,
+			Value:    *stringP,
+		}
+
+		i++
 	}
 }
 
@@ -371,13 +380,16 @@ func (t *Transpiler) generateTypes() string {
 		typesString += "// none\n"
 	}
 
-	var structsString = "\n\n// Structs:\n"
+	var structs = make([]string, len(t.Structs))
 	for _, t := range t.Structs {
-		structsString += t + "\n"
+		structs[t.Priority] = t.Value
 	}
 
-	if len(structsString) == len("\n\n// Structs:\n") {
+	var structsString = "\n\n// Structs:\n"
+	if len(structs) == len("\n\n// Structs:\n") {
 		structsString += "// none\n"
+	} else {
+		structsString += strings.Join(structs, "\n")
 	}
 
 	return typesString + structsString
@@ -715,7 +727,7 @@ func (t *Transpiler) TranspileLaunchStatement(n *builder.Node) (*string, error) 
 	// 	Kind: "path",
 	// 	Left: &builder.Node{
 	// 		Type:  "literal",
-	// 		Value: "../lib/libmill/libmill.h",
+	// 		Value: t.LibBase + "libmill/libmill.h",
 	// 	},
 	// }
 	includeChan <- &builder.Node{
@@ -815,6 +827,9 @@ func (t *Transpiler) TranspileDeferStatement(n *builder.Node) (*string, error) {
 
 func (t *Transpiler) TranspileStatement(n *builder.Node) (*string, error) {
 	switch n.Type {
+
+	case "if":
+		return t.TranspileIfStatement(n)
 
 	case "launch":
 		return t.TranspileLaunchStatement(n)
@@ -940,7 +955,7 @@ func (t *Transpiler) TranspileFunctionStatement(n *builder.Node) (*string, error
 		Kind: "path",
 		Left: &builder.Node{
 			Type:  "literal",
-			Value: "../lib/defer.cpp",
+			Value: t.LibBase + "defer.cpp",
 		},
 	}
 
@@ -1062,7 +1077,7 @@ func (t *Transpiler) TranspileType(n *builder.Node) (*string, error) {
 			Kind: "path",
 			Left: &builder.Node{
 				Type:  "literal",
-				Value: "../lib/var.cpp",
+				Value: t.LibBase + "var.cpp",
 			},
 		}
 
@@ -1708,7 +1723,7 @@ func (t *Transpiler) TranspileWhileStatement(n *builder.Node) (*string, error) {
 	*/
 
 	if n.Type != "while" {
-		return nil, errors.New("Node is not a forof")
+		return nil, errors.New("Node is not a while")
 	}
 
 	var (
@@ -1731,6 +1746,70 @@ func (t *Transpiler) TranspileWhileStatement(n *builder.Node) (*string, error) {
 	}
 
 	nString += *block + "}"
+
+	return &nString, nil
+}
+
+func (t *Transpiler) TranspileIfStatement(n *builder.Node) (*string, error) {
+	/*
+		Form:
+		`if` [expr] [block] {`else` {epxr} [block]}
+
+		Value is the condition
+		Left is the block
+		Right is the else statement
+	*/
+
+	if n.Type != "if" {
+		return nil, errors.Errorf("Node is not an if: %+v", n)
+	}
+
+	var (
+		nString = "if ("
+		vString *string
+		err     error
+	)
+
+	vString, err = t.TranspileExpression(n.Value.(*builder.Node))
+	if err != nil {
+		return nil, err
+	}
+
+	// Add the condition and the parenthesis
+	nString += *vString + ")"
+
+	vString, err = t.TranspileBlockStatement(n.Left)
+	if err != nil {
+		return nil, err
+	}
+
+	// Add the block; this should already come with the curly braces
+	nString += *vString
+
+	// If the Right child is non-nil then we have an else block in the form of an if statement
+	if n.Right != nil {
+		// Check whether it is an elseif of just an else
+		switch n.Right.Type {
+		case "if":
+			vString, err = t.TranspileIfStatement(n.Right)
+			if err != nil {
+				return nil, err
+			}
+
+		case "block":
+			vString, err = t.TranspileBlockStatement(n.Right)
+			if err != nil {
+				return nil, err
+			}
+
+		default:
+			return nil, errors.Errorf("Node is not an if or block: %+v", n.Right)
+		}
+
+		// Add the else block and nest the if statement inside of it
+		// TODO: research what implication this has in LLVM
+		nString += "else " + *vString
+	}
 
 	return &nString, nil
 }
