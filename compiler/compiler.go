@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"os"
 	"os/exec"
 	"strings"
 	"sync"
@@ -45,8 +46,8 @@ func New(output string) *Compiler {
 		path:       output,
 		OutputData: map[string][]byte{},
 		Outputs:    map[string]string{},
-		// LibBase: os.Getenv("EXPRPATH")
-		LibBase:       "/home/scottshotgg/Development/go/src/github.com/scottshotgg/express2/lib/",
+		LibBase:    os.Getenv("EXPRPATH") + "/lib/",
+		// LibBase:       "/home/scottshotgg/Development/go/src/github.com/scottshotgg/express2/lib/",
 		PipelineTimes: map[string]string{},
 		Flags: []string{
 			stdCppVersion,
