@@ -2,8 +2,8 @@
 // none
 
 // Imports:
-#include "/home/scottshotgg/Development/go/src/github.com/scottshotgg/lib/defer.cpp"
-#include "/home/scottshotgg/Development/go/src/github.com/scottshotgg/lib/var.cpp"
+#include "/home/scottshotgg/Development/go/src/github.com/scottshotgg/express2/lib/defer.cpp"
+#include "/home/scottshotgg/Development/go/src/github.com/scottshotgg/express2/lib/var.cpp"
 #include <array>
 #include <map>
 #include <string>
@@ -24,10 +24,15 @@ struct myStruct {
 };
 
 // Prototypes:
-void something();
 void another(int i, std::string s);
+void something();
 
 // Functions:
+void another(int i, std::string s) {
+  defer onReturn, onExit;
+  int j = 6666666;
+}
+
 void something() {
   defer onReturn, onExit;
   myStruct s = {
@@ -40,11 +45,6 @@ void something() {
   };
   int i = 10;
   another(i, "s");
-}
-
-void another(int i, std::string s) {
-  defer onReturn, onExit;
-  int j = 6666666;
 }
 
 // Main:
@@ -69,9 +69,12 @@ int main() {
   std::string thing = "thing";
   std::string nothing = "nothing";
   std::map<var, var> m = {
-      {thing, "thing"},
+      {thing, 6},
       {"not_a_thing", nothing},
+      {6, true},
+      {false, "thing"},
   };
+  var m_thing = m[thing];
   int a = 0;
   int *b = &a;
   int c = *b;
