@@ -1,4 +1,5 @@
 #!/bin/bash
 
 # Copy the binary to the /usr/local/bin
-cp ../dist/
+# Compile libmill
+# Copy the libs to /usr/local/lib
