@@ -17,6 +17,7 @@ The next type to learn in the Express type hierarchy are the _Composite types_. 
 3) `object`
 4) `tuple`
 5) `function`
+6) `macro`
 
 <br>
 
