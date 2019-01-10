@@ -124,9 +124,14 @@ to quickly create a Cobra application.`,
 		// Trim off the extension to get the raw filename
 		var (
 			rawPath = strings.TrimSuffix(abs, filepath.Ext(abs))
-			c       = compiler.New(rawPath)
 			outputs = map[string]string{}
 		)
+
+		c, err := compiler.New(rawPath)
+		if err != nil {
+			fmt.Printf("Error: %v\n", err)
+			return
+		}
 
 		fmt.Println("Using: rawPath", rawPath)
 
