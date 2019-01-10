@@ -11,12 +11,14 @@ mkdir -p build/backups
 date=$(date +%d.%m.%y-%H:%M)
 
 echo "      Beginning build process"
-echo "------------------------------------\n"
-echo "Archiving old dist folder into backups/dist_$date ...\n"
+echo "------------------------------------"
+echo ""
+echo "Archiving old dist folder into backups/dist_$date ..."
+echo ""
 
 # Archive the dist folder to preserve all of the current binaries
 tar -zcvf "build/backups/dist_$date.tar.gz" "build/dist"
-echo "\n"
+echo ""
 
 # Build x86
 arch=386
@@ -28,7 +30,7 @@ echo "Building OSX ..."
 GOOS=darwin GOARCH=$arch go build -o "build/dist/osx/$arch/ecc"
 echo "Building Windows ..."
 GOOS=windows GOARCH=$arch go build -o "build/dist/windows/$arch/ecc.exe"
-echo "\n"
+echo ""
 
 # Build AMD64
 arch=amd64
