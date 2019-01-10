@@ -69,7 +69,11 @@ to quickly create a Cobra application.`,
 			os.Exit(0)
 		}
 
-		var c = compiler.New(viper.GetString("output"))
+		c, err := compiler.New(viper.GetString("output"))
+		if err != nil {
+			fmt.Printf("Error: %v\n", err)
+			return
+		}
 
 		// // Might just make this a config file
 		// if viper.GetBool("emit-lex") || viper.GetBool("emit-all") {

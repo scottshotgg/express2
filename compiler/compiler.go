@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -41,12 +42,23 @@ func (c *Compiler) SetOutput(o map[string]string) {
 }
 
 // New creates a compiler with default flags, base lib and others
-func New(output string) *Compiler {
+func New(output string) (*Compiler, error) {
+	var libpath = os.Getenv("EXPRPATH")
+
+	if libpath == "" {
+		return nil, errors.New("`EXPRPATH` is not set; set this to the root of your Express installation")
+	}
+
+	var _, err = filepath.Abs(libpath)
+	if err != nil {
+		return nil, err
+	}
+
 	return &Compiler{
 		path:       output,
 		OutputData: map[string][]byte{},
 		Outputs:    map[string]string{},
-		LibBase:    os.Getenv("EXPRPATH") + "/lib/",
+		LibBase:    libpath + "/lib/",
 		// LibBase:       "/home/scottshotgg/Development/go/src/github.com/scottshotgg/express2/lib/",
 		PipelineTimes: map[string]string{},
 		Flags: []string{
@@ -55,7 +67,7 @@ func New(output string) *Compiler {
 			// "-x",
 			// "c++",
 		},
-	}
+	}, nil
 }
 
 func getTokensFromString(s string) ([]token.Token, error) {
