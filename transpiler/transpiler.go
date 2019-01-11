@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/scottshotgg/express2/builder"
@@ -29,6 +30,7 @@ type Transpiler struct {
 	Functions    map[string]string
 	Imports      map[string]string
 	Includes     map[string]string
+	Packages     map[string]string
 	Types        map[string]string
 	Structs      map[string]WithPriority
 	GenerateMain bool
@@ -41,6 +43,7 @@ var (
 	typeChan    = make(chan *builder.Node, 100)
 	structChan  = make(chan *builder.Node, 100)
 	includeChan = make(chan *builder.Node, 100)
+	packageChan = make(chan *builder.Node, 100)
 	importChan  = make(chan *builder.Node, 100)
 	appendChan  = make(chan string, 5)
 )
@@ -97,6 +100,7 @@ func New(ast *builder.Node, b *builder.Builder, name, libBase string) *Transpile
 		Builder:   b,
 		Functions: map[string]string{},
 		Imports:   map[string]string{},
+		Packages:  map[string]string{},
 		Includes:  map[string]string{},
 		Structs:   map[string]WithPriority{},
 		Types:     map[string]string{},
@@ -139,6 +143,9 @@ func (t *Transpiler) Transpile() (string, error) {
 	wg1.Add(1)
 	go t.structWorker(&wg1)
 
+	wg1.Add(1)
+	go t.packageWorker(&wg1)
+
 	wg.Add(1)
 	go t.includeWorker(&wg)
 
@@ -161,36 +168,52 @@ func (t *Transpiler) Transpile() (string, error) {
 
 		// TODO: need to put the function into the function chan here?
 
-		switch nodes[i].Type {
-		case "function":
-			funcChan <- nodes[i]
+		// switch nodes[i].Type {
+		// case "function":
+		// 	funcChan <- nodes[i]
 
-		case "struct":
-			structChan <- nodes[i]
+		// case "struct":
+		// 	structChan <- nodes[i]
 
-		case "typedef":
-			typeChan <- nodes[i]
+		// case "typedef":
+		// 	typeChan <- nodes[i]
 
-		case "import":
-			includeChan <- nodes[i]
+		// case "import":
+		// 	includeChan <- nodes[i]
 
-		case "map":
-			// Just transpile the statement for now
-			stringP, err := t.TranspileStatement(nodes[i])
-			if err != nil {
-				fmt.Printf("err %+v\n", err)
-				os.Exit(9)
-				// return "", err
-			}
+		// case "map":
+		// 	// Just transpile the statement for now
+		// 	stringP, err := t.TranspileStatement(nodes[i])
+		// 	if err != nil {
+		// 		fmt.Printf("err %+v\n", err)
+		// 		os.Exit(9)
+		// 		// return "", err
+		// 	}
 
-			t.Extra = append(t.Extra, *stringP)
+		// 	t.Extra = append(t.Extra, *stringP)
 
-		default:
-			return "", errors.Errorf("Node was not categorized properly: %+v\n", nodes[i])
+		// case "package":
+		// 	packageChan <- nodes[i]
+
+		// default:
+		// 	return "", errors.Errorf("Node was not categorized properly: %+v\n", nodes[i])
+		// }
+
+		// Just transpile the statement for now
+		stringP, err := t.TranspileStatement(nodes[i])
+		if err != nil {
+			fmt.Printf("err %+v\n", err)
+			os.Exit(9)
+			// return "", err
 		}
+
+		t.Extra = append(t.Extra, *stringP)
 	}
 
+	time.Sleep(2 * time.Second)
+
 	// Close the channel and alert the worker that we are done
+	close(packageChan)
 	close(funcChan)
 	close(typeChan)
 	close(structChan)
@@ -205,7 +228,7 @@ func (t *Transpiler) Transpile() (string, error) {
 	wg.Wait()
 
 	if t.Functions["main"] == "" {
-		return "", errors.New("No main function declared")
+		// return "", errors.New("No main function declared")
 	}
 
 	return t.ToCpp(), nil
@@ -251,6 +274,28 @@ func (t *Transpiler) structWorker(wg *sync.WaitGroup) {
 			Priority: i,
 			Value:    *stringP,
 		}
+
+		i++
+	}
+}
+
+func (t *Transpiler) packageWorker(wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	var (
+		stringP *string
+		err     error
+	)
+
+	var i int
+	for node := range packageChan {
+		stringP, err = t.TranspileStatement(node)
+		if err != nil {
+			fmt.Printf("err %+v\n", err)
+			os.Exit(9)
+		}
+
+		t.Packages[node.Left.Value.(string)] = *stringP
 
 		i++
 	}
@@ -318,8 +363,22 @@ func (t *Transpiler) ToCpp() string {
 
 	var output []string
 
+	fmt.Println("OUTPUT", output)
+
 	if len(output) > 0 {
 		output = append(output, "\n")
+	}
+
+	output = append(output, "// Namespace:")
+	if len(t.Packages) > 0 {
+		// output = append(output, strings.Join(t.Includes, "\n")+"\n")
+		var packageString string
+		for _, t := range t.Packages {
+			packageString += t + "\n"
+		}
+		output = append(output, packageString)
+	} else {
+		output = append(output, "// none\n")
 	}
 
 	output = append(output, "// Includes:")
@@ -890,12 +949,12 @@ func (t *Transpiler) TranspileStatement(n *builder.Node) (*string, error) {
 		return stmt, err
 
 	case "function":
-		funcChan <- n
+		// funcChan <- n
 		// Right now just grab the name from the string
 		// Later on we can issue new function names for lambdas
-		var name = n.Kind
-		return &name, nil
-		// function, err = t.TranspileFunctionStatement(n)
+		// var name = n.Kind
+		// return &name, nil
+		return t.TranspileFunctionStatement(n)
 
 	case "return":
 		return t.TranspileReturnStatement(n)
@@ -913,9 +972,45 @@ func (t *Transpiler) TranspileStatement(n *builder.Node) (*string, error) {
 		return t.TranspileForInStatement(n)
 
 	case "forstd":
+		// TODO:
+
+	case "package":
+		return t.TranspilePackageStatement(n)
 	}
 
 	return nil, errors.Errorf("Not implemented statement: %+v", n)
+}
+
+func (t *Transpiler) TranspilePackageStatement(n *builder.Node) (*string, error) {
+	if n.Type != "package" {
+		return nil, errors.New("Node is not a package statement")
+	}
+
+	var (
+		nString      = "namespace "
+		vString, err = t.TranspileExpression(n.Left)
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	nString += " " + *vString
+
+	// Get all of the statements inside the package
+
+	fmt.Println("STMTS LEN", len(n.Right.Value.([]*builder.Node)))
+
+	vString, err = t.TranspileBlockStatement(n.Right)
+	if err != nil {
+		return nil, err
+	}
+
+	nString += *vString
+
+	fmt.Println("NSTRING", nString)
+
+	return &nString, nil
 }
 
 func (t *Transpiler) TranspileReturnStatement(n *builder.Node) (*string, error) {
@@ -1358,9 +1453,9 @@ func (t *Transpiler) TranspileBlockStatement(n *builder.Node) (*string, error) {
 
 		fmt.Println("vString", *vString)
 
-		if stmt.Type != "function" {
-			nString += *vString
-		}
+		// if stmt.Type != "function" {
+		nString += *vString
+		// }
 	}
 
 	nString = "{" + nString + "}"
