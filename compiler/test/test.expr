@@ -1,3 +1,5 @@
+package myPackage
+
 type myInt = int
 
 struct AnotherOne = {
@@ -48,7 +50,6 @@ func main() {
     launch something()
   }
 
-
   launch something()
 
   defer something()
@@ -56,8 +57,10 @@ func main() {
   string thing = "thing"
   string nothing = "nothing"
 
+  // map<int : map<string : int>> = m = {}
+
   map m = {
-    thing : 6
+    thing : "thing"
     "not_a_thing" : nothing
     6 : true
     false : "thing"

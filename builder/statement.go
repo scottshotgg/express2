@@ -853,9 +853,38 @@ func (b *Builder) ParsePackageStatement() (*Node, error) {
 	// Step over the literal
 	b.Index++
 
+	// Get the rest of the statements
+	// We will need to get all of the files in the folder
+	// Grab the rest of the statements in the folder and assign them to this node
+	// Use the semantic compiler to sort out multiple files in a package
+
+	var stmts []*Node
+	for b.Index < len(b.Tokens)-1 {
+		stmt, err := b.ParseStatement()
+		if err != nil {
+			if err == ErrOutOfTokens {
+				break
+			}
+
+			return nil, err
+		}
+
+		// Just a fallback; probably won't need it later
+		if stmt == nil {
+			return b.AppendTokenToError("Statement was nil")
+		}
+
+		stmts = append(stmts, stmt)
+		fmt.Println("STMT", stmt)
+	}
+
 	return &Node{
 		Type: "package",
 		Left: expr,
+		Right: &Node{
+			Type:  "block",
+			Value: stmts,
+		},
 	}, nil
 }
 
