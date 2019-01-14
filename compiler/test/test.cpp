@@ -2,8 +2,8 @@
 // none
 
 // Imports:
-#include "/Users/scottshotgg/Development/go/src/github.com/scottshotgg/express2/lib/defer.cpp"
-#include "/Users/scottshotgg/Development/go/src/github.com/scottshotgg/express2/lib/var.cpp"
+#include "/home/scottshotgg/Development/go/src/github.com/scottshotgg/express2/lib/defer.cpp"
+#include "/home/scottshotgg/Development/go/src/github.com/scottshotgg/express2/lib/var.cpp"
 #include <array>
 #include <map>
 #include <string>
@@ -26,6 +26,8 @@ struct myStruct {
 // Prototypes:
 void something();
 void another(int i, std::string s);
+void init();
+void something1();
 
 // Functions:
 void something() {
@@ -47,11 +49,23 @@ void another(int i, std::string s) {
   int j = 6666666;
 }
 
+void init() { defer onReturn, onExit; }
+
+void something1() {
+  defer onReturn, onExit;
+  int b = 6;
+}
+
 // Main:
 // generated: false
 int main() {
   defer onReturn, onExit;
-  object o = {};
+  class o {
+    int a = 6;
+    struct whatever {
+      int a = 6;
+    };
+  };
   enum {
     some,
     one = some + 2,
