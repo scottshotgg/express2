@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 // Doesn't _fully_ work yet; transpile fine, waiting on semantic stage for checking
 //import os
 //import "/home/scottshotgg/something"
@@ -20,6 +21,9 @@
 // This will take someone elses code an plop it into your program;
 // useful for _extending_ something that is not originally your implementation
 //use os as os2
+=======
+package myPackage
+>>>>>>> added test_package, transpiling package statement
 
 type myInt = int
 
@@ -95,7 +99,6 @@ func main() {
     launch something()
   }
 
-
   launch something()
 
   defer something()
@@ -103,8 +106,10 @@ func main() {
   string thing = "thing"
   string nothing = "nothing"
 
+  // map<int : map<string : int>> = m = {}
+
   map m = {
-    thing : 6
+    thing : "thing"
     "not_a_thing" : nothing
     6 : true
     false : "thing"
