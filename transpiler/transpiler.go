@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/scottshotgg/express2/builder"
@@ -172,7 +173,21 @@ func (t *Transpiler) Transpile() (string, error) {
 			typeChan <- nodes[i]
 
 		case "import":
+			importChan <- nodes[i]
+
+		case "include":
 			includeChan <- nodes[i]
+
+		case "use":
+			// Just transpile the statement for now
+			stringP, err := t.TranspileStatement(nodes[i])
+			if err != nil {
+				fmt.Printf("err %+v\n", err)
+				os.Exit(9)
+				// return "", err
+			}
+
+			t.Extra = append(t.Extra, *stringP)
 
 		case "map":
 			// Just transpile the statement for now
@@ -189,6 +204,13 @@ func (t *Transpiler) Transpile() (string, error) {
 			return "", errors.Errorf("Node was not categorized properly: %+v\n", nodes[i])
 		}
 	}
+
+	// Just a fucking dirty ass hackerino
+	time.Sleep(1 * time.Second)
+
+	// These are over used. Really the only reason that the function, struct, and type
+	// chans were here in the first place was to capture all of the stuff to put it at the top
+	// but tbh this should be a semantic parser step before it even gets to the AST
 
 	// Close the channel and alert the worker that we are done
 	close(funcChan)
@@ -463,6 +485,39 @@ func (t *Transpiler) TranspileTypeDeclaration(n *builder.Node) (*string, error) 
 	return &nString, nil
 }
 
+func (t *Transpiler) TranspileObjectStatement(n *builder.Node) (*string, error) {
+	/*
+		This should transpile to:
+		object something = {} : class something {}
+		Type is class?
+		Left is the ident
+		Right is the value
+	*/
+
+	if n.Type != "object" {
+		return nil, errors.New("Node is not a object")
+	}
+
+	// Transpile the ident which will become a usable type
+	var vString, err = t.TranspileExpression(n.Left)
+	if err != nil {
+		return nil, err
+	}
+
+	// Could just have it add `object` here but this will show us changes
+	var nString = "class " + *vString
+
+	// Transpile the block for the value
+	vString, err = t.TranspileBlockStatement(n.Right)
+	if err != nil {
+		return nil, err
+	}
+
+	nString += *vString + ";"
+
+	return &nString, nil
+}
+
 func (t *Transpiler) TranspileStructDeclaration(n *builder.Node) (*string, error) {
 	/*
 		This should transpile to:
@@ -506,6 +561,7 @@ func (t *Transpiler) TranspileIncludeStatement(n *builder.Node) (*string, error)
 		return nil, err
 	}
 
+	// Deal with the user defined shit in the semantic stage
 	if n.Kind == "path" {
 		abs, err := filepath.Abs(*lhs)
 		if err != nil {
@@ -520,9 +576,41 @@ func (t *Transpiler) TranspileIncludeStatement(n *builder.Node) (*string, error)
 	return lhs, nil
 }
 
+func (t *Transpiler) TranspileUseStatement(n *builder.Node) (*string, error) {
+	if n.Type != "use" {
+		return nil, errors.New("Node is not a use")
+	}
+
+	/*
+		Left is the "imported" file/package
+		Right is the new ident
+	*/
+
+	lhs, err := t.TranspileExpression(n.Left)
+	if err != nil {
+		return nil, err
+	}
+
+	rhs, err := t.TranspileExpression(n.Right)
+	if err != nil {
+		return nil, err
+	}
+
+	// Ignore the `unused` error for now, we'll fix it later
+	_ = lhs
+	_ = rhs
+
+	// Imports should not have angled brackets
+	// This is really more of a _semantic_ or even _parser_ thing to go grab the code
+	// Or to link the object as a shared resource into the binary
+	// *lhs = "#include " + *lhs
+
+	return nil, errors.New("`use` statements are currently not available; their implementation is currently waiting on the semantic stage and more improvements to the parser")
+}
+
 func (t *Transpiler) TranspileImportStatement(n *builder.Node) (*string, error) {
 	if n.Type != "import" {
-		return nil, errors.New("Node is not an inc")
+		return nil, errors.New("Node is not an import")
 	}
 
 	lhs, err := t.TranspileExpression(n.Left)
@@ -530,7 +618,17 @@ func (t *Transpiler) TranspileImportStatement(n *builder.Node) (*string, error) 
 		return nil, err
 	}
 
-	*lhs = "#include<" + *lhs + ">"
+	// this should be done in the semantic stage
+	switch n.Left.Type {
+	case "ident":
+		// Need to add quotes and make sure that the library exists
+
+	case "literal":
+		// Check the literal obvi brah
+	}
+
+	// Imports should not have angled brackets
+	*lhs = "#include " + *lhs
 
 	return lhs, nil
 }
@@ -732,7 +830,7 @@ func (t *Transpiler) TranspileLaunchStatement(n *builder.Node) (*string, error) 
 	// }
 	includeChan <- &builder.Node{
 		Type: "include",
-		// Kind: "path",
+		// This is not supposed to be a `path` import; it is a library feature, stop re-adding that shit
 		Left: &builder.Node{
 			Type:  "literal",
 			Value: "libmill.h",
@@ -852,6 +950,9 @@ func (t *Transpiler) TranspileStatement(n *builder.Node) (*string, error) {
 	case "struct":
 		return t.TranspileStructDeclaration(n)
 
+	case "object":
+		return t.TranspileObjectStatement(n)
+
 	// FIXME: Why do we have expressions in here ... ?
 	case "literal":
 		return t.TranspileLiteralExpression(n)
@@ -874,6 +975,9 @@ func (t *Transpiler) TranspileStatement(n *builder.Node) (*string, error) {
 
 	case "ident":
 		return t.TranspileIdentExpression(n)
+
+	case "use":
+		return t.TranspileUseStatement(n)
 
 	case "import":
 		return t.TranspileImportStatement(n)

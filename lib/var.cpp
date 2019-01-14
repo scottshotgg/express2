@@ -363,7 +363,7 @@ public:
   }
 };
 
-typedef var object;
+// typedef var object;
 
 // TODO: for right now, instead of doing the map[string]function to figure out
 // the value
