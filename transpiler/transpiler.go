@@ -178,7 +178,6 @@ func (t *Transpiler) Transpile() (string, error) {
 		// case "typedef":
 		// 	typeChan <- nodes[i]
 
-<<<<<<< HEAD
 		case "import":
 			importChan <- nodes[i]
 
@@ -204,19 +203,6 @@ func (t *Transpiler) Transpile() (string, error) {
 				os.Exit(9)
 				// return "", err
 			}
-=======
-		// case "import":
-		// 	includeChan <- nodes[i]
-
-		// case "map":
-		// 	// Just transpile the statement for now
-		// 	stringP, err := t.TranspileStatement(nodes[i])
-		// 	if err != nil {
-		// 		fmt.Printf("err %+v\n", err)
-		// 		os.Exit(9)
-		// 		// return "", err
-		// 	}
->>>>>>> added test_package, transpiling package statement
 
 		// 	t.Extra = append(t.Extra, *stringP)
 
@@ -238,16 +224,12 @@ func (t *Transpiler) Transpile() (string, error) {
 		t.Extra = append(t.Extra, *stringP)
 	}
 
-<<<<<<< HEAD
 	// Just a fucking dirty ass hackerino
 	time.Sleep(1 * time.Second)
 
 	// These are over used. Really the only reason that the function, struct, and type
 	// chans were here in the first place was to capture all of the stuff to put it at the top
 	// but tbh this should be a semantic parser step before it even gets to the AST
-=======
-	time.Sleep(2 * time.Second)
->>>>>>> added test_package, transpiling package statement
 
 	// Close the channel and alert the worker that we are done
 	close(packageChan)
