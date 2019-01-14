@@ -1,3 +1,26 @@
+// Doesn't _fully_ work yet; transpile fine, waiting on semantic stage for checking
+//import os
+//import "/home/scottshotgg/something"
+
+// Getting a weird error here about "in" not being defined as a keyword .....
+// It's because `in` is a keyword so its resolving that beforehand in the lexer, fix this
+// Don't feel like working on lexer shit rn bleh; need to check the spacing which I thought I was already doing .........................
+//include iostream
+
+/*
+#![lang=c]
+{
+  std::string = "hey itsa me, c-mario";
+}
+*/
+
+// Doesn't work yet; waiting on semantic stage
+//include "user_defined.h"
+
+// This will take someone elses code an plop it into your program;
+// useful for _extending_ something that is not originally your implementation
+//use os as os2
+
 type myInt = int
 
 struct AnotherOne = {
@@ -8,6 +31,15 @@ struct myStruct = {
   int i = 10
   string something = "something"
   AnotherOne ayy
+
+
+/* This does not work right now for some reason:
+    : Building AST ... panic: interface conversion: interface {} is []*builder.Node, not string
+
+  function something2() {
+    string h = "hi"
+  }
+*/
 }
 
 func something() {
@@ -32,7 +64,22 @@ func something() {
 */
 func main() {
   // Cannot set member variables yet
-  object o = {}
+  object o = {
+    int a = 6
+
+    // init() is a special function that serves as the constructor when the object is _imported_
+    func init() {}
+
+    // This shouldn't go in global scope and the function name should override whatever
+    // is outside of the scope
+    func something1() {
+      int b = 6
+    }
+
+    struct whatever = {
+      int a = 6
+    }
+  }
 
   enum {
     some

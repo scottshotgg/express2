@@ -2,6 +2,8 @@ package builder
 
 import (
 	"fmt"
+	"log"
+	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/scottshotgg/express-token"
@@ -326,7 +328,8 @@ func (b *Builder) ParseEnumBlockStatement() (*Node, error) {
 			}
 		}
 
-		// All statements in a map have to be key-value pairs
+		// All statements in a map have to be key-value
+		// This isn't true wtf
 		if stmt.Type != "assignment" && stmt.Type != "ident" {
 			return nil, errors.Errorf("All statements in a enum have to be assignment or ident: %+v\n", stmt)
 		}
@@ -563,6 +566,136 @@ func (b *Builder) ParseTypeDeclarationStatement() (*Node, error) {
 		Type:  "typedef",
 		Left:  ident,
 		Right: typeOf,
+	}, nil
+}
+
+// THIS SHOULD NOT BE IN THE TRANSPILER; THIS SHOULD BE TAKEN CARE OF BY THE SEMANTIC STAGE
+// BEFORE EVER REACHING THIS FAR. IT IS MERELY HERE AS A PLACEHOLDER SO I DO NOT FORGET
+// MY OWN DECISIONS BECAUSE I CANT REMEMBER THINGS
+func (b *Builder) ParseCBlock() (*Node, error) {
+	var errStatement = "`c` blocks, as the are oh-so affectionately known within the Express community, are only implemented as a direct code injection  at time. This will take some thinking; the compiler will have to `back-compile` the C/C++ code FROM the AST output of Clang and then translate that back into Express code essentially to check it"
+	// return nil, errors.New()
+	log.Println(errStatement)
+
+	// For now the C block will be a direct injection of code into the final source. This is the best we can get at this point
+
+	// Check ourselves ...
+	if b.Tokens[b.Index].Type != token.C {
+		return b.AppendTokenToError("Could not get c block")
+	}
+
+	// Skip over the `c` token
+	b.Index++
+
+	var (
+		total []string
+		found bool
+	)
+
+	// Gobble up all the code until the next left brace; use a simple array as a stack to know when we are done
+	for _, t := range b.Tokens[b.Index:] {
+		fmt.Println("t", t)
+
+		if t.Type == token.RBrace {
+			found = true
+			break
+		}
+
+		// Append the string value of the token
+		total = append(total, t.Value.String)
+
+		// Increment the index so that the gobbling reflects when we jump out of scope
+		b.Index++
+	}
+
+	if !found {
+		return nil, errors.New("No matching right brace found for c block")
+	}
+
+	// Skip over the rbrace
+	b.Index++
+
+	return &Node{
+		Type:  "c",
+		Value: strings.Join(total, " "),
+	}, nil
+}
+
+func (b *Builder) ParseObjectStatement() (*Node, error) {
+	// Check ourselves ...
+	if b.Tokens[b.Index].Type != token.Object {
+		return b.AppendTokenToError("Could not get object declaration statement")
+	}
+
+	// Skip over the `struct` token
+	b.Index++
+
+	// Create the ident
+	ident, err := b.ParseExpression()
+	if err != nil {
+		return nil, err
+	}
+
+	// Increment over the ident token
+	b.Index++
+
+	// Create a new child scope for the function
+	b.ScopeTree, err = b.ScopeTree.NewChildScope(ident.Value.(string))
+	if err != nil {
+		return nil, err
+	}
+
+	// Check for the equals token
+	if b.Tokens[b.Index].Type != token.Assign {
+		return b.AppendTokenToError("No equals found after ident in object def")
+	}
+
+	// Increment over the equals
+	b.Index++
+
+	// Parse the right hand side
+	body, err := b.ParseBlockStatement()
+	if err != nil {
+		return nil, err
+	}
+
+	body.Kind = "object"
+
+	// _, err = b.AddStructured(ident.Value.(string), body)
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	// Object does not get a type ... yet
+	// var v = &TypeValue{
+	// 	Composite: true,
+	// 	Type:      StruturedValue,
+	// 	Kind:      body.Kind,
+	// }
+	// v.Props, err = b.extractPropsFromComposite(body)
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	// // Increment over the first part of the expression
+	// b.Index++
+
+	// Assign our scope back to the current one
+	b.ScopeTree, err = b.ScopeTree.Leave()
+	if err != nil {
+		return nil, err
+	}
+
+	// Again about the object not creating a type ...
+	// err = b.ScopeTree.NewType(ident.Value.(string), v)
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	return &Node{
+		Type:  "object",
+		Left:  ident,
+		Right: body,
 	}, nil
 }
 
@@ -808,7 +941,8 @@ func (b *Builder) ParseAssignmentStatement() (*Node, error) {
 
 		// TODO: this is where we need to check for `:`
 
-		// return b.AppendTokenToError("No equals found after ident in assignment")
+		// return b.AppendTokenToError(fmt.Sprintf("No equals found after ident in assignment: %+v", b.Tokens[b.Index]))
+		// This need to return the token in case the parse needs to be recovered! Look at ParseEnumBlock for an example of parse recovery
 		return ident, ErrNoEqualsFoundAfterIdent
 	}
 
@@ -856,6 +990,62 @@ func (b *Builder) ParsePackageStatement() (*Node, error) {
 	return &Node{
 		Type: "package",
 		Left: expr,
+	}, nil
+}
+
+func (b *Builder) ParseUseStatement() (*Node, error) {
+	// Check ourselves ...
+	if b.Tokens[b.Index].Type != token.Use {
+		return b.AppendTokenToError("Could not get use statement")
+	}
+
+	// Step over the import token
+	b.Index++
+
+	// This expression takes the same rules as import/include with quotes and no quotes
+	expr, err := b.ParseExpression()
+	if err != nil {
+		return nil, err
+	}
+
+	// Step over the literal
+	b.Index++
+
+	// With a use statement, we are expecting an as operation afterwards and then another _ident_
+	// I don't know or want to add "as" as a keyword right now, not sure it has much use; however, it needs to be checked nevertheless
+	expr1, err := b.ParseExpression()
+	if err != nil {
+		return nil, err
+	}
+
+	if expr1.Type != "ident" {
+		// Just print out the entire expression for now
+		return nil, errors.Errorf("Expecting \"as\" keyword after use expression, found: %+v", expr)
+	}
+
+	// Hop over the "as"
+	b.Index++
+
+	// Next up: we are expecting an _ident_; parse it as an expression so operation rules will apply
+	// Not sure if that is needed (operation rules), but we'll see; could be a fun/fucky experiment
+	expr1, err = b.ParseExpression()
+	if err != nil {
+		return nil, err
+	}
+
+	// May have to mangle the names for this ;_; noooooo
+	if expr1.Type != "ident" {
+		// Just print out the entire expression for now
+		return nil, errors.Errorf("Expecting ident expression after as keyword, found: %+v", expr)
+	}
+
+	// And finally, hop over the ending ident
+	b.Index++
+
+	return &Node{
+		Type:  "use",
+		Left:  expr,
+		Right: expr1,
 	}, nil
 }
 
@@ -1069,7 +1259,7 @@ func (b *Builder) ParseDerefStatement() (*Node, error) {
 			return deref, nil
 		}
 
-		return b.AppendTokenToError("No equals found after ident in assignment")
+		return b.AppendTokenToError(fmt.Sprintf("No equals found after ident in deref: %+v", b.Tokens[b.Index]))
 	}
 
 	// Increment over the equals
@@ -1118,6 +1308,9 @@ func (b *Builder) ParseStatement() (*Node, error) {
 	case token.Import:
 		return b.ParseImportStatement()
 
+	case token.Use:
+		return b.ParseUseStatement()
+
 	case token.Include:
 		return b.ParseIncludeStatement()
 
@@ -1126,6 +1319,12 @@ func (b *Builder) ParseStatement() (*Node, error) {
 
 	case token.Struct:
 		return b.ParseStructStatement()
+
+	case token.Object:
+		return b.ParseObjectStatement()
+
+	case token.C:
+		return b.ParseCBlock()
 
 	case token.Type:
 		// // Struct is a keyword and a type so if we get it as a type statment
