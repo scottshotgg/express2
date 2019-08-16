@@ -1,0 +1,32 @@
+package reader
+
+import io
+
+struct Reader {
+  byte[] data
+  int counter
+  int index
+
+  func Read() byte
+  func ReadMulti(int amount) []byte
+  func ReadRange(int start, end) => $.ReadRange()
+}
+
+func New(byte[] data) => &Reader{ data: data }
+
+Reader.Read = func() byte {
+  if $.counter < data.Length() {
+    defer $.counter++
+    return data[$.counter]
+  }
+
+  return io.EOF
+}
+
+Reader.ReadRange(int start, end) byte[] {
+  if start > 0 && end < $.counter {
+    return data[start:end]
+  }
+
+  return nil
+}
