@@ -579,10 +579,11 @@ func (b *Builder) ParseCBlock() (*Node, error) {
 
 	// For now the C block will be a direct injection of code into the final source. This is the best we can get at this point
 
-	// Check ourselves ...
-	if b.Tokens[b.Index].Type != token.C {
-		return b.AppendTokenToError("Could not get c block")
-	}
+	// ADD THIS BACK IN
+	// // Check ourselves ...
+	// if b.Tokens[b.Index].Type != token.C {
+	// 	return b.AppendTokenToError("Could not get c block")
+	// }
 
 	// Skip over the `c` token
 	b.Index++
@@ -1023,10 +1024,12 @@ func (b *Builder) ParsePackageStatement() (*Node, error) {
 }
 
 func (b *Builder) ParseUseStatement() (*Node, error) {
+
+	// TODO: add this back in
 	// Check ourselves ...
-	if b.Tokens[b.Index].Type != token.Use {
-		return b.AppendTokenToError("Could not get use statement")
-	}
+	// if b.Tokens[b.Index].Type != token.Use {
+	// 	return b.AppendTokenToError("Could not get use statement")
+	// }
 
 	// Step over the import token
 	b.Index++
@@ -1337,8 +1340,8 @@ func (b *Builder) ParseStatement() (*Node, error) {
 	case token.Import:
 		return b.ParseImportStatement()
 
-	case token.Use:
-		return b.ParseUseStatement()
+	// case token.Use:
+	// 	return b.ParseUseStatement()
 
 	case token.Include:
 		return b.ParseIncludeStatement()
@@ -1352,8 +1355,8 @@ func (b *Builder) ParseStatement() (*Node, error) {
 	case token.Object:
 		return b.ParseObjectStatement()
 
-	case token.C:
-		return b.ParseCBlock()
+	// case token.C:
+	// 	return b.ParseCBlock()
 
 	case token.Type:
 		// // Struct is a keyword and a type so if we get it as a type statment

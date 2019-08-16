@@ -1,20 +1,37 @@
 package compiler_test
 
 import (
+	"fmt"
+	"os"
 	"testing"
 
 	"github.com/scottshotgg/express2/compiler"
 )
 
+var (
+	c   *compiler.Compiler
+	err error
+)
+
+func init() {
+	os.Setenv("EXPRPATH", "/home/scottshotgg/Development/go/src/github.com/scottshotgg/express2")
+
+	c, err = compiler.New("output.something")
+	if err != nil {
+		// t.Fatalf("err %+v", err)
+		fmt.Printf("err %+v", err)
+	}
+}
+
 func TestRun(t *testing.T) {
-	var err = compiler.Run("test/test.expr")
+	err = c.RunFile("test/test2.expr")
 	if err != nil {
 		t.Fatalf("err %+v", err)
 	}
 }
 
 func TestCompile(t *testing.T) {
-	var err = compiler.Compile("test/test.expr")
+	err = c.CompileFile("test/test.expr")
 	if err != nil {
 		t.Fatalf("err %+v", err)
 	}

@@ -1,6 +1,8 @@
 package builder
 
 import (
+	"fmt"
+
 	"github.com/scottshotgg/express-token"
 )
 
@@ -143,11 +145,13 @@ func (b *Builder) ParseTerm() (*Node, error) {
 
 	// LOOKAHEAD performed to figure out whether the expression is done
 	for b.Index < len(b.Tokens)-1 {
+
 		// Look for a tier1 operator in the func map
 		opFunc, ok = b.OpFuncMap[0][b.Tokens[b.Index+1].Type]
 		if !ok {
 			break
 		}
+		fmt.Println("OPFUNC", b.Tokens[b.Index+1])
 
 		// Step over the factor
 		b.Index++

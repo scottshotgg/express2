@@ -1,0 +1,10 @@
+a
+b
+c
+a
+b
+c
+a
+c
+a
+PASS tests/example (exit status: 0)

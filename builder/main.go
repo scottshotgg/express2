@@ -40,6 +40,9 @@ func New(tokens []token.Token) *Builder {
 			token.LParen:    b.ParseCall,
 			token.LThan:     b.ParseLessThanExpression,
 			token.GThan:     b.ParseGreaterThanExpression,
+			token.EqOrLThan: b.ParseLessOrEqualThanExpression,
+			token.EqOrGThan: b.ParseGreaterOrEqualThanExpression,
+			token.IsEqual:   b.ParseEqualityExpression,
 			token.PriOp:     b.ParseBinOp,
 		},
 

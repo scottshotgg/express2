@@ -3,6 +3,7 @@ package transpiler_test
 import (
 	"fmt"
 	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/scottshotgg/express-ast"
@@ -17,6 +18,10 @@ var (
 	cpp *string
 	err error
 )
+
+func init() {
+	os.Setenv("EXPRPATH", "/home/scottshotgg/Development/go/src/github.com/express2")
+}
 
 func getTokensFromString(s string) ([]token.Token, error) {
 	// Lex and tokenize the source code
@@ -68,7 +73,7 @@ func getTranspilerFromString(test, name string) (*transpiler.Transpiler, error) 
 		return nil, err
 	}
 
-	return transpiler.New(ast, b, name), nil
+	return transpiler.New(ast, b, name, os.Getenv("EXPRPATH")), nil
 }
 
 func getExpressionASTFromString(test string) (*builder.Node, error) {
@@ -109,7 +114,7 @@ func getStatementTranspilerFromString(test string) (*transpiler.Transpiler, erro
 		return nil, err
 	}
 
-	return transpiler.New(ast, b, "main"), nil
+	return transpiler.New(ast, b, "main", os.Getenv("EXPRPATH")), nil
 }
 
 func getExpressionTranspilerFromString(test string) (*transpiler.Transpiler, error) {
@@ -123,7 +128,7 @@ func getExpressionTranspilerFromString(test string) (*transpiler.Transpiler, err
 		return nil, err
 	}
 
-	return transpiler.New(ast, b, "main"), nil
+	return transpiler.New(ast, b, "main", os.Getenv("EXPRPATH")), nil
 }
 
 func getTypeTranspilerFromString(test string) (*transpiler.Transpiler, error) {
@@ -137,7 +142,7 @@ func getTypeTranspilerFromString(test string) (*transpiler.Transpiler, error) {
 		return nil, err
 	}
 
-	return transpiler.New(ast, b, "main"), nil
+	return transpiler.New(ast, b, "main", os.Getenv("EXPRPATH")), nil
 }
 
 // func getTranspilerFromFilename(filename string) {
@@ -166,7 +171,7 @@ func getTypeTranspilerFromString(test string) (*transpiler.Transpiler, error) {
 // }
 
 func TestTranspiler(t *testing.T) {
-	testBytes, err := ioutil.ReadFile("test.expr")
+	testBytes, err := ioutil.ReadFile("../compiler/test/test2.expr")
 	if err != nil {
 		t.Fatalf("Could not read file: %+v", err)
 	}
@@ -296,6 +301,20 @@ func TestTranspileStructDeclarationStatement(t *testing.T) {
 	}
 
 	cpp, err := tr.TranspileStructDeclaration(tr.AST)
+	if err != nil {
+		t.Errorf("err: %+v", err)
+	}
+
+	fmt.Println("C++:", *cpp)
+}
+
+func TestTranspileObjectDeclarationStatement(t *testing.T) {
+	var tr, err = getStatementTranspilerFromString(test.Tests[test.StatementTest]["object"])
+	if err != nil {
+		t.Fatalf("Could not create AST: %+v", err)
+	}
+
+	cpp, err := tr.TranspileObjectStatement(tr.AST)
 	if err != nil {
 		t.Errorf("err: %+v", err)
 	}

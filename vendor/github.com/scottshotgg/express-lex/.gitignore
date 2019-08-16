@@ -1,0 +1,6 @@
+# fk u apple
+.DS_Store
+
+# ignore IDE folders
+.idea
+.vscode

@@ -1,0 +1,50 @@
+include "/home/scottshotgg/Development/go/src/github.com/scottshotgg/express2/lib/std.cpp"
+include "/home/scottshotgg/Development/go/src/github.com/scottshotgg/express2/lib/file.cpp"
+import "/home/scottshotgg/Development/go/src/github.com/scottshotgg/express2/compiler/test/test_import.expr"
+
+func main() {
+  int i = 0
+
+  bool b = 2 + 2 == 3 + 3
+
+  /*if i >= 0 {
+    for j in [1, 2, 3] {
+    }
+  }*/
+
+  struct something = {
+    int a = 5
+    string s = "0"
+  }
+
+  struct yo = {
+    something sth
+    bool ayy = false
+  }
+
+  something s
+  yo e = {
+    sth = {
+      a = 9
+    }
+  }
+
+  s.a = 88
+
+  map m = {
+    "me": "you"
+    "num": 8
+  }
+
+  var m2 = m["me"]
+
+  int result = m["num"] + e.sth.a
+
+  Println(m["me"], e.sth.a, e.ayy, result)
+
+  s.a = s.a + result
+
+  Print(s.a)
+
+  Something()
+}
