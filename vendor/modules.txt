@@ -1,0 +1,49 @@
+# github.com/fsnotify/fsnotify v1.4.7
+github.com/fsnotify/fsnotify
+# github.com/hashicorp/hcl v1.0.0
+github.com/hashicorp/hcl
+github.com/hashicorp/hcl/hcl/printer
+github.com/hashicorp/hcl/hcl/ast
+github.com/hashicorp/hcl/hcl/parser
+github.com/hashicorp/hcl/hcl/token
+github.com/hashicorp/hcl/json/parser
+github.com/hashicorp/hcl/hcl/scanner
+github.com/hashicorp/hcl/hcl/strconv
+github.com/hashicorp/hcl/json/scanner
+github.com/hashicorp/hcl/json/token
+# github.com/inconshreveable/mousetrap v1.0.0
+github.com/inconshreveable/mousetrap
+# github.com/magiconair/properties v1.8.0
+github.com/magiconair/properties
+# github.com/mitchellh/mapstructure v1.1.2
+github.com/mitchellh/mapstructure
+# github.com/pelletier/go-toml v1.2.0
+github.com/pelletier/go-toml
+# github.com/pkg/errors v0.8.1
+github.com/pkg/errors
+# github.com/scottshotgg/express-ast v0.0.0-00010101000000-000000000000 => ../express-ast
+github.com/scottshotgg/express-ast
+# github.com/scottshotgg/express-lex v0.0.0-00010101000000-000000000000 => ../express-lex
+github.com/scottshotgg/express-lex
+# github.com/scottshotgg/express-token v0.0.0-20190114120617-cfbdb912cfa9 => ../express-token
+github.com/scottshotgg/express-token
+# github.com/spf13/afero v1.1.2
+github.com/spf13/afero
+github.com/spf13/afero/mem
+# github.com/spf13/cast v1.3.0
+github.com/spf13/cast
+# github.com/spf13/cobra v0.0.3
+github.com/spf13/cobra
+# github.com/spf13/jwalterweatherman v1.0.0
+github.com/spf13/jwalterweatherman
+# github.com/spf13/pflag v1.0.3
+github.com/spf13/pflag
+# github.com/spf13/viper v1.3.1
+github.com/spf13/viper
+# golang.org/x/sys v0.0.0-20190105165716-badf5585203e
+golang.org/x/sys/unix
+# golang.org/x/text v0.3.0
+golang.org/x/text/transform
+golang.org/x/text/unicode/norm
+# gopkg.in/yaml.v2 v2.2.2
+gopkg.in/yaml.v2

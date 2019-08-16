@@ -7,13 +7,6 @@
 // Don't feel like working on lexer shit rn bleh; need to check the spacing which I thought I was already doing .........................
 //include iostream
 
-/*
-#![lang=c]
-{
-  std::string = "hey itsa me, c-mario";
-}
-*/
-
 // Doesn't work yet; waiting on semantic stage
 //include "user_defined.h"
 
@@ -63,23 +56,25 @@ func something() {
   will automatically be injected if not supplied
 */
 func main() {
-  // Cannot set member variables yet
-  object o = {
-    int a = 6
-
-    // init() is a special function that serves as the constructor when the object is _imported_
-    func init() {}
-
-    // This shouldn't go in global scope and the function name should override whatever
-    // is outside of the scope
-    func something1() {
-      int b = 6
-    }
-
-    struct whatever = {
+  /*
+    // Cannot set member variables yet
+    object o = {
       int a = 6
+
+      // init() is a special function that serves as the constructor when the object is _imported_
+      func init() {}
+
+      // This shouldn't go in global scope and the function name should override whatever
+      // is outside of the scope
+      func something1() {
+        int b = 6
+      }
+
+      struct whatever = {
+        int a = 6
+      }
     }
-  }
+  */
 
   enum {
     some
@@ -92,10 +87,10 @@ func main() {
   } else if some {
     var y = "1000000" + true
   } else {
-    launch something()
+    // launch something()
   }
 
-  launch something()
+  // launch something()
 
   defer something()
 
@@ -111,7 +106,7 @@ func main() {
     false : "thing"
   }
 
-  // Compiler cannot squash types right now so maps have unravel into vars
+  // Compiler cannot squash types right now so maps have to unravel into var states
   var m_thing = m[thing]
 
   int a = 0

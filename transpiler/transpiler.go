@@ -551,6 +551,9 @@ func (t *Transpiler) TranspileObjectStatement(n *builder.Node) (*string, error) 
 	*/
 
 	if n.Type != "object" {
+		fmt.Printf("n %+v\n", n)
+		fmt.Printf("n %+v\n", n.Left)
+		fmt.Printf("n %+v\n", n.Right)
 		return nil, errors.New("Node is not a object")
 	}
 

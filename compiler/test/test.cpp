@@ -11,8 +11,6 @@
 #include <map>
 #include <string>
 
-#include <libmill.h>
-
 // Types:
 typedef int myInt;
 
@@ -27,10 +25,15 @@ struct myStruct {
 };
 
 // Prototypes:
-void something();
 void another(int i, std::string s);
+void something();
 
 // Functions:
+void another(int i, std::string s) {
+  defer onReturn, onExit;
+  int j = 6666666;
+}
+
 void something() {
   defer onReturn, onExit;
   myStruct s = {
@@ -45,26 +48,10 @@ void something() {
   another(i, "s");
 }
 
-void another(int i, std::string s) {
-  defer onReturn, onExit;
-  int j = 6666666;
-}
-
 // Main:
 // generated: false
 int main() {
   defer onReturn, onExit;
-  class o {
-    int a = 6;
-    void init() { defer onReturn, onExit; }
-    void something1() {
-      defer onReturn, onExit;
-      int b = 6;
-    }
-    struct whatever {
-      int a = 6;
-    };
-  };
   enum {
     some,
     one = some + 2,
@@ -75,9 +62,7 @@ int main() {
   } else if (some) {
     var y = "1000000" + true;
   } else {
-    go([=](...) { something(); }());
   }
-  go([=](...) { something(); }());
   onReturn.deferStack.push([=](...) { something(); });
   std::string thing = "thing";
   std::string nothing = "nothing";

@@ -1,11 +1,12 @@
 libmill_la-stack.lo: stack.c /usr/include/stdc-predef.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/8.2.1/include/stddef.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/8.2.1/include/stdint.h \
+ /usr/lib/gcc/x86_64-pc-linux-gnu/8.3.0/include/stddef.h \
+ /usr/lib/gcc/x86_64-pc-linux-gnu/8.3.0/include/stdint.h \
  /usr/include/stdint.h /usr/include/bits/libc-header-start.h \
  /usr/include/features.h /usr/include/sys/cdefs.h \
  /usr/include/bits/wordsize.h /usr/include/bits/long-double.h \
  /usr/include/gnu/stubs.h /usr/include/gnu/stubs-64.h \
- /usr/include/bits/types.h /usr/include/bits/typesizes.h \
+ /usr/include/bits/types.h /usr/include/bits/timesize.h \
+ /usr/include/bits/typesizes.h /usr/include/bits/time64.h \
  /usr/include/bits/wchar.h /usr/include/bits/stdint-intn.h \
  /usr/include/bits/stdint-uintn.h /usr/include/stdlib.h \
  /usr/include/bits/waitflags.h /usr/include/bits/waitstatus.h \
@@ -29,9 +30,10 @@ libmill_la-stack.lo: stack.c /usr/include/stdc-predef.h \
  /usr/include/bits/environments.h /usr/include/bits/confname.h \
  /usr/include/bits/getopt_posix.h /usr/include/bits/getopt_core.h \
  /usr/include/sys/mman.h /usr/include/bits/mman.h \
+ /usr/include/bits/mman-map-flags-generic.h \
  /usr/include/bits/mman-linux.h /usr/include/bits/mman-shared.h debug.h \
  list.h utils.h /usr/include/stdio.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/8.2.1/include/stdarg.h \
+ /usr/lib/gcc/x86_64-pc-linux-gnu/8.3.0/include/stdarg.h \
  /usr/include/bits/types/__fpos_t.h /usr/include/bits/types/__mbstate_t.h \
  /usr/include/bits/types/__fpos64_t.h /usr/include/bits/types/__FILE.h \
  /usr/include/bits/types/FILE.h /usr/include/bits/types/struct_FILE.h \
@@ -40,9 +42,9 @@ libmill_la-stack.lo: stack.c /usr/include/stdc-predef.h \
 
 /usr/include/stdc-predef.h:
 
-/usr/lib/gcc/x86_64-pc-linux-gnu/8.2.1/include/stddef.h:
+/usr/lib/gcc/x86_64-pc-linux-gnu/8.3.0/include/stddef.h:
 
-/usr/lib/gcc/x86_64-pc-linux-gnu/8.2.1/include/stdint.h:
+/usr/lib/gcc/x86_64-pc-linux-gnu/8.3.0/include/stdint.h:
 
 /usr/include/stdint.h:
 
@@ -62,7 +64,11 @@ libmill_la-stack.lo: stack.c /usr/include/stdc-predef.h \
 
 /usr/include/bits/types.h:
 
+/usr/include/bits/timesize.h:
+
 /usr/include/bits/typesizes.h:
+
+/usr/include/bits/time64.h:
 
 /usr/include/bits/wchar.h:
 
@@ -150,6 +156,8 @@ libmill_la-stack.lo: stack.c /usr/include/stdc-predef.h \
 
 /usr/include/bits/mman.h:
 
+/usr/include/bits/mman-map-flags-generic.h:
+
 /usr/include/bits/mman-linux.h:
 
 /usr/include/bits/mman-shared.h:
@@ -162,7 +170,7 @@ utils.h:
 
 /usr/include/stdio.h:
 
-/usr/lib/gcc/x86_64-pc-linux-gnu/8.2.1/include/stdarg.h:
+/usr/lib/gcc/x86_64-pc-linux-gnu/8.3.0/include/stdarg.h:
 
 /usr/include/bits/types/__fpos_t.h:
 

@@ -23,6 +23,7 @@ var (
 		"blockExpr":   "{ int i = 7 }",
 		"identSelect": "some.thing.whatever.yeah",
 		"binop":       "9 + 8 * 7",
+		"equality":    "i == 0",
 	}
 
 	statementTestMap = map[string]string{
@@ -57,6 +58,7 @@ var (
 		"package":          "package something",
 		"derefAssign":      "*something = 10",
 		"binop":            "i = 9 + 8 * 7",
+		"object":           "object o = { int a = 6 }",
 	}
 
 	Tests = map[TestType]map[string]string{

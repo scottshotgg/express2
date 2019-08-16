@@ -1,0 +1,4 @@
+github.com/pkg/errors v0.8.1 h1:iURUrRGxPUNPdy5/HRSm+Yj6okJ6UtLINN0Q9M4+h3I=
+github.com/pkg/errors v0.8.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
+github.com/scottshotgg/express-token v0.0.0-20190114120617-cfbdb912cfa9 h1:hiPnWMpPDIBouh8EZhGSy5RrLaCrOi5vtkgUq/a5OtA=
+github.com/scottshotgg/express-token v0.0.0-20190114120617-cfbdb912cfa9/go.mod h1:JPaW0KZyjv8d+pQ2QlyVRwWtOAmjoWPoMHQYSCFppiM=

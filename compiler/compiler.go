@@ -376,7 +376,7 @@ func (c *Compiler) RunFile(filename string) error {
 
 	fmt.Println("\nDone!")
 
-	fmt.Println("\nOutput:", output)
+	fmt.Println("\nOutput:", string(output))
 
 	return nil
 }
