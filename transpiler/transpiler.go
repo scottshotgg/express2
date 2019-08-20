@@ -119,8 +119,7 @@ func New(ast *builder.Node, b *builder.Builder, name, libBase string) *Transpile
 	- if the statement contains ANY block, then flatten on the node
 */
 
-// TODO: This will give use some problems with multiple instance possibly ...
-
+// TODO: rewrite this
 func (t *Transpiler) Transpile() (string, error) {
 	// Extract the nodes
 	var (
@@ -366,6 +365,10 @@ func (t *Transpiler) importWorker(wg *sync.WaitGroup) {
 			// Exit if there is a problem transpiling the import statement
 			// and we'll deal with it later
 			os.Exit(9)
+		}
+
+		if importStringP == nil {
+			continue
 		}
 
 		// TODO: should really check the deref on all of these, but the usage/running
@@ -667,10 +670,20 @@ func (t *Transpiler) TranspileUseStatement(n *builder.Node) (*string, error) {
 	return nil, errors.New("`use` statements are currently not available; their implementation is currently waiting on the semantic stage and more improvements to the parser")
 }
 
+// TODO: this should transpile the program and take all statements
+// and put them into the file under a namespace that is the package name
 func (t *Transpiler) TranspileImportStatement(n *builder.Node) (*string, error) {
 	if n.Type != "import" {
 		return nil, errors.New("Node is not an import")
 	}
+
+	// If it is the import for libc
+	if n.Kind == "c" {
+		return nil, nil
+	}
+
+	// Make a new namespace in the file
+	// Transpile that AST into the namespace
 
 	lhs, err := t.TranspileExpression(n.Left)
 	if err != nil {
@@ -684,6 +697,11 @@ func (t *Transpiler) TranspileImportStatement(n *builder.Node) (*string, error) 
 
 	case "literal":
 		// Check the literal obvi brah
+
+		// var tr = New(n.Right, nil, "main", t.LibBase)
+		// fmt.Println("tr", tr)
+		// cpp, err := tr.Transpile()
+		// fmt.Println("cpp, err", cpp, err)
 	}
 
 	// Imports should not have angled brackets
@@ -1291,6 +1309,11 @@ func (t *Transpiler) TranspileType(n *builder.Node) (*string, error) {
 		}
 
 		nString = *typeStringP + nString
+	}
+
+	// Check if the type is imported or not
+	if n.Metadata["package"] != nil {
+		nString = n.Metadata["package"].(string) + "::" + n.Value.(string)
 	}
 
 	return &nString, nil

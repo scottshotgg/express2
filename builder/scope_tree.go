@@ -2,12 +2,13 @@ package builder
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"sync"
 
 	"github.com/pkg/errors"
-	"github.com/scottshotgg/express-token"
+	token "github.com/scottshotgg/express-token"
 )
 
 // Add symbols to the map when parsing
@@ -220,12 +221,15 @@ func (st *ScopeTree) GetType(name string) *TypeValue {
 
 	var ref = st.Types[name]
 	if ref != nil {
+		fmt.Println("found it in the types", name)
 		// If we get something from the current scope then return
+		fmt.Println("ref", *ref)
 		return ref
 	}
 
 	// If we have a parent then check that
 	if st.Parent != nil {
+		fmt.Println("going to the parents", name)
 		// Fetch from the parent if our scope doesn't have it
 		return st.Parent.GetType(name)
 	}

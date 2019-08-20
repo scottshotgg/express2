@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"testing"
+
+	"github.com/scottshotgg/express2/builder"
 )
 
 // TODO:
@@ -39,7 +41,7 @@ func TestParseTypeAnnotation(t *testing.T) {
 		t.Errorf(errFormatString, err)
 	}
 
-	node, err = b.ParseType()
+	node, err = b.ParseType(nil)
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -56,7 +58,27 @@ func TestParsePointerType(t *testing.T) {
 		t.Errorf(errFormatString, err)
 	}
 
-	node, err = b.ParseType()
+	node, err = b.ParseType(nil)
+	if err != nil {
+		t.Errorf(errFormatString, err)
+	}
+
+	nodeJSON, _ = json.Marshal(node)
+	fmt.Printf(jsonFormatString, nodeJSON)
+}
+
+func TestParseCType(t *testing.T) {
+	test := "c.FILE"
+
+	b, err = getBuilderFromString(test)
+	if err != nil {
+		t.Errorf(errFormatString, err)
+	}
+
+	b.Tokens[b.Index].Type = "TYPE"
+	node, err = b.ParseType(&builder.TypeValue{
+		Type: builder.CTypeValue,
+	})
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -74,7 +96,7 @@ func TestParseType(t *testing.T) {
 		t.Errorf(errFormatString, err)
 	}
 
-	node, err = b.ParseType()
+	node, err = b.ParseType(nil)
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
