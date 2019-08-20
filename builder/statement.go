@@ -2,11 +2,14 @@ package builder
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
 	"strings"
 
 	"github.com/pkg/errors"
-	"github.com/scottshotgg/express-token"
+	ast "github.com/scottshotgg/express-ast"
+	lex "github.com/scottshotgg/express-lex"
+	token "github.com/scottshotgg/express-token"
 )
 
 var (
@@ -418,11 +421,13 @@ func (b *Builder) ParseReturnStatement() (*Node, error) {
 	}, nil
 }
 
-func (b *Builder) ParseDeclarationStatement() (*Node, error) {
-	var typeOf, err = b.ParseType()
+func (b *Builder) ParseDeclarationStatement(typeHint *TypeValue) (*Node, error) {
+	var typeOf, err = b.ParseType(typeHint)
 	if err != nil {
 		return nil, err
 	}
+
+	fmt.Println("typeOf outside", typeOf)
 
 	// Check that the next token is an ident
 	if b.Tokens[b.Index].Type != token.Ident {
@@ -549,7 +554,7 @@ func (b *Builder) ParseTypeDeclarationStatement() (*Node, error) {
 	b.Index++
 
 	// Parse the right hand side
-	typeOf, err := b.ParseType()
+	typeOf, err := b.ParseType(nil)
 	if err != nil {
 		return nil, err
 	}
@@ -1081,6 +1086,44 @@ func (b *Builder) ParseUseStatement() (*Node, error) {
 	}, nil
 }
 
+func (b *Builder) parseFileImport(filename string) (*Node, *ScopeTree, error) {
+	// var path, err = os.Getwd()
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	source, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	fmt.Println("source", string(source))
+
+	// Lex and tokenize the source code
+	tokens, err := lex.New(string(source)).Lex()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Compress certain tokens;
+	tokens, err = ast.CompressTokens(tokens)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Build the AST
+	b2 := New(tokens)
+	ast, err := b2.BuildAST()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// fmt.Printf("ast %+v\n", ast.Value.([]*Node)[0].Left.Value.(string))
+
+	// TODO: extremely unsafe, fix this
+	return ast, b2.ScopeTree, nil
+}
+
 func (b *Builder) ParseImportStatement() (*Node, error) {
 	// Check ourselves ...
 	if b.Tokens[b.Index].Type != token.Import {
@@ -1095,12 +1138,49 @@ func (b *Builder) ParseImportStatement() (*Node, error) {
 		return nil, err
 	}
 
+	// Now that we have the expression, we need to go parse that file
+	// 1. Parse the file
+	// 2. Use a variable to link the file
+	// 3. Normal selection checking after that
+	// 4. Take special care for transpileImportStatement
+
+	fmt.Println("expr.Kind", expr.Value.(string))
+
+	if expr.Value.(string) == "c" {
+		b.Index++
+		return &Node{
+			Type: "import",
+			Kind: "c",
+		}, nil
+	}
+
+	// TODO: Later on we will need to check this whether it is a module, file, or remote
+	ast, scope, err := b.parseFileImport(expr.Value.(string))
+	if err != nil {
+		return nil, err
+	}
+
+	// Spawn a new scopetree
+	scopeTree, err := b.ScopeTree.NewChildScope(ast.Value.([]*Node)[0].Left.Value.(string))
+	if err != nil {
+		return nil, err
+	}
+
+	// Set the new scope trees value to the scope retrieved from the file
+	*scopeTree = *scope
+
 	// Step over the literal
 	b.Index++
 
+	// b.ScopeTree, err = b.ScopeTree.Leave()
+	// if err != nil {
+	// 	return nil, err
+	// }
+
 	return &Node{
-		Type: "import",
-		Left: expr,
+		Type:  "import",
+		Left:  expr,
+		Right: ast,
 	}, nil
 }
 
@@ -1365,7 +1445,7 @@ func (b *Builder) ParseStatement() (*Node, error) {
 		// 	return b.ParseStructStatement()
 		// }
 
-		return b.ParseDeclarationStatement()
+		return b.ParseDeclarationStatement(nil)
 
 	// For literal and idents, we will need to figure out what
 	// kind of statement it is
@@ -1373,13 +1453,38 @@ func (b *Builder) ParseStatement() (*Node, error) {
 		return b.ParseLiteralStatement()
 
 	case token.Ident:
-		// Check the type before deciding whether it is an ident or a type
-		// TODO: this might need some more work
-		var t = b.ScopeTree.GetType(b.Tokens[b.Index].Value.String)
+		var t *TypeValue
+		// TODO: I can see this logic failing later, need to make an actual `imports` category
+		if b.Tokens[b.Index+1].Value.String == "." && b.ScopeTree.Global.Children[b.Tokens[b.Index].Value.String] != nil {
+			t = &TypeValue{
+				Type: ImportedValue,
+				Kind: b.Tokens[b.Index].Value.String,
+			}
+
+			// Step over the package name
+			b.Index++
+			// If the package is C, it is a CTypeValue
+		} else if b.Tokens[b.Index].Value.String == "c" {
+			t = &TypeValue{
+				Type: CTypeValue,
+				Kind: b.Tokens[b.Index].Value.String,
+			}
+			// Step over the package name
+			b.Index++
+		} else {
+			// Check the type before deciding whether it is an ident or a type
+			// TODO: this might need some more work
+			t = b.ScopeTree.GetType(b.Tokens[b.Index].Value.String)
+			if t != nil {
+				t.Type = PrimitiveValue
+			}
+		}
+
+		fmt.Println("FUCKING TYPE", t)
 		if t != nil {
 			// Set the token value to `type` instead of `ident` if we know it is a type
 			b.Tokens[b.Index].Type = "TYPE"
-			return b.ParseDeclarationStatement()
+			return b.ParseDeclarationStatement(t)
 		}
 
 		return b.ParseAssignmentStatement()

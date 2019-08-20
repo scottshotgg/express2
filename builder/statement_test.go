@@ -30,7 +30,7 @@ func TestParseDeclarationStatement(t *testing.T) {
 		t.Errorf(errFormatString, err)
 	}
 
-	node, err = b.ParseDeclarationStatement()
+	node, err = b.ParseDeclarationStatement(nil)
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -78,7 +78,7 @@ func TestParseAssignmentStatement(t *testing.T) {
 		t.Errorf(errFormatString, err)
 	}
 
-	_, err = b.ParseDeclarationStatement()
+	_, err = b.ParseDeclarationStatement(nil)
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -205,6 +205,21 @@ func TestParsePackageStatement(t *testing.T) {
 	fmt.Printf(jsonFormatString, nodeJSON)
 }
 
+func TestParseCImportStatement(t *testing.T) {
+	b, err = getBuilderFromString(test.Tests[test.StatementTest]["cimport"])
+	if err != nil {
+		t.Errorf(errFormatString, err)
+	}
+
+	node, err = b.ParseImportStatement()
+	if err != nil {
+		t.Errorf(errFormatString, err)
+	}
+
+	nodeJSON, _ = json.Marshal(node)
+	fmt.Printf(jsonFormatString, nodeJSON)
+}
+
 func TestParseImportStatement(t *testing.T) {
 	b, err = getBuilderFromString(test.Tests[test.StatementTest]["import"])
 	if err != nil {
@@ -271,7 +286,7 @@ func TestParseArrayDeclaration(t *testing.T) {
 		t.Errorf(errFormatString, err)
 	}
 
-	node, err = b.ParseDeclarationStatement()
+	node, err = b.ParseDeclarationStatement(nil)
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}

@@ -1,0 +1,38 @@
+import c
+
+func main() {
+  enum {
+    Male
+    Female
+    Helicopter
+  }
+  
+  struct Person = {
+    string Name = ""
+    int Age = 0
+    int Gender = Male
+    map Characteristics = {
+      444: 222
+    }
+  }
+
+  c.FILE* f = fopen("something", "w+")
+
+  map chars = {
+      "IsProAF": true
+      69: "truth"
+    }
+
+  Person test = {
+    Name = "scott"
+    Age = 24
+    Gender = Helicopter
+    Characteristics = chars
+  }
+
+  string output = test.Name + " is a bawss"
+
+  fputs(output.c_str(), f)
+
+  fclose(f)
+}
