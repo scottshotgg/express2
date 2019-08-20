@@ -1,8 +1,6 @@
 package builder
 
-import (
-	"github.com/scottshotgg/express-token"
-)
+import token "github.com/scottshotgg/express-token"
 
 type (
 	opCallbackFn func(n *Node) (*Node, error)
@@ -53,4 +51,6 @@ const (
 	PrimitiveValue
 	RepeatedValue
 	StruturedValue
+	ImportedValue
+	CTypeValue
 )

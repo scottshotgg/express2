@@ -1,8 +1,10 @@
 package builder
 
 import (
+	"fmt"
+
 	"github.com/pkg/errors"
-	"github.com/scottshotgg/express-token"
+	token "github.com/scottshotgg/express-token"
 )
 
 // func (b *Builder) AddType(key, value *Node) error {
@@ -137,42 +139,84 @@ func buildStructureFromTypeValue(t *TypeValue) (*Node, error) {
 }
 
 // FIXME: rewrite me ffs
-func (b *Builder) ParseType() (*Node, error) {
+func (b *Builder) ParseType(typeHint *TypeValue) (*Node, error) {
 	// Check ourselves ...
 	if b.Tokens[b.Index].Type != token.Type {
-		// If the token is not a type then check the type map to see if it is
-		// var t = b.ScopeTree.GetType(b.Tokens[b.Index].Value.String)
-		// if t == nil {
 		return b.AppendTokenToError("Could not get type")
-		// }
 	}
 
 	var (
 		injectedType = ""
-
-		// We need to inject the original type as well
-		t = b.ScopeTree.GetType(b.Tokens[b.Index].Value.String)
+		t            *TypeValue
+		typeOf       = b.Tokens[b.Index].Value.String
+		metadata     = map[string]interface{}{}
 	)
+
+	// If typeHint is nothing then we are default looking for primitives
+	if typeHint == nil {
+		typeHint = &TypeValue{
+			Type: PrimitiveValue,
+		}
+	}
+
+	switch typeHint.Type {
+	case CTypeValue:
+		var typeName = b.Tokens[b.Index+1].Value.String
+		fmt.Println("typeName", typeName)
+
+		t = &TypeValue{
+			Kind: typeName,
+		}
+		// injectedType = t.Kind
+		// typeOf = typeName
+		// metadata["package"] = typeHint.Kind
+		typeOf = typeName
+
+		// Skip over the selection operator
+		b.Index++
+
+	case PrimitiveValue:
+		fmt.Println("B TOKENS", b.Tokens[b.Index].Value.String)
+		t = b.ScopeTree.GetType(b.Tokens[b.Index].Value.String)
+		fmt.Println("t from scope on primitive", t, b.Tokens[b.Index].Value.String)
+		injectedType = t.Kind
+
+	case ImportedValue:
+		var typeName = b.Tokens[b.Index+1].Value.String
+		fmt.Println("typeName", typeHint.Kind)
+
+		// Skip over the selection operator
+		b.Index++
+
+		// Imports should always be in the global scope
+		t = b.ScopeTree.Global.Children[typeHint.Kind].Types[typeName]
+		fmt.Println("t", *t)
+		injectedType = t.Kind
+		// typeOf = typeHint.Kind + "::" + typeName
+		typeOf = typeName
+		metadata["package"] = typeHint.Kind
+
+	default:
+		fmt.Printf("b.ScopeTree %+v\n", *b.ScopeTree)
+		fmt.Printf("b.ScopeTree %+v\n", *b.ScopeTree.Parent)
+		return nil, errors.Errorf("Type could not be found in scope default: %s", b.Tokens[b.Index].Value.String)
+	}
 
 	if t == nil {
 		return nil, errors.Errorf("Type could not be found in scope: %s", b.Tokens[b.Index].Value.String)
 	}
 
-	injectedType = t.Kind
-
 	var (
-		err    error
-		typeOf = b.Tokens[b.Index].Value.String
-		node   = &Node{
-			Type:  "type",
-			Value: typeOf,
-			Kind:  injectedType,
+		err  error
+		node = &Node{
+			Type:     "type",
+			Value:    typeOf,
+			Kind:     injectedType,
+			Metadata: metadata,
 		}
 	)
 
-	defer func() {
-		b.Index++
-	}()
+	fmt.Println("node, typeOf", typeOf, node)
 
 	for b.Index < len(b.Tokens)-1 {
 		switch b.Tokens[b.Index+1].Type {
@@ -184,6 +228,7 @@ func (b *Builder) ParseType() (*Node, error) {
 		// Pointer operator
 		case token.PriOp:
 			node, err = b.ParsePointerType(node)
+			b.Index++
 
 		// TODO: reworking typing from a more expression oriented architecture
 		// almost as if they were expressions
@@ -193,6 +238,7 @@ func (b *Builder) ParseType() (*Node, error) {
 		// 	n, err = b.ParseAnnotatedType(node)
 
 		default:
+			b.Index++
 			return node, nil
 		}
 
@@ -200,8 +246,8 @@ func (b *Builder) ParseType() (*Node, error) {
 			return nil, err
 		}
 
-		// Increment over the type
-		b.Index++
+		// // Increment over the type
+		// b.Index++
 	}
 
 	return node, nil
@@ -353,7 +399,7 @@ func (b *Builder) ParseArrayType(typeOf string) (*Node, error) {
 		dim = append(dim, &dimValue)
 	}
 
-	b.Index++
+	// b.Index++
 
 	return &Node{
 		Type:  "type",
