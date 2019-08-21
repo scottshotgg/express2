@@ -2,13 +2,10 @@ package builder
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
 	"strings"
 
 	"github.com/pkg/errors"
-	ast "github.com/scottshotgg/express-ast"
-	lex "github.com/scottshotgg/express-lex"
 	token "github.com/scottshotgg/express-token"
 )
 
@@ -440,27 +437,6 @@ func (b *Builder) ParseDeclarationStatement(typeHint *TypeValue) (*Node, error) 
 		return nil, err
 	}
 
-	var typeString = typeOf.Value.(string)
-	if typeString == "map" || typeString == "object" || typeString == "struct" {
-		b.ScopeTree, err = b.ScopeTree.NewChildScope(ident.Value.(string))
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	// // Check the scope map to make sure this hasn't been declared for the current scope
-	// var node = b.ScopeTree.Local(ident.Value.(string))
-
-	// // If the return value isn't nil then that means we found something in the local scope
-	// if node != nil {
-	// 	return nil, errors.Errorf("Variable already declared: %+v\n", node)
-	// }
-
-	// err = b.ScopeTree.Declare(ident)
-	// if err != nil {
-	// 	return nil, err
-	// }
-
 	// Increment over the ident token
 	b.Index++
 
@@ -757,15 +733,6 @@ func (b *Builder) ParseStructStatement() (*Node, error) {
 	}
 
 	v.Props, err = b.extractPropsFromComposite(body)
-	if err != nil {
-		return nil, err
-	}
-
-	// // Increment over the first part of the expression
-	// b.Index++
-
-	// Assign our scope back to the current one
-	b.ScopeTree, err = b.ScopeTree.Leave()
 	if err != nil {
 		return nil, err
 	}
@@ -1086,44 +1053,6 @@ func (b *Builder) ParseUseStatement() (*Node, error) {
 	}, nil
 }
 
-func (b *Builder) parseFileImport(filename string) (*Node, *ScopeTree, error) {
-	// var path, err = os.Getwd()
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	source, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	fmt.Println("source", string(source))
-
-	// Lex and tokenize the source code
-	tokens, err := lex.New(string(source)).Lex()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	// Compress certain tokens;
-	tokens, err = ast.CompressTokens(tokens)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	// Build the AST
-	b2 := New(tokens)
-	ast, err := b2.BuildAST()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	// fmt.Printf("ast %+v\n", ast.Value.([]*Node)[0].Left.Value.(string))
-
-	// TODO: extremely unsafe, fix this
-	return ast, b2.ScopeTree, nil
-}
-
 func (b *Builder) ParseImportStatement() (*Node, error) {
 	// Check ourselves ...
 	if b.Tokens[b.Index].Type != token.Import {
@@ -1138,37 +1067,6 @@ func (b *Builder) ParseImportStatement() (*Node, error) {
 		return nil, err
 	}
 
-	// Now that we have the expression, we need to go parse that file
-	// 1. Parse the file
-	// 2. Use a variable to link the file
-	// 3. Normal selection checking after that
-	// 4. Take special care for transpileImportStatement
-
-	fmt.Println("expr.Kind", expr.Value.(string))
-
-	if expr.Value.(string) == "c" {
-		b.Index++
-		return &Node{
-			Type: "import",
-			Kind: "c",
-		}, nil
-	}
-
-	// TODO: Later on we will need to check this whether it is a module, file, or remote
-	ast, scope, err := b.parseFileImport(expr.Value.(string))
-	if err != nil {
-		return nil, err
-	}
-
-	// Spawn a new scopetree
-	scopeTree, err := b.ScopeTree.NewChildScope(ast.Value.([]*Node)[0].Left.Value.(string))
-	if err != nil {
-		return nil, err
-	}
-
-	// Set the new scope trees value to the scope retrieved from the file
-	*scopeTree = *scope
-
 	// Step over the literal
 	b.Index++
 
@@ -1178,9 +1076,8 @@ func (b *Builder) ParseImportStatement() (*Node, error) {
 	// }
 
 	return &Node{
-		Type:  "import",
-		Left:  expr,
-		Right: ast,
+		Type: "import",
+		Left: expr,
 	}, nil
 }
 

@@ -1,4 +1,4 @@
-package builder
+package ast
 
 import token "github.com/scottshotgg/express-token"
 
@@ -35,7 +35,7 @@ type (
 		Props     map[string]*TypeValue
 	}
 
-	Builder struct {
+	AST struct {
 		Tokens []token.Token `json:",omitempty"`
 		Index  int           `json:",omitempty"`
 		// [op_tier][op] -> func

@@ -1,3 +1,0 @@
-tutorial/step8.o: tutorial/step8.c /usr/include/stdc-predef.h
-
-/usr/include/stdc-predef.h:

@@ -1,5 +1,0 @@
-import "/home/scottshotgg/Development/go/src/github.com/scottshotgg/express2/lib/std.cpp"
-
-func Something() {
-  Println("hey its me")
-}

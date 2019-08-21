@@ -1,1 +1,0 @@
-int myExFnPrototype(int thingy1, char thingy2);

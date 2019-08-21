@@ -1,7 +1,7 @@
 package builder
 
 import (
-	"github.com/scottshotgg/express-token"
+	token "github.com/scottshotgg/express-token"
 )
 
 var (
@@ -17,8 +17,7 @@ var (
 
 func New(tokens []token.Token) *Builder {
 	var b = Builder{
-		Tokens:    tokens,
-		ScopeTree: NewScopeTree(),
+		Tokens: tokens,
 		// TypeMap: map[string]*TypeValue{},
 	}
 
@@ -65,8 +64,6 @@ func (b *Builder) BuildAST() (*Node, error) {
 			Type: "program",
 		}
 	)
-
-	b.ScopeTree = NewScopeTree()
 
 	for b.Index < len(b.Tokens)-1 {
 		stmt, err = b.ParseStatement()

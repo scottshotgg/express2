@@ -37,14 +37,6 @@ func TestParseDeclarationStatement(t *testing.T) {
 
 	nodeJSON, _ = json.Marshal(node)
 	fmt.Printf(jsonFormatString, nodeJSON)
-
-	var v = b.ScopeTree.Get("i")
-	if v == nil {
-		t.Fatalf("Could not find variable after insertion")
-	}
-
-	nodeJSON, _ = json.Marshal(v)
-	fmt.Printf(jsonFormatString, nodeJSON)
 }
 
 func TestParseAssignmentFromIndexStatement(t *testing.T) {
@@ -88,17 +80,9 @@ func TestParseAssignmentStatement(t *testing.T) {
 		t.Errorf(errFormatString, err)
 	}
 
-	nodeJSON, _ = json.Marshal(node)
+	nodeJSON, _ := json.Marshal(node)
 	fmt.Printf(jsonFormatString, nodeJSON)
-
-	var v = b.ScopeTree.Get("i")
-	if v == nil {
-		t.Fatalf("Could not find variable after insertion")
 	}
-
-	nodeJSON, _ = json.Marshal(v)
-	fmt.Printf(jsonFormatString, nodeJSON)
-}
 
 func TestIfElseStatement(t *testing.T) {
 	b, err = getBuilderFromString(test.Tests[test.StatementTest]["ifElse"])
