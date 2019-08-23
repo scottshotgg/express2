@@ -1,0 +1,4 @@
+func main() {
+  int i = 7
+  i = 9
+}

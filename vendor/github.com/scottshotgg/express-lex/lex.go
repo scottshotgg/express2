@@ -6,7 +6,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/scottshotgg/express-token"
+	token "github.com/scottshotgg/express-token"
 )
 
 // Lexer holds all the needed variables to appropriately lex
@@ -18,13 +18,13 @@ type Lexer struct {
 
 // Lexemes are the specific symbols the lexer needs to recognize
 var Lexemes = []string{
-	"var",
-	"int",
-	"float",
-	"string",
-	"bool",
-	"char",
-	"object",
+	// "var",
+	// "int",
+	// "float",
+	// "string",
+	// "bool",
+	// "char",
+	// "object",
 
 	":",
 	"=",

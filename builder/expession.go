@@ -3,7 +3,7 @@ package builder
 import (
 	"fmt"
 
-	"github.com/scottshotgg/express-token"
+	token "github.com/scottshotgg/express-token"
 )
 
 func (b *Builder) ParseGroupOfExpressions() (*Node, error) {

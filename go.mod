@@ -7,8 +7,8 @@ require (
 	github.com/mitchellh/go-homedir v1.0.0 // indirect
 	github.com/pkg/errors v0.8.1
 	github.com/scottshotgg/express-ast v0.0.0-00010101000000-000000000000
-	github.com/scottshotgg/express-lex v0.0.0-00010101000000-000000000000
-	github.com/scottshotgg/express-token v0.0.0-20190114120617-cfbdb912cfa9
+	github.com/scottshotgg/express-lex v0.0.0-20190816233540-eb22f05bde7e
+	github.com/scottshotgg/express-token v0.0.0-20190816231727-78f862b0ae0d
 	github.com/spf13/cobra v0.0.3
 	github.com/spf13/viper v1.3.1
 	golang.org/x/sys v0.0.0-20190105165716-badf5585203e // indirect

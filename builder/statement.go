@@ -307,6 +307,21 @@ func (b *Builder) ParseEnumBlockStatement() (*Node, error) {
 	// Increment over the enum keyword
 	b.Index++
 
+	var (
+		ident *Node
+		err   error
+	)
+
+	// Allow for named/typed enums
+	if b.Tokens[b.Index].Type == token.Ident {
+		ident, err = b.ParseExpression()
+		if err != nil {
+			return nil, errors.New("an error trying to get ident-type from enum")
+		}
+
+		b.Index++
+	}
+
 	// Check ourselves ...
 	if b.Tokens[b.Index].Type != token.LBrace {
 		return b.AppendTokenToError("Could not get left brace")
@@ -318,18 +333,20 @@ func (b *Builder) ParseEnumBlockStatement() (*Node, error) {
 	var (
 		stmt  *Node
 		stmts []*Node
-		err   error
 	)
 
+	// FIXME: for now, setting values to enums is prohibited
 	for b.Index < len(b.Tokens) &&
 		b.Tokens[b.Index].Type != token.RBrace {
-		stmt, err = b.ParseStatement()
+		stmt, err = b.ParseExpression()
 		if err != nil {
 			// Recover the parse if it gets the right error
 			if err != ErrNoEqualsFoundAfterIdent {
 				return nil, err
 			}
 		}
+
+		b.Index++
 
 		// All statements in a map have to be key-value
 		// This isn't true wtf
@@ -343,13 +360,20 @@ func (b *Builder) ParseEnumBlockStatement() (*Node, error) {
 	// Step over the right brace token
 	b.Index++
 
-	return &Node{
+	var node = &Node{
 		Type: "enum",
 		Left: &Node{
 			Type:  "block",
 			Value: stmts,
 		},
-	}, nil
+	}
+
+	// Assert the type
+	if ident != nil {
+		node.Value = ident
+	}
+
+	return node, nil
 }
 
 func (b *Builder) ParseBlockStatement() (*Node, error) {
@@ -421,110 +445,110 @@ func (b *Builder) ParseReturnStatement() (*Node, error) {
 	}, nil
 }
 
-func (b *Builder) ParseDeclarationStatement(typeHint *TypeValue) (*Node, error) {
-	var typeOf, err = b.ParseType(typeHint)
-	if err != nil {
-		return nil, err
-	}
+// func (b *Builder) ParseDeclarationStatement(typeHint *TypeValue) (*Node, error) {
+// 	var typeOf, err = b.ParseType(typeHint)
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	fmt.Println("typeOf outside", typeOf)
+// 	fmt.Println("typeOf outside", typeOf)
 
-	// Check that the next token is an ident
-	if b.Tokens[b.Index].Type != token.Ident {
-		return b.AppendTokenToError("Could not get ident in declaration statement")
-	}
+// 	// Check that the next token is an ident
+// 	if b.Tokens[b.Index].Type != token.Ident {
+// 		return b.AppendTokenToError("Could not get ident in declaration statement")
+// 	}
 
-	// Create the ident
-	ident, err := b.ParseExpression()
-	if err != nil {
-		return nil, err
-	}
+// 	// Create the ident
+// 	ident, err := b.ParseExpression()
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	var typeString = typeOf.Value.(string)
-	if typeString == "map" || typeString == "object" || typeString == "struct" {
-		b.ScopeTree, err = b.ScopeTree.NewChildScope(ident.Value.(string))
-		if err != nil {
-			return nil, err
-		}
-	}
+// 	var typeString = typeOf.Value.(string)
+// 	if typeString == "map" || typeString == "object" || typeString == "struct" {
+// 		b.ScopeTree, err = b.ScopeTree.NewChildScope(ident.Value.(string))
+// 		if err != nil {
+// 			return nil, err
+// 		}
+// 	}
 
-	// // Check the scope map to make sure this hasn't been declared for the current scope
-	// var node = b.ScopeTree.Local(ident.Value.(string))
+// 	// // Check the scope map to make sure this hasn't been declared for the current scope
+// 	// var node = b.ScopeTree.Local(ident.Value.(string))
 
-	// // If the return value isn't nil then that means we found something in the local scope
-	// if node != nil {
-	// 	return nil, errors.Errorf("Variable already declared: %+v\n", node)
-	// }
+// 	// // If the return value isn't nil then that means we found something in the local scope
+// 	// if node != nil {
+// 	// 	return nil, errors.Errorf("Variable already declared: %+v\n", node)
+// 	// }
 
-	// err = b.ScopeTree.Declare(ident)
-	// if err != nil {
-	// 	return nil, err
-	// }
+// 	// err = b.ScopeTree.Declare(ident)
+// 	// if err != nil {
+// 	// 	return nil, err
+// 	// }
 
-	// Increment over the ident token
-	b.Index++
+// 	// Increment over the ident token
+// 	b.Index++
 
-	// Check for the equals token
-	if b.Tokens[b.Index].Type != token.Assign {
-		return &Node{
-			Type:  "decl",
-			Value: typeOf,
-			Left:  ident,
-		}, nil
+// 	// Check for the equals token
+// 	if b.Tokens[b.Index].Type != token.Assign {
+// 		return &Node{
+// 			Type:  "decl",
+// 			Value: typeOf,
+// 			Left:  ident,
+// 		}, nil
 
-		// return nil, errors.New("No equals found after ident")
-	}
+// 		// return nil, errors.New("No equals found after ident")
+// 	}
 
-	// Increment over the equals
-	b.Index++
+// 	// Increment over the equals
+// 	b.Index++
 
-	// Parse the right hand side
-	expr, err := b.ParseExpression()
-	if err != nil {
-		return nil, err
-	}
+// 	// Parse the right hand side
+// 	expr, err := b.ParseExpression()
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	// Increment over the first part of the expression
-	b.Index++
+// 	// Increment over the first part of the expression
+// 	b.Index++
 
-	// Leave the scope if we entered it above
-	if typeString == "map" || typeString == "object" || typeString == "struct" {
-		// Assign our scope back to the current one
-		b.ScopeTree, err = b.ScopeTree.Leave()
-		if err != nil {
-			return nil, err
-		}
+// 	// Leave the scope if we entered it above
+// 	if typeString == "map" || typeString == "object" || typeString == "struct" {
+// 		// Assign our scope back to the current one
+// 		b.ScopeTree, err = b.ScopeTree.Leave()
+// 		if err != nil {
+// 			return nil, err
+// 		}
 
-		if typeString == "struct" {
-			var v = &TypeValue{
-				Composite: true,
-				Type:      StruturedValue,
-				Kind:      expr.Kind,
-			}
+// 		if typeString == "struct" {
+// 			var v = &TypeValue{
+// 				Composite: true,
+// 				Type:      StruturedValue,
+// 				Kind:      expr.Kind,
+// 			}
 
-			v.Props, err = b.extractPropsFromComposite(expr)
-			if err != nil {
-				return nil, err
-			}
+// 			v.Props, err = b.extractPropsFromComposite(expr)
+// 			if err != nil {
+// 				return nil, err
+// 			}
 
-			err = b.ScopeTree.NewType(ident.Value.(string), v)
-			if err != nil {
-				return nil, err
-			}
-		}
+// 			err = b.ScopeTree.NewType(ident.Value.(string), v)
+// 			if err != nil {
+// 				return nil, err
+// 			}
+// 		}
 
-		// Could defer this and then exit when we error?
-	}
+// 		// Could defer this and then exit when we error?
+// 	}
 
-	var node = &Node{
-		Type:  "decl",
-		Value: typeOf,
-		Left:  ident,
-		Right: expr,
-	}
+// 	var node = &Node{
+// 		Type:  "decl",
+// 		Value: typeOf,
+// 		Left:  ident,
+// 		Right: expr,
+// 	}
 
-	return node, b.ScopeTree.Declare(node)
-}
+// 	return node, b.ScopeTree.Declare(node)
+// }
 
 func (b *Builder) ParseTypeDeclarationStatement() (*Node, error) {
 	// Check ourselves ...
@@ -553,19 +577,24 @@ func (b *Builder) ParseTypeDeclarationStatement() (*Node, error) {
 	// Increment over the equals
 	b.Index++
 
-	// Parse the right hand side
-	typeOf, err := b.ParseType(nil)
+	// // Parse the right hand side
+	// typeOf, err := b.ParseType(nil)
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	// _, err = b.AddPrimiypeive(ident.Value.(string), typeOf)
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	typeOf, err := b.ParseExpression()
 	if err != nil {
 		return nil, err
 	}
 
-	_, err = b.AddPrimitive(ident.Value.(string), typeOf)
-	if err != nil {
-		return nil, err
-	}
-
-	// // Increment over the first part of the expression
-	// b.Index++
+	// Increment over the first part of the expression
+	b.Index++
 
 	return &Node{
 		Type:  "typedef",
@@ -906,74 +935,159 @@ func (b *Builder) ParseLiteralStatement() (*Node, error) {
 	}
 }
 
-func (b *Builder) ParseAssignmentStatement() (*Node, error) {
-	// into: [expr] = [expr]
+// ParseIdentStatement: Although idents are not statements, they do start many statements
+// and this function serves to disambiguate those statements
+func (b *Builder) ParseIdentStatement() (*Node, error) {
+	// into: {type} [expr] = [expr]
 	// Check that the next token is an ident
 	if b.Tokens[b.Index].Type != token.Ident {
 		return b.AppendTokenToError("Could not get assignment statement without ident")
 	}
 
-	ident, err := b.ParseExpression()
+	// Parse the first ident; this COULD be a type
+	identOrType, err := b.ParseExpression()
 	if err != nil {
 		return nil, err
 	}
-
-	// // Check the scope map to make sure this hasn't been declared for the current scope
-	// var node = b.ScopeTree.Get(ident.Value.(string))
-
-	// // If the return value isn't nil then that means we found something in the local scope
-	// if node == nil {
-	// 	return nil, errors.Errorf("Use of undeclared identifier: %+v\n", ident)
-	// }
 
 	// Increment over the ident token
 	b.Index++
 
-	// fmt.Println("ident", ident.Left, ident.Right, ident.Right.Left, ident.Right.Right)
-
 	if b.Index > len(b.Tokens)-1 {
-		return ident, nil
+		return identOrType, nil
 	}
 
-	if b.Tokens[b.Index].Type == token.Set {
-		return b.ParseSet(ident)
+	// Default to assignment so that we only have to write the assignment
+	// logic once and can use a fallthrough case
+	var node = &Node{
+		Type: "assignment",
+		// Value: This will be a type set to identOrType if it is declaration
+		Left: identOrType,
+		// Right: expr,
 	}
 
-	// Check for the equals token
-	if b.Tokens[b.Index].Type != token.Assign {
-		if ident.Type == "call" {
-			return ident, nil
+	fmt.Println("identOrType, err", identOrType, err)
+
+	switch b.Tokens[b.Index].Type {
+	case token.Ident:
+		/*
+			In this case, we have two idents back to back which leads us
+			to make the only informed decision we can; that the first ident
+			was a type, like in cases such as:
+				int i = 0
+		*/
+
+		// Set the proper node values
+		node.Type = "decl"
+		node.Value = identOrType
+
+		fmt.Println("got another ident")
+
+		node.Left, err = b.ParseExpression()
+		if err != nil {
+			return nil, err
 		}
 
-		// TODO: this is where we need to check for `:`
+		if b.Index > len(b.Tokens)-1 && b.Tokens[b.Index+1].Type != token.Assign {
+			fmt.Println("b.Tokens[b.Index+1]", b.Tokens[b.Index+1])
+			return node, nil
+		}
 
-		// return b.AppendTokenToError(fmt.Sprintf("No equals found after ident in assignment: %+v", b.Tokens[b.Index]))
-		// This need to return the token in case the parse needs to be recovered! Look at ParseEnumBlock for an example of parse recovery
-		return ident, ErrNoEqualsFoundAfterIdent
+		// Step over the real ident
+		b.Index++
+
+		/*
+			 This is the case where we do not have any more tokens but still
+			 could be valid for cases like:
+					int i
+		*/
+		if b.Index > len(b.Tokens)-1 {
+			return node, nil
+		}
+
+		if b.Tokens[b.Index].Type != token.Assign {
+			return node, nil
+		}
+
+		fallthrough
+
+	case token.Assign:
+		/*
+			This is the assignment case where a simple assignment is as:
+				i = 0
+		*/
+		fmt.Println("got assign")
+
+		// Step over the assign
+		b.Index++
+
+		node.Right, err = b.ParseExpression()
+		if err != nil {
+			return nil, err
+		}
+
+		b.Index++
+
+		return node, nil
+
+	// Just return the ident if you don't know what to do
+	// this will defer the judgement to the next statement up
+	default:
+		return identOrType, nil
 	}
 
-	// Increment over the equals
-	b.Index++
+	// 	// If there is an ident after the ident, then we have what should be a type
+	// 	// If there is assignment, then we have an assign statement
 
-	// Parse the right hand side
-	expr, err := b.ParseExpression()
-	if err != nil {
-		return nil, err
-	}
+	// 	// Increment over the ident token
+	// 	b.Index++
 
-	// Increment over the first part of the expression
-	b.Index++
+	// 	if b.Index > len(b.Tokens)-1 {
+	// 		return ident, nil
+	// 	}
 
-	var node = &Node{
-		Type:  "assignment",
-		Left:  ident,
-		Right: expr,
-	}
+	// 	if b.Tokens[b.Index].Type == token.Set {
+	// 		return b.ParseSet(ident)
+	// 	}
 
-	// Do one pass for declarations, and check that the assignments
-	// and usages corraborate in the type checker
-	// return node, b.ScopeTree.Assign(node)
-	return node, nil
+	// 	// Check for the equals token
+	// 	if b.Tokens[b.Index].Type != token.Assign {
+	// 		if ident.Type == "call" {
+	// 			return ident, nil
+	// 		}
+
+	// 		// TODO: this is where we need to check for `:`
+
+	// 		// return b.AppendTokenToError(fmt.Sprintf("No equals found after ident in assignment: %+v", b.Tokens[b.Index]))
+	// 		// This need to return the token in case the parse needs to be recovered! Look at ParseEnumBlock for an example of parse recovery
+	// 		return ident, ErrNoEqualsFoundAfterIdent
+	// 	}
+
+	// 	// Increment over the equals
+	// 	b.Index++
+
+	// 	// Parse the right hand side
+	// 	expr, err := b.ParseExpression()
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+
+	// 	// Increment over the first part of the expression
+	// 	b.Index++
+
+	// 	var node = &Node{
+	// 		Type:  "assignment",
+	// 		Left:  ident,
+	// 		Right: expr,
+	// 	}
+
+	// 	// Do one pass for declarations, and check that the assignments
+	// 	// and usages corraborate in the type checker
+	// 	// return node, b.ScopeTree.Assign(node)
+	// 	return node, nil
+	// }
+
+	return nil, errors.Errorf("could not parse ident statement: %+v", b.Tokens[b.Index])
 }
 
 func (b *Builder) ParsePackageStatement() (*Node, error) {
@@ -1275,47 +1389,46 @@ func (b *Builder) ParseFunctionStatement() (*Node, error) {
 		node.Metadata["args"] = args
 	}
 
-	// Might want to avoid putting this here if we don't have any
+	// If the next token is not a left brace, then we have returns
+	if b.Tokens[b.Index].Type != token.LBrace {
+		// Check for multiple returns; another left paren
+		if b.Tokens[b.Index].Type == token.LParen {
+			// This should be a group of idents for the types
+			node.Metadata["returns"], err = b.ParseGroupOfExpressions()
+			if err != nil {
+				return nil, err
+			}
 
-	// We are not supporting multiple returns for now
-	// // Check for multiple returns;another left paren
-	// if b.Tokens[b.Index].Type == token.LParen {
-	// 	return nil, errors.New("Could not get returns")
-	// }
+			b.Index++
 
-	var returnType = b.Tokens[b.Index].Value.String
+		} else if b.Tokens[b.Index].Type == token.Ident {
+			// Make an egroup with one return in it
+			node.Metadata["returns"] = &Node{
+				Type: "egroup",
+				Value: []*Node{
+					&Node{
+						Type:  "ident",
+						Value: b.Tokens[b.Index].Value.String,
+					},
+				},
+			}
+
+			// Step over the type token
+			b.Index++
+		} else {
+			return nil, errors.Errorf("could not parse returns on %s", node.Kind)
+		}
+	}
 
 	// We are not supporting named arguments for now
 	// Check for the return type token
-	if b.Tokens[b.Index].Type == token.Type {
-		node.Metadata["returns"] = &Node{
-			Type:  "type",
-			Value: returnType,
-		}
-
-		// Step over the type token
-		b.Index++
-	}
 
 	// If the function is named main then check that it returns an int
 	// If it doesn't have any return type then apply an int return
 	// If it already has a return type that is not int then that is an error
 	if node.Kind == "main" {
 		if node.Metadata["returns"] != nil {
-			// Add this later
-			// if len(node.Metadata["returns"].([]*Node)) > 1 {
-			// 	return nil, errors.New("main can only have one return")
-			// }
-
-			if returnType != "int" {
-				return nil, errors.New("main can only return an int type")
-			}
-		}
-
-		// Apply the int return
-		node.Metadata["returns"] = &Node{
-			Type:  "type",
-			Value: "int",
+			return nil, errors.New("main can not have any return type specified")
 		}
 	}
 
@@ -1438,14 +1551,8 @@ func (b *Builder) ParseStatement() (*Node, error) {
 	// case token.C:
 	// 	return b.ParseCBlock()
 
-	case token.Type:
-		// // Struct is a keyword and a type so if we get it as a type statment
-		// // then we need to divert the parsing
-		// if b.Tokens[b.Index].Value.String == token.StructType {
-		// 	return b.ParseStructStatement()
-		// }
-
-		return b.ParseDeclarationStatement(nil)
+	// case token.Type:
+	// 	return b.ParseAssignmentStatement()
 
 	// For literal and idents, we will need to figure out what
 	// kind of statement it is
@@ -1453,41 +1560,7 @@ func (b *Builder) ParseStatement() (*Node, error) {
 		return b.ParseLiteralStatement()
 
 	case token.Ident:
-		var t *TypeValue
-		// TODO: I can see this logic failing later, need to make an actual `imports` category
-		if b.Tokens[b.Index+1].Value.String == "." && b.ScopeTree.Global.Children[b.Tokens[b.Index].Value.String] != nil {
-			t = &TypeValue{
-				Type: ImportedValue,
-				Kind: b.Tokens[b.Index].Value.String,
-			}
-
-			// Step over the package name
-			b.Index++
-			// If the package is C, it is a CTypeValue
-		} else if b.Tokens[b.Index].Value.String == "c" {
-			t = &TypeValue{
-				Type: CTypeValue,
-				Kind: b.Tokens[b.Index].Value.String,
-			}
-			// Step over the package name
-			b.Index++
-		} else {
-			// Check the type before deciding whether it is an ident or a type
-			// TODO: this might need some more work
-			t = b.ScopeTree.GetType(b.Tokens[b.Index].Value.String)
-			if t != nil {
-				t.Type = PrimitiveValue
-			}
-		}
-
-		fmt.Println("FUCKING TYPE", t)
-		if t != nil {
-			// Set the token value to `type` instead of `ident` if we know it is a type
-			b.Tokens[b.Index].Type = "TYPE"
-			return b.ParseDeclarationStatement(t)
-		}
-
-		return b.ParseAssignmentStatement()
+		return b.ParseIdentStatement()
 
 	case token.Function:
 		return b.ParseFunctionStatement()

@@ -35,6 +35,8 @@ type ScopeTree struct {
 	// Node is the node that the spawned the scope
 	// node *Node
 
+	Imports map[string]*ScopeTree
+
 	// Table is the map of vars
 	Vars map[string]*Node
 
@@ -54,10 +56,12 @@ type ScopeTree struct {
 func (st ScopeTree) MarshalJSON() ([]byte, error) {
 	// Marhshal up an anonymous struct with only the data we want
 	return json.Marshal(struct {
+		Imports  map[string]*ScopeTree
 		Vars     map[string]*Node
 		Types    map[string]*TypeValue
 		Children map[string]*ScopeTree
 	}{
+		st.Imports,
 		st.Vars,
 		st.Types,
 		st.Children,
@@ -71,6 +75,7 @@ func NewScopeTree() *ScopeTree {
 	var scopeTree = &ScopeTree{
 		Lock: &sync.RWMutex{},
 		// node:  node,
+		Imports:  map[string]*ScopeTree{},
 		Vars:     map[string]*Node{},
 		Types:    map[string]*TypeValue{},
 		Children: map[string]*ScopeTree{},
@@ -114,6 +119,38 @@ func (st *ScopeTree) NewChildScope(name string) (*ScopeTree, error) {
 	}
 
 	st.Children[name] = scope
+
+	return scope, nil
+}
+
+func (st *ScopeTree) GetImports() map[string]*ScopeTree {
+	return st.Global.Imports
+}
+
+// NewChild enumerates a new child scope
+// func (st *ScopeTree) NewChild(node *Node) *ScopeTree {
+func (st *ScopeTree) NewPackageScope(name string) (*ScopeTree, error) {
+	// On a new child, it might be needed, we could either COPY everything from the other scope ...
+	// 	OR
+	// (easier) Just defer to recursing up in the Get
+
+	// Check for a child with the same name already
+	if st.Imports[name] != nil {
+		return nil, errors.Errorf("There is already a scope with that name; %s", name)
+	}
+
+	var scope = &ScopeTree{
+		Lock: &sync.RWMutex{},
+		// node:   node,
+		// TODO: fix this
+		Vars:     map[string]*Node{},
+		Types:    map[string]*TypeValue{},
+		Parent:   st,
+		Global:   st.Global,
+		Children: map[string]*ScopeTree{},
+	}
+
+	st.Imports[name] = scope
 
 	return scope, nil
 }
@@ -204,6 +241,28 @@ func (st *ScopeTree) NewType(key string, ref *TypeValue) error {
 	st.Types[key] = ref
 
 	return nil
+}
+
+func (st *ScopeTree) GetImportedType(packageName, name string) *TypeValue {
+	// If st is nil then we have a problem
+	if st == nil {
+		log.Printf("Current scope was nil ...")
+		os.Exit(9)
+	}
+
+	// The Node in the current scope is not allowed to act as a ref as of right now
+	// Search for the reference name in the current scope's symbol table
+	st.Lock.Lock()
+	// Don't know if we need to recursively lock ... it seems likely
+	defer st.Lock.Unlock()
+
+	var imports = st.Global.Imports[packageName]
+	if imports == nil {
+		return nil
+	}
+
+	// Imports are always found in the global scope
+	return imports.Types[name]
 }
 
 func (st *ScopeTree) GetType(name string) *TypeValue {
