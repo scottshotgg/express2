@@ -36,7 +36,7 @@ int main() {
         {444, 222},
     };
   };
-  FILE *f = c.fopen("something", "w+");
+  FILE *f = fopen("something", "w+");
   std::map<var, var> chars = {
       {"IsProAF", true},
       {69, "truth"},

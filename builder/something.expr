@@ -1,0 +1,7 @@
+package something
+
+type myInt = int
+
+func hello(string name) string {
+  return "hello " + name + "!"
+}

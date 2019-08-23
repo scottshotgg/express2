@@ -104,7 +104,7 @@ func (a *ASTBuilder) GetTerm() (Expression, error) {
 		a.Index++
 		a.Index++
 
-		if a.Tokens[a.Index+1] == token.Assign {
+		if a.Tokens[a.Index+2].Type == token.Assign {
 			log.Println("wtf is this thing doing right here")
 		}
 
@@ -714,6 +714,22 @@ func CompressTokens(lexTokens []token.Token) ([]token.Token, error) {
 
 			// This needs to be simplified
 			if currentToken.Type == token.Assign || currentToken.Type == token.SecOp || currentToken.Type == token.PriOp && nextToken.Type == token.Assign || nextToken.Type == token.SecOp || nextToken.Type == token.PriOp {
+				compressedToken, ok := token.TokenMap[currentToken.Value.String+nextToken.Value.String]
+				// fmt.Println("added \"" + lexTokens[i].Value.String + nextToken.Value.String + "\"")
+				if ok {
+					compressedTokens = append(compressedTokens, compressedToken)
+					i++
+
+					// If we were able to combine the last two tokens and make a new one, mark it
+					if i == len(lexTokens)-1 {
+						// alreadyChecked = true
+					}
+
+					continue
+				}
+			}
+
+			if currentToken.Type == token.GThan || currentToken.Type == token.LThan && nextToken.Type == token.Assign {
 				compressedToken, ok := token.TokenMap[currentToken.Value.String+nextToken.Value.String]
 				// fmt.Println("added \"" + lexTokens[i].Value.String + nextToken.Value.String + "\"")
 				if ok {

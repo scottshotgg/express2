@@ -302,6 +302,10 @@ func (c *Compiler) compileFile(filename string) error {
 	}
 	c.setOutput("lex", tokens)
 
+	for _, token := range tokens {
+		fmt.Println("token:", token)
+	}
+
 	fmt.Println("\nCompressing tokens ...")
 
 	// Compress certain tokens;
@@ -323,6 +327,15 @@ func (c *Compiler) compileFile(filename string) error {
 		return err
 	}
 	c.setOutput("ast", ast)
+
+	astJSON, err := json.Marshal(ast)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(string(astJSON))
+
+	return nil
 
 	// Change "main" to something else later
 
