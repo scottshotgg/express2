@@ -75,10 +75,7 @@ func TestParseIdentStatement(t *testing.T) {
 
 	var tests = map[string]error{
 		"int i = 0":   nil,
-		"int i":       nil,
-		"i = 0":       nil,
-		"c.fputs()":   nil,
-		"c.int i = 0": nil,
+		"*int o = &i": nil,
 	}
 
 	// TODO: Figure out how we can run test like the above

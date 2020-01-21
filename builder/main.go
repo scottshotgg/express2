@@ -1,7 +1,7 @@
 package builder
 
 import (
-	"github.com/scottshotgg/express-token"
+	token "github.com/scottshotgg/express-token"
 )
 
 var (

@@ -67,12 +67,14 @@ type Transpiler interface {
 // Make an LLVM IR implementation
 
 type C99 struct {
-	ast *builder.Node
+	ast     *builder.Node
+	imports map[string]string
 }
 
 func NewC99(ast *builder.Node) *C99 {
 	return &C99{
-		ast: ast,
+		ast:     ast,
+		imports: map[string]string{},
 	}
 }
 
@@ -93,16 +95,41 @@ func (t *C99) Transpile() (*string, error) {
 	return &code, nil
 }
 
+func (t *C99) addSemi(code *string, err error) (*string, error) {
+	if err != nil {
+		return nil, err
+	}
+
+	*code += ";"
+
+	return code, nil
+}
+
 func (t *C99) Statement(n *builder.Node) (*string, error) {
 	switch n.Type {
 	case "function":
 		return t.function(n)
 
 	case "decl":
-		return t.declaration(n)
+		return t.addSemi(t.declaration(n))
 
-		// case "assignment":
-		// 	return t.assign(n)
+	case "assignment":
+		return t.addSemi(t.assignment(n))
+
+	case "package":
+		return t.packageStatement(n)
+
+	case "import":
+		return t.importStatement(n)
+
+	case "return":
+		return t.addSemi(t.returnStatement(n))
+
+	case "selection":
+		return t.addSemi(t.selection(n))
+
+	case "call":
+		return t.addSemi(t.call(n))
 	}
 
 	return nil, errors.Errorf("could not transpile statement: %+v", *n)
@@ -118,7 +145,6 @@ func (t *C99) Expression(n *builder.Node) (*string, error) {
 	*/
 
 	var code string
-
 	switch n.Type {
 	case "ident":
 		code = n.Value.(string)
@@ -137,9 +163,39 @@ func (t *C99) Expression(n *builder.Node) (*string, error) {
 		case "char":
 			fallthrough
 		case "string":
-			code = n.Value.(string)
+			code = "\"" + n.Value.(string) + "\""
 
 		}
+
+	case "binop":
+		// [expr] [op] [expr]
+		// [expression] = [expression]
+		var expr, err = t.Expression(n.Left)
+		if err != nil {
+			return nil, err
+		}
+
+		code += *expr + " " + n.Value.(string) + " "
+
+		// [expression] = [expression]
+		expr, err = t.Expression(n.Right)
+		if err != nil {
+			return nil, err
+		}
+
+		code += *expr
+
+	case "call":
+		return t.call(n)
+
+	case "selection":
+		var sel, err = t.selection(n)
+		if err != nil {
+			return nil, err
+		}
+
+		code += *sel
+		return &code, nil
 
 	default:
 		pn(n)
@@ -201,6 +257,29 @@ func (t *C99) function(n *builder.Node) (*string, error) {
 	return &code, nil
 }
 
+func (t *C99) call(n *builder.Node) (*string, error) {
+	var code string
+
+	// basic function call
+	// [expr]({args})
+	var expr, err = t.Expression(n.Value.(*builder.Node))
+	if err != nil {
+		return nil, err
+	}
+
+	code += *expr
+
+	// args
+	args, err := t.egroupCall(n.Metadata["args"].(*builder.Node))
+	if err != nil {
+		return nil, err
+	}
+
+	code += "(" + *args + ")"
+
+	return &code, nil
+}
+
 func (t *C99) assignment(n *builder.Node) (*string, error) {
 	// [expression] = [expression]
 	var expr, err = t.Expression(n.Left)
@@ -257,9 +336,30 @@ func (t *C99) sgroup(n *builder.Node) (*string, error) {
 	return &code, nil
 }
 
+func (t *C99) egroupCall(n *builder.Node) (*string, error) {
+	// This is used for a call that is passing arguments
+	var args []string
+
+	for _, node := range n.Value.([]*builder.Node) {
+		arg, err := t.Expression(node)
+		if err != nil {
+			return nil, err
+		}
+
+		args = append(args, *arg)
+	}
+
+	var code = strings.Join(args, ", ")
+
+	return &code, nil
+
+	return &code, nil
+}
+
 func (t *C99) egroup(n *builder.Node) (*string, error) {
+	// TODO: i think we should rewrite this
 	// Only get the first return now since we are not worried about multiple returns rn
-	var code = n.Value.([]*builder.Node)[0].Value.(string)
+	var code = n.Value.([]*builder.Node)[0].Kind
 
 	return &code, nil
 }
@@ -278,6 +378,83 @@ func (t *C99) sblock(n *builder.Node) (*string, error) {
 
 	var code = strings.Join(append(stmts, "}"), "\n")
 
+	return &code, nil
+}
+
+func (t *C99) returnStatement(n *builder.Node) (*string, error) {
+	// Not supporting multiple returns for now
+	// return {expr}
+	var code = "return"
+
+	if n.Left != nil {
+		var expr, err = t.Expression(n.Left)
+		if err != nil {
+			return nil, err
+		}
+
+		code += " " + *expr
+	}
+
+	return &code, nil
+}
+
+func (t *C99) selection(n *builder.Node) (*string, error) {
+	var code string
+
+	// This needs to be recursive
+	var expr, err = t.Expression(n.Left)
+	if err != nil {
+		return nil, err
+	}
+
+	// Shave off the c package if we are translating to c
+	if *expr != "c" {
+		code += *expr + "."
+
+	}
+
+	if n.Right.Type == "selection" {
+		expr, err = t.selection(n.Right)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		expr, err = t.Expression(n.Right)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	code += *expr
+
+	return &code, nil
+}
+
+// Later on we should have packages be folders
+func (t *C99) importStatement(n *builder.Node) (*string, error) {
+	// since all code will be in one file for now, import statements should
+	// pretty much just copy paste
+
+	// var code = t.imports[n.Left.Value.(string)]
+	var code string
+	return &code, nil
+}
+
+func (t *C99) packageStatement(n *builder.Node) (*string, error) {
+	// package [ident]
+	// left is ident, right is the package sblock itself
+	// packages should be namespaces
+
+	var packageName = "namespace " + n.Left.Value.(string)
+
+	var body, err = t.sblock(n.Right)
+	if err != nil {
+		return nil, err
+	}
+
+	t.imports[n.Left.Value.(string)] = packageName + " " + *body
+
+	var code string
 	return &code, nil
 }
 

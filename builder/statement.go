@@ -1579,8 +1579,7 @@ func (b *Builder) ParseStatement() (*Node, error) {
 
 	case token.Return:
 		return b.ParseReturnStatement()
-
-	default:
-		return b.AppendTokenToError(fmt.Sprintf("Could not create statement from: %+v", b.Tokens[b.Index].Type))
 	}
+
+	return b.AppendTokenToError(fmt.Sprintf("Could not create statement from: %+v", b.Tokens[b.Index].Type))
 }
