@@ -105,7 +105,10 @@ func NewTypeResolver() *TypeResolver {
 
 func (t *TypeResolver) Check(n *Node) (bool, error) {
 	// Look for anything with a body
+	fmt.Printf("node_me %+v", *n)
 	switch n.Type {
+	case "call":
+	case "selection":
 	case "assignment":
 	case "return":
 		// later on when we return structs, user-defined types, and object
@@ -287,8 +290,8 @@ func (t *TypeResolver) Check(n *Node) (bool, error) {
 				Type: "egroup",
 				Value: []*Node{
 					&Node{
-						Type:  "type",
-						Value: returnType,
+						Type: "type",
+						Kind: returnType,
 					},
 				},
 			}
@@ -307,9 +310,14 @@ func (t *TypeResolver) Check(n *Node) (bool, error) {
 
 	case "import":
 		var err error
+		var packageName string
 
 		// fix this shit: n.Right.Value.([]*Node)[0].Left.Value
-		var packageName = n.Right.Value.([]*Node)[0].Left.Value.(string)
+		if n.Kind == "c" {
+			return false, nil
+		}
+
+		packageName = n.Right.Value.([]*Node)[0].Left.Value.(string)
 
 		t.scopeTree, err = t.scopeTree.NewPackageScope(packageName)
 		if err != nil {
