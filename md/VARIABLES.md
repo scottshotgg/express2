@@ -15,7 +15,7 @@ Basic types that consist of single values are known as _Primitive_ types:
 
 The next type to learn in the Express type hierarchy are the _Composite_ types. These consist of types that hold multiple values of different types:
 1) `struct`
-2) `map`
+2) `map<type,type>`
 3) `object`
 4) `tuple`
 5) `function`
@@ -31,9 +31,13 @@ In addition to these are what is known as _Repeated_ types. These types allow fo
 
 <br>
 
-There is one uncategorized type, which we will explain later:
-1) `var`
+There is one non-type:
+1) `var` - dynamic type used to provide dynamicism for some computational dynamic situations.
+
+There is also two pseudo-type that is ultimately resolved by the compiler.
+1) `let` - invokes a type inference in which the compiler is directed to solve for the "ground state" type, which is the most-primitive type that it can be. The only guarantee from the compiler is that the type will be non-dynamic; `var` and `object` are logically resolvable as the ground state for any type but the compiler will not make the decision for you as the run time penalty must be a concious decision. 
+For composite types, a let statement will crimp the _inner types_; property types, field types, etc.
+
+2) `const` - a construct that may seem to compose itself as a type, but actually isn't is `val`. This is actually a keyword that invokes a type inference to specifically declare an _immutable_ variable. From here an assumption can be founded that you cannot modify any value _within_ a value and as such it will maintain static objects, structs, tuples, etc
 
 <br>
-
-A keyword that may seem to compose itself as a type, but actually isn't is `val`. This is actually a keyword that invokes a type inference to specifically create an _immutable_ variable.
