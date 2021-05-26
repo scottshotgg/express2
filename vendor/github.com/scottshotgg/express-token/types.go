@@ -2,49 +2,49 @@ package token
 
 // TypeMap holds all defined type tokens
 var TypeMap = map[string]Token{
-	VarType: Token{
+	VarType: {
 		Type: Type,
 		Value: Value{
 			Type:   VarType,
 			String: VarType,
 		},
 	},
-	"val": Token{
+	"val": {
 		Type: Type,
 		Value: Value{
 			Type:   "val",
 			String: "val",
 		},
 	},
-	IntType: Token{
+	IntType: {
 		Type: Type,
 		Value: Value{
 			Type:   IntType,
 			String: IntType,
 		},
 	},
-	FloatType: Token{
+	FloatType: {
 		Type: Type,
 		Value: Value{
 			Type:   FloatType,
 			String: FloatType,
 		},
 	},
-	CharType: Token{
+	CharType: {
 		Type: Type,
 		Value: Value{
 			Type:   CharType,
 			String: CharType,
 		},
 	},
-	StringType: Token{
+	StringType: {
 		Type: Type,
 		Value: Value{
 			Type:   StringType,
 			String: StringType,
 		},
 	},
-	BoolType: Token{
+	BoolType: {
 		Type: Type,
 		Value: Value{
 			Type:   BoolType,
@@ -52,7 +52,7 @@ var TypeMap = map[string]Token{
 		},
 	},
 
-	"map": Token{
+	"map": {
 		Type: Type,
 		Value: Value{
 			Type:   "map", // this doesn't create a var
@@ -60,7 +60,7 @@ var TypeMap = map[string]Token{
 		},
 	},
 
-	"stmt": Token{
+	"stmt": {
 		Type: Type,
 		Value: Value{
 			Type:   "stmt", // this doesn't create a var
@@ -70,28 +70,28 @@ var TypeMap = map[string]Token{
 
 	// Make object a keyword like struct
 	// Left this in here for express-ast to continue working
-	// ObjectType: Token{
+	// ObjectType: {
 	// 	Type: Type,
 	// 	Value: Value{
 	// 		Type:   ObjectType,
 	// 		String: ObjectType,
 	// 	},
 	// },
-	// StructType: Token{
+	// StructType: {
 	// 	Type: Type,
 	// 	Value: Value{
 	// 		Type:   StructType,
 	// 		String: StructType,
 	// 	},
 	// },
-	ArrayType: Token{
+	ArrayType: {
 		Type: Type,
 		Value: Value{
 			Type:   ArrayType,
 			String: ArrayType,
 		},
 	},
-	IntArrayType: Token{
+	IntArrayType: {
 		Type: Type,
 		Value: Value{
 			Type:   ArrayType,
@@ -99,7 +99,7 @@ var TypeMap = map[string]Token{
 			String: ArrayType,
 		},
 	},
-	StringArrayType: Token{
+	StringArrayType: {
 		Type: Type,
 		Value: Value{
 			Type:   ArrayType,

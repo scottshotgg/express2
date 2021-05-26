@@ -53,9 +53,9 @@ type ScopeTree struct {
 func New(node *builder.Node) *ScopeTree {
 	// Since this is the global scope, it has no `parent` and its `global` pointer is recursive
 	var scopeTree = &ScopeTree{
-		lock:  &sync.RWMutex{},
-		node:  node,
-		table: map[string]*builder.Node{},
+		lock: &sync.RWMutex{},
+		node: node,
+		vars: map[string]*builder.Node{},
 	}
 
 	scopeTree.global = scopeTree
@@ -71,7 +71,7 @@ func (st *ScopeTree) NewChild(node *builder.Node) *ScopeTree {
 	return &ScopeTree{
 		lock:   &sync.RWMutex{},
 		node:   node,
-		table:  map[string]*builder.Node{},
+		vars:   map[string]*builder.Node{},
 		parent: st,
 		global: st.global,
 	}
@@ -107,14 +107,14 @@ func (st *ScopeTree) Set(ref *builder.Node) error {
 		defer st.lock.Unlock()
 
 		// Search for the reference name in the current scope's symbol table
-		var scopeRef = st.table[refName]
+		var scopeRef = st.vars[refName]
 		// If it is not equal to nil then we already have something under that name in the CURRENT scope
 		if scopeRef != nil {
 			return errors.Errorf("Variable already exists: \nScopeRef:%+v\nRef:%+v\n", scopeRef, ref)
 		}
 
 		// Put the ref into the table
-		st.table[refName] = ref
+		st.vars[refName] = ref
 
 		return nil
 	}
@@ -150,7 +150,7 @@ func (st *ScopeTree) Get(name string) *builder.Node {
 	// Don't know if we need to recursively lock ... it seems likely
 	defer st.lock.Unlock()
 
-	var ref = st.table[name]
+	var ref = st.vars[name]
 	if ref != nil {
 		// If we get something from the current scope then return
 		return ref

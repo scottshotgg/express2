@@ -1,7 +1,9 @@
 package builder
 
 import (
-	"github.com/scottshotgg/express-token"
+	"fmt"
+
+	token "github.com/scottshotgg/express-token"
 )
 
 func (b *Builder) ParseSet(n *Node) (*Node, error) {
@@ -32,7 +34,7 @@ func (b *Builder) ParseBinOp(n *Node) (*Node, error) {
 	// Step over the operator token
 	b.Index++
 
-	right, err := b.ParseExpression()
+	right, err := b.ParseTerm1()
 	if err != nil {
 		return nil, err
 	}
@@ -114,6 +116,8 @@ func (b *Builder) ParseGreaterOrEqualThanExpression(n *Node) (*Node, error) {
 }
 
 func (b *Builder) ParseEqualityExpression(n *Node) (*Node, error) {
+	fmt.Println("node:", n)
+
 	// Step over the conditional operator token
 	b.Index++
 
@@ -122,12 +126,18 @@ func (b *Builder) ParseEqualityExpression(n *Node) (*Node, error) {
 		return nil, err
 	}
 
-	return &Node{
+	fmt.Println("right:", right)
+
+	var nn = &Node{
 		Type:  "comp",
 		Value: "==",
 		Left:  n,
 		Right: right,
-	}, nil
+	}
+
+	fmt.Println("nn:", *nn)
+
+	return nn, nil
 }
 
 func (b *Builder) ParseIncrement(n *Node) (*Node, error) {

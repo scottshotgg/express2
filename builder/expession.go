@@ -1,6 +1,7 @@
 package builder
 
 import (
+	"encoding/json"
 	"fmt"
 
 	token "github.com/scottshotgg/express-token"
@@ -102,10 +103,12 @@ func (b *Builder) ParseRefExpression() (*Node, error) {
 }
 
 func (b *Builder) ParseExpression() (*Node, error) {
-	term, err := b.ParseTerm()
+	term, err := b.ParseTerm2()
 	if err != nil {
 		return term, err
 	}
+
+	fmt.Println("term:", term)
 
 	var (
 		ok     bool
@@ -115,10 +118,12 @@ func (b *Builder) ParseExpression() (*Node, error) {
 	// LOOKAHEAD performed to figure out whether the expression is done
 	for b.Index < len(b.Tokens)-1 {
 		// Look for a tier2 operator in the func map
-		opFunc, ok = b.OpFuncMap[1][b.Tokens[b.Index+1].Type]
+		opFunc, ok = b.OpFuncMap[2][b.Tokens[b.Index+1].Type]
 		if !ok {
 			break
 		}
+
+		fmt.Println("OPFUNC1", b.Tokens[b.Index+1])
 
 		// Step over the factor
 		b.Index++
@@ -127,12 +132,51 @@ func (b *Builder) ParseExpression() (*Node, error) {
 		if err != nil {
 			return term, err
 		}
+
+		fmt.Println("term1:", term)
 	}
 
 	return term, nil
 }
 
-func (b *Builder) ParseTerm() (*Node, error) {
+func (b *Builder) ParseTerm2() (*Node, error) {
+	factor, err := b.ParseTerm1()
+	if err != nil {
+		return factor, err
+	}
+
+	var (
+		ok     bool
+		opFunc opCallbackFn
+	)
+
+	// LOOKAHEAD performed to figure out whether the expression is done
+	for b.Index < len(b.Tokens)-1 {
+
+		// Look for a tier2 operator in the func map
+		opFunc, ok = b.OpFuncMap[1][b.Tokens[b.Index+1].Type]
+		if !ok {
+			break
+		}
+		fmt.Println("OPFUNC0", b.Tokens[b.Index+1])
+
+		// Step over the factor
+		b.Index++
+
+		factor, err = opFunc(factor)
+		if err != nil {
+			// if err == ErrOutOfTokens {
+			// 	return factor,
+			// }
+
+			return factor, err
+		}
+	}
+
+	return factor, nil
+}
+
+func (b *Builder) ParseTerm1() (*Node, error) {
 	factor, err := b.ParseFactor()
 	if err != nil {
 		return factor, err
@@ -151,7 +195,7 @@ func (b *Builder) ParseTerm() (*Node, error) {
 		if !ok {
 			break
 		}
-		fmt.Println("OPFUNC", b.Tokens[b.Index+1])
+		fmt.Println("OPFUNC0", b.Tokens[b.Index+1])
 
 		// Step over the factor
 		b.Index++
@@ -194,17 +238,29 @@ func (b *Builder) ParseFactor() (*Node, error) {
 			Value: b.Tokens[b.Index].Value.True,
 		}, nil
 
+	case token.Type:
+		return &Node{
+			Type:  "type",
+			Value: b.Tokens[b.Index].Value.String,
+		}, nil
+
 	// Variable identifier
 	case token.Ident:
+		var typeOf = "ident"
+
 		// // Check the scope map for the variable, if we already have a variable declared then use that
-		// var node = b.ScopeTree.Get(b.Tokens[b.Index].Value.String)
-		// if node != nil {
-		// 	// TODO: might need to fix this
-		// 	return node, nil
-		// }
+		var n = b.ScopeTree.GetType(b.Tokens[b.Index].Value.String)
+		blob, _ := json.Marshal(n)
+		fmt.Println("n:", string(blob))
+		blob, _ = json.Marshal(b.ScopeTree.Types)
+		fmt.Println("types:", string(blob))
+		fmt.Println("b.Tokens[b.Index].Value.String:", b.Tokens[b.Index].Value.String)
+		if n != nil {
+			typeOf = "type"
+		}
 
 		return &Node{
-			Type:  "ident",
+			Type:  typeOf,
 			Value: b.Tokens[b.Index].Value.String,
 		}, nil
 

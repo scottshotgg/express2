@@ -2,7 +2,7 @@ package token
 
 // EncloserMap holds all valid encloser tokens
 var EncloserMap = map[string]Token{
-	"(": Token{
+	"(": {
 		WSNotRequired: true,
 		Type:          "L_PAREN",
 		Value: Value{
@@ -10,7 +10,7 @@ var EncloserMap = map[string]Token{
 			String: "(",
 		},
 	},
-	")": Token{
+	")": {
 		WSNotRequired: true,
 		Type:          "R_PAREN",
 		Value: Value{
@@ -19,7 +19,7 @@ var EncloserMap = map[string]Token{
 		},
 	},
 
-	"{": Token{
+	"{": {
 		WSNotRequired: true,
 		Type:          "L_BRACE",
 		Value: Value{
@@ -27,7 +27,7 @@ var EncloserMap = map[string]Token{
 			String: "{",
 		},
 	},
-	"}": Token{
+	"}": {
 		WSNotRequired: true,
 		Type:          "R_BRACE",
 		Value: Value{
@@ -36,7 +36,7 @@ var EncloserMap = map[string]Token{
 		},
 	},
 
-	"[": Token{
+	"[": {
 		WSNotRequired: true,
 		Type:          "L_BRACKET",
 		Value: Value{
@@ -44,7 +44,7 @@ var EncloserMap = map[string]Token{
 			String: "[",
 		},
 	},
-	"]": Token{
+	"]": {
 		WSNotRequired: true,
 		Type:          "R_BRACKET",
 		Value: Value{
@@ -53,7 +53,7 @@ var EncloserMap = map[string]Token{
 		},
 	},
 
-	"<": Token{
+	"<": {
 		WSNotRequired: true,
 		Type:          "L_THAN",
 		Value: Value{
@@ -61,7 +61,7 @@ var EncloserMap = map[string]Token{
 			String: "<",
 		},
 	},
-	">": Token{
+	">": {
 		WSNotRequired: true,
 		Type:          "G_THAN",
 		Value: Value{
@@ -70,7 +70,7 @@ var EncloserMap = map[string]Token{
 		},
 	},
 
-	"`": Token{
+	"`": {
 		WSNotRequired: true,
 		Type:          "GRAVE",
 		Value: Value{
@@ -78,7 +78,7 @@ var EncloserMap = map[string]Token{
 			String: "`",
 		},
 	},
-	"~": Token{
+	"~": {
 		WSNotRequired: true,
 		Type:          "TILDE",
 		Value: Value{
@@ -86,7 +86,7 @@ var EncloserMap = map[string]Token{
 			String: "~",
 		},
 	},
-	"'": Token{
+	"'": {
 		WSNotRequired: true,
 		Type:          SQuote,
 		Value: Value{
@@ -94,7 +94,7 @@ var EncloserMap = map[string]Token{
 			String: "'",
 		},
 	},
-	"\"": Token{
+	"\"": {
 		WSNotRequired: true,
 		Type:          DQuote,
 		Value: Value{
@@ -102,7 +102,7 @@ var EncloserMap = map[string]Token{
 			String: "\"",
 		},
 	},
-	"@": Token{
+	"@": {
 		WSNotRequired: true,
 		Type:          At,
 		Value: Value{

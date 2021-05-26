@@ -1,6 +1,7 @@
 package transpiler
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"strings"
@@ -113,6 +114,9 @@ func (t *C99) Statement(n *builder.Node) (*string, error) {
 	case "decl":
 		return t.addSemi(t.declaration(n))
 
+	case "struct":
+		return t.structure(n)
+
 	case "assignment":
 		return t.addSemi(t.assignment(n))
 
@@ -133,6 +137,39 @@ func (t *C99) Statement(n *builder.Node) (*string, error) {
 	}
 
 	return nil, errors.Errorf("could not transpile statement: %+v", *n)
+}
+
+func (t *C99) structure(n *builder.Node) (*string, error) {
+	/*
+		This should transpile to:
+		struct something = {} : struct something {}
+		Type is struct
+		Left is the ident
+		Right is the value
+	*/
+
+	if n.Type != "struct" {
+		return nil, errors.New("Node is not a struct")
+	}
+
+	// Transpile the ident which will become a usable type
+	var vString, err = t.Expression(n.Left)
+	if err != nil {
+		return nil, err
+	}
+
+	// Could just have it add `struct` here but this will show us changes
+	var nString = n.Type + " " + *vString
+
+	// Transpile the block for the value
+	vString, err = t.sblock(n.Right)
+	if err != nil {
+		return nil, err
+	}
+
+	nString += *vString + ";"
+
+	return &nString, nil
 }
 
 func (t *C99) Expression(n *builder.Node) (*string, error) {
@@ -167,7 +204,7 @@ func (t *C99) Expression(n *builder.Node) (*string, error) {
 
 		}
 
-	case "binop":
+	case "binop", "comp":
 		// [expr] [op] [expr]
 		// [expression] = [expression]
 		var expr, err = t.Expression(n.Left)
@@ -197,12 +234,54 @@ func (t *C99) Expression(n *builder.Node) (*string, error) {
 		code += *sel
 		return &code, nil
 
+	case "block":
+		var vString, err = t.sblock(n.Right)
+		if err != nil {
+			return nil, err
+		}
+
+		code += *vString
+
+	case "index":
+		var sel, err = t.index(n)
+		if err != nil {
+			return nil, err
+		}
+
+		code += *sel
+		return &code, nil
+
 	default:
 		pn(n)
-		return nil, errors.Errorf("could not deduce literal from: %+v", *n)
+		return nil, errors.Errorf("could not deduce expression from: %+v", *n)
 	}
 
 	return &code, nil
+}
+
+func (t *C99) index(n *builder.Node) (*string, error) {
+	/*
+		Left is an expression
+		Right is an expression
+	*/
+
+	if n.Type != "index" {
+		return nil, errors.New("Node is not an index")
+	}
+
+	lhs, err := t.Expression(n.Left)
+	if err != nil {
+		return nil, err
+	}
+
+	rhs, err := t.Expression(n.Right)
+	if err != nil {
+		return nil, err
+	}
+
+	var nString = *lhs + "[" + *rhs + "]"
+
+	return &nString, nil
 }
 
 func (t *C99) declaration(n *builder.Node) (*string, error) {
@@ -246,16 +325,30 @@ func (t *C99) function(n *builder.Node) (*string, error) {
 		return nil, err
 	}
 
-	// returns; for now the first one will be taken as the return
-	returns, err := t.egroup(n.Metadata["returns"].(*builder.Node))
-	if err != nil {
-		return nil, err
+	var (
+		returnsI, ok = n.Metadata["returns"]
+		returns      = &defaultFuncType
+	)
+
+	if ok && returnsI != nil {
+		returnsNode, ok := returnsI.(*builder.Node)
+		if !ok {
+			return nil, fmt.Errorf("returns was not a *builder.Node: %+v", returnsNode)
+		}
+
+		// returns; for now the first one will be taken as the return
+		returns, err = t.egroup(returnsNode)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	var code = fmt.Sprintf("%s %s(%s) %s", *returns, n.Kind, *args, *body)
 
 	return &code, nil
 }
+
+var defaultFuncType = "int"
 
 func (t *C99) call(n *builder.Node) (*string, error) {
 	var code string
@@ -308,14 +401,22 @@ func (t *C99) assignment(n *builder.Node) (*string, error) {
 func (t *C99) typeOfDecl(n *builder.Node) (*string, error) {
 	var typeOf string
 
-	switch n.Value.(*builder.Node).Type {
+	var nn, ok = n.Value.(*builder.Node)
+	if !ok {
+		return nil, errors.New("not ok")
+	}
+
+	switch nn.Type {
 	case "type":
-		typeOf = n.Value.(*builder.Node).Value.(string)
+		typeOf = nn.Value.(string)
 		return &typeOf, nil
 		// case "selection"
 	}
 
-	return nil, errors.Errorf("unknown type for type %+v", n.Value.(*builder.Node).Type)
+	blob, _ := json.Marshal(nn)
+	fmt.Println(string(blob))
+
+	return nil, errors.Errorf("unknown type for type %+v", nn.Type)
 }
 
 // These will give back blank strings if they are nil
@@ -352,8 +453,6 @@ func (t *C99) egroupCall(n *builder.Node) (*string, error) {
 	var code = strings.Join(args, ", ")
 
 	return &code, nil
-
-	return &code, nil
 }
 
 func (t *C99) egroup(n *builder.Node) (*string, error) {
@@ -367,13 +466,15 @@ func (t *C99) egroup(n *builder.Node) (*string, error) {
 func (t *C99) sblock(n *builder.Node) (*string, error) {
 	var stmts = []string{"{"}
 
-	for _, node := range n.Value.([]*builder.Node) {
-		stmt, err := t.Statement(node)
-		if err != nil {
-			return nil, err
-		}
+	if n != nil {
+		for _, node := range n.Value.([]*builder.Node) {
+			stmt, err := t.Statement(node)
+			if err != nil {
+				return nil, err
+			}
 
-		stmts = append(stmts, *stmt)
+			stmts = append(stmts, *stmt)
+		}
 	}
 
 	var code = strings.Join(append(stmts, "}"), "\n")

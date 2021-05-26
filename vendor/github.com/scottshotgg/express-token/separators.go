@@ -2,7 +2,7 @@ package token
 
 // SeparatorMap holds all defined statement separators
 var SeparatorMap = map[string]Token{
-	",": Token{
+	",": {
 		WSNotRequired: true,
 		Type:          "SEPARATOR",
 		Value: Value{
@@ -10,7 +10,7 @@ var SeparatorMap = map[string]Token{
 			String: ",",
 		},
 	},
-	";": Token{
+	";": {
 		WSNotRequired: true,
 		Type:          "SEPARATOR",
 		Value: Value{

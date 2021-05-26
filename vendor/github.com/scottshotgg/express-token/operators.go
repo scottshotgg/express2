@@ -2,7 +2,7 @@ package token
 
 // OperatorMap holds all defined operator tokens
 var OperatorMap = map[string]Token{
-	"+": Token{
+	"+": {
 		WSNotRequired: true,
 		Type:          SecOp,
 		Value: Value{
@@ -11,7 +11,7 @@ var OperatorMap = map[string]Token{
 		},
 	},
 
-	"-": Token{
+	"-": {
 		WSNotRequired: true,
 		Type:          SecOp,
 		Value: Value{
@@ -20,7 +20,7 @@ var OperatorMap = map[string]Token{
 		},
 	},
 
-	"*": Token{
+	"*": {
 		WSNotRequired: true,
 		Type:          PriOp,
 		Value: Value{
@@ -29,7 +29,7 @@ var OperatorMap = map[string]Token{
 		},
 	},
 
-	"/": Token{
+	"/": {
 		WSNotRequired: true,
 		Type:          PriOp,
 		Value: Value{
@@ -38,7 +38,7 @@ var OperatorMap = map[string]Token{
 		},
 	},
 
-	"\\": Token{
+	"\\": {
 		WSNotRequired: true,
 		Type:          PriOp,
 		Value: Value{
@@ -47,7 +47,7 @@ var OperatorMap = map[string]Token{
 		},
 	},
 
-	"%": Token{
+	"%": {
 		WSNotRequired: true,
 		Type:          PriOp,
 		Value: Value{
@@ -56,7 +56,7 @@ var OperatorMap = map[string]Token{
 		},
 	},
 
-	"^": Token{
+	"^": {
 		WSNotRequired: true,
 		Type:          PriOp,
 		Value: Value{
@@ -65,7 +65,7 @@ var OperatorMap = map[string]Token{
 		},
 	},
 
-	"!": Token{
+	"!": {
 		WSNotRequired: true,
 		Type:          Bang,
 		Value: Value{
@@ -74,7 +74,7 @@ var OperatorMap = map[string]Token{
 		},
 	},
 
-	"?": Token{
+	"?": {
 		WSNotRequired: true,
 		Type:          QuestionMark,
 		Value: Value{
@@ -83,7 +83,7 @@ var OperatorMap = map[string]Token{
 		},
 	},
 
-	// "_": Token{
+	// "_": {
 	// 	Type: Underscore,
 	// 	Value: Value{
 	// 		Type:   "underscore",
@@ -91,7 +91,7 @@ var OperatorMap = map[string]Token{
 	// 	},
 	// },
 	// FIXME: DOLLA DOLLA BILLS YALL: define this
-	"$": Token{
+	"$": {
 		WSNotRequired: true,
 		Type:          DDBY,
 		Value: Value{
@@ -100,7 +100,7 @@ var OperatorMap = map[string]Token{
 		},
 	},
 
-	"&": Token{
+	"&": {
 		WSNotRequired: true,
 		Type:          Ampersand,
 		Value: Value{
@@ -109,7 +109,7 @@ var OperatorMap = map[string]Token{
 		},
 	},
 
-	"|": Token{
+	"|": {
 		WSNotRequired: true,
 		Type:          Pipe,
 		Value: Value{
@@ -118,7 +118,7 @@ var OperatorMap = map[string]Token{
 		},
 	},
 
-	"#": Token{
+	"#": {
 		WSNotRequired: true,
 		Type:          Hash,
 		Value: Value{
@@ -127,7 +127,7 @@ var OperatorMap = map[string]Token{
 		},
 	},
 
-	".": Token{
+	".": {
 		WSNotRequired: true,
 		Type:          Accessor,
 		Value: Value{
@@ -136,7 +136,7 @@ var OperatorMap = map[string]Token{
 		},
 	},
 
-	"==": Token{
+	"==": {
 		WSNotRequired: true,
 		Type:          IsEqual,
 		Value: Value{
@@ -145,7 +145,7 @@ var OperatorMap = map[string]Token{
 		},
 	},
 
-	">=": Token{
+	">=": {
 		WSNotRequired: true,
 		Type:          EqOrGThan,
 		Value: Value{
@@ -154,7 +154,7 @@ var OperatorMap = map[string]Token{
 		},
 	},
 
-	"<=": Token{
+	"<=": {
 		WSNotRequired: true,
 		Type:          EqOrLThan,
 		Value: Value{
@@ -164,7 +164,7 @@ var OperatorMap = map[string]Token{
 	},
 
 	// Increment
-	"++": Token{
+	"++": {
 		WSNotRequired: true,
 		Type:          Increment,
 		Value: Value{
@@ -175,7 +175,7 @@ var OperatorMap = map[string]Token{
 
 	// TODO: add the templated operators ability to the parser and remove the tokens completely
 	// VECTOR OPERANDS
-	".+": Token{
+	".+": {
 		WSNotRequired: true,
 		Type:          "VEC_ADD",
 		Value: Value{
@@ -184,7 +184,7 @@ var OperatorMap = map[string]Token{
 		},
 	},
 
-	".-": Token{
+	".-": {
 		WSNotRequired: true,
 		Type:          "VEC_SUB",
 		Value: Value{
@@ -193,7 +193,7 @@ var OperatorMap = map[string]Token{
 		},
 	},
 
-	".*": Token{
+	".*": {
 		WSNotRequired: true,
 		Type:          "VEC_MULT",
 		Value: Value{
@@ -202,7 +202,7 @@ var OperatorMap = map[string]Token{
 		},
 	},
 
-	"./": Token{
+	"./": {
 		WSNotRequired: true,
 		Type:          "VEC_DIV",
 		Value: Value{

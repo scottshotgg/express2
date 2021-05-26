@@ -8,11 +8,11 @@ import (
 )
 
 var baseTypes = map[string]struct{}{
-	"int":    struct{}{},
-	"char":   struct{}{},
-	"bool":   struct{}{},
-	"string": struct{}{},
-	"float":  struct{}{},
+	"int":    {},
+	"char":   {},
+	"bool":   {},
+	"string": {},
+	"float":  {},
 }
 
 // type Checker interface {
@@ -289,7 +289,7 @@ func (t *TypeResolver) Check(n *Node) (bool, error) {
 			n.Metadata["returns"] = &Node{
 				Type: "egroup",
 				Value: []*Node{
-					&Node{
+					{
 						Type: "type",
 						Kind: returnType,
 					},

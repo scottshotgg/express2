@@ -31,11 +31,5 @@ func main() {
 
   int result = m["num"] + e.sth.a
 
-  Println(m["me"], e.sth.a, e.ayy, result)
-
   s.a = s.a + result
-
-  Print(s.a)
-
-  Something()
 }

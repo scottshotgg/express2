@@ -4,14 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"testing"
 
-	"github.com/pkg/errors"
-	"github.com/scottshotgg/express-ast"
-	"github.com/scottshotgg/express-lex"
-	"github.com/scottshotgg/express-token"
+	ast "github.com/scottshotgg/express-ast"
+	lex "github.com/scottshotgg/express-lex"
+	token "github.com/scottshotgg/express-token"
 	"github.com/scottshotgg/express2/builder"
-	"github.com/scottshotgg/express2/test"
 	"github.com/scottshotgg/express2/transpiler"
 	"github.com/scottshotgg/express2/tree_flattener"
 )
@@ -53,12 +52,17 @@ func getASTFromString(test string) (*builder.Node, error) {
 }
 
 func getTranspilerFromString(test, name string) (*transpiler.Transpiler, error) {
-	ast, err := getASTFromString(test)
+	b, err := getBuilderFromString(test)
 	if err != nil {
-		return nil, errors.Errorf("Could not create AST: %+v", err)
+		return nil, err
 	}
 
-	return transpiler.New(ast, name), nil
+	ast, err := b.BuildAST()
+	if err != nil {
+		return nil, err
+	}
+
+	return transpiler.New(ast, b, name, os.Getenv("EXPRPATH")), nil
 }
 
 func getStatementASTFromString(test string) (*builder.Node, error) {
@@ -106,28 +110,28 @@ func TestFlattenForOf(t *testing.T) {
 	fmt.Printf("\nNode: %+v\n", node)
 }
 
-func TestTranspileFlattenedForIn(t *testing.T) {
-	node, err := getStatementASTFromString(test.Tests[test.StatementTest]["forin"])
-	if err != nil {
-		t.Fatalf("Could not create transpiler: %+v", err)
-	}
+// func TestTranspileFlattenedForIn(t *testing.T) {
+// 	node, err := getStatementASTFromString(test.Tests[test.StatementTest]["forin"])
+// 	if err != nil {
+// 		t.Fatalf("Could not create transpiler: %+v", err)
+// 	}
 
-	tree_flattener.Flatten(node)
+// 	tree_flattener.Flatten(node)
 
-	fmt.Printf("\nNode: %+v\n", node)
+// 	fmt.Printf("\nNode: %+v\n", node)
 
-	// tr, err := getTranspilerFromString(test, "main")
-	// if err != nil {
-	// 	t.Fatalf("Could not create transpiler: %+v", err)
-	// }
+// 	// tr, err := getTranspilerFromString(test, "main")
+// 	// if err != nil {
+// 	// 	t.Fatalf("Could not create transpiler: %+v", err)
+// 	// }
 
-	cpp, err := transpiler.TranspileStatement(node)
-	if err != nil {
-		t.Fatalf("Could not transpile to C++: %+v", err)
-	}
+// 	cpp, err := transpiler.Statement(node)
+// 	if err != nil {
+// 		t.Fatalf("Could not transpile to C++: %+v", err)
+// 	}
 
-	fmt.Printf("\nC++: %s\n\n", *cpp)
-}
+// 	fmt.Printf("\nC++: %s\n\n", *cpp)
+// }
 
 func TestFlatten(t *testing.T) {
 	testBytes, err := ioutil.ReadFile("test.expr")

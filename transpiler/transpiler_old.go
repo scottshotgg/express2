@@ -1207,6 +1207,10 @@ func (t *Transpiler) TranspileFunctionStatement(n *builder.Node) (*string, error
 		returnsStringP = &returnsString
 	)
 
+	if n.Kind == "main" {
+		returnsString = "int"
+	}
+
 	if returns != nil {
 		// returns is a `type` for now; multiple returns are not supported right now
 		returnsStringP, err = t.TranspileType(returns.(*builder.Node))

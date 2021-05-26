@@ -940,9 +940,9 @@ func (b *Builder) ParseLiteralStatement() (*Node, error) {
 func (b *Builder) ParseIdentStatement() (*Node, error) {
 	// into: {type} [expr] = [expr]
 	// Check that the next token is an ident
-	if b.Tokens[b.Index].Type != token.Ident {
-		return b.AppendTokenToError("Could not get assignment statement without ident")
-	}
+	// if b.Tokens[b.Index].Type != token.Ident {
+	// 	return b.AppendTokenToError("Could not get assignment statement without ident")
+	// }
 
 	// Parse the first ident; this COULD be a type
 	identOrType, err := b.ParseExpression()
@@ -981,12 +981,14 @@ func (b *Builder) ParseIdentStatement() (*Node, error) {
 		node.Type = "decl"
 		node.Value = identOrType
 
-		fmt.Println("got another ident")
+		fmt.Println("got another ident", b.Tokens[b.Index], node)
 
 		node.Left, err = b.ParseExpression()
 		if err != nil {
 			return nil, err
 		}
+
+		fmt.Println("node.Left", node.Left)
 
 		if b.Index > len(b.Tokens)-1 && b.Tokens[b.Index+1].Type != token.Assign {
 			fmt.Println("b.Tokens[b.Index+1]", b.Tokens[b.Index+1])
@@ -1025,6 +1027,8 @@ func (b *Builder) ParseIdentStatement() (*Node, error) {
 		if err != nil {
 			return nil, err
 		}
+
+		fmt.Println("node.Right:", node.Right)
 
 		b.Index++
 
@@ -1406,7 +1410,7 @@ func (b *Builder) ParseFunctionStatement() (*Node, error) {
 			node.Metadata["returns"] = &Node{
 				Type: "egroup",
 				Value: []*Node{
-					&Node{
+					{
 						Type:  "ident",
 						Value: b.Tokens[b.Index].Value.String,
 					},
@@ -1551,15 +1555,14 @@ func (b *Builder) ParseStatement() (*Node, error) {
 	// case token.C:
 	// 	return b.ParseCBlock()
 
-	// case token.Type:
-	// 	return b.ParseAssignmentStatement()
-
 	// For literal and idents, we will need to figure out what
 	// kind of statement it is
 	case token.Literal:
 		return b.ParseLiteralStatement()
 
-	case token.Ident:
+	case
+		token.Ident,
+		token.Type:
 		return b.ParseIdentStatement()
 
 	case token.Function:

@@ -251,6 +251,11 @@ func (c *Compiler) ProduceOutput(raw string) error {
 }
 
 func (c *Compiler) CompileFile(filename string) error {
+	defer func() {
+		var times, _ = json.MarshalIndent(c.PipelineTimes, "", "  ")
+		fmt.Println("\nPipeline timings:", string(times))
+	}()
+
 	var (
 		globalStart = time.Now()
 		err         = c.compileFile(filename)
@@ -261,9 +266,6 @@ func (c *Compiler) CompileFile(filename string) error {
 	if err != nil {
 		return err
 	}
-
-	var times, _ = json.MarshalIndent(c.PipelineTimes, "", "  ")
-	fmt.Println("\nPipeline timings:", string(times))
 
 	var (
 		rawPath      = strings.Trim(filename, ".expr")
@@ -282,24 +284,25 @@ func (c *Compiler) compileFile(filename string) error {
 
 	var (
 		start       = time.Now()
-		source, err = ioutil.ReadFile(filename)
 		rawFilename = strings.TrimSuffix(filename, ".expr")
 		wg          sync.WaitGroup
 	)
-
-	if err != nil {
-		return err
-	}
 
 	c.PipelineTimes["read"] = time.Since(start).String()
 
 	fmt.Println("\nTokenizing source ...")
 
-	// Lex and tokenize the source code
-	tokens, err := lex.New(string(source)).Lex()
+	l, err := lex.NewFromFile(filename)
 	if err != nil {
 		return err
 	}
+
+	// Lex and tokenize the source code
+	tokens, err := l.Lex()
+	if err != nil {
+		return err
+	}
+
 	c.setOutput("lex", tokens)
 
 	for _, token := range tokens {
@@ -335,7 +338,7 @@ func (c *Compiler) compileFile(filename string) error {
 
 	fmt.Println(string(astJSON))
 
-	return nil
+	// return nil
 
 	// Change "main" to something else later
 

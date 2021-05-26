@@ -33,7 +33,7 @@ func New(tokens []token.Token) *Builder {
 
 	b.OpFuncMap = []map[string]opCallbackFn{
 		// Tier 1 operators
-		0: map[string]opCallbackFn{
+		0: {
 			token.Increment: b.ParseIncrement,
 			token.Accessor:  b.ParseSelection,
 			token.LBracket:  b.ParseIndexExpression,
@@ -42,13 +42,18 @@ func New(tokens []token.Token) *Builder {
 			token.GThan:     b.ParseGreaterThanExpression,
 			token.EqOrLThan: b.ParseLessOrEqualThanExpression,
 			token.EqOrGThan: b.ParseGreaterOrEqualThanExpression,
-			token.IsEqual:   b.ParseEqualityExpression,
 			token.PriOp:     b.ParseBinOp,
 		},
 
 		// Tier 2 operators
-		1: map[string]opCallbackFn{
+		1: {
 			token.SecOp: b.ParseBinOp,
+			// token.Set:   b.ParseSet,
+		},
+
+		// Tier 2 operators
+		2: {
+			token.IsEqual: b.ParseEqualityExpression,
 			// token.Set:   b.ParseSet,
 		},
 	}
