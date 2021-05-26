@@ -2,7 +2,7 @@ package token
 
 // KeywordMap is a map of all the keywords
 var KeywordMap = map[string]Token{
-	"let": Token{
+	"let": {
 		Type: Let,
 		Value: Value{
 			Type:   "keyword",
@@ -10,7 +10,7 @@ var KeywordMap = map[string]Token{
 		},
 	},
 
-	"type": Token{
+	"type": {
 		Type: TypeDef,
 		Value: Value{
 			Type:   "keyword",
@@ -18,7 +18,7 @@ var KeywordMap = map[string]Token{
 		},
 	},
 
-	"struct": Token{
+	"struct": {
 		Type: Struct,
 		Value: Value{
 			Type:   "keyword",
@@ -26,7 +26,7 @@ var KeywordMap = map[string]Token{
 		},
 	},
 
-	"object": Token{
+	"object": {
 		Type: Object,
 		Value: Value{
 			Type:   "keyword",
@@ -34,7 +34,7 @@ var KeywordMap = map[string]Token{
 		},
 	},
 
-	"package": Token{
+	"package": {
 		Type: Package,
 		Value: Value{
 			Type:   "keyword",
@@ -42,7 +42,7 @@ var KeywordMap = map[string]Token{
 		},
 	},
 
-	// "c": Token{
+	// "c": {
 	// 	Type: C,
 	// 	Value: Value{
 	// 		Type:   "keyword",
@@ -50,7 +50,7 @@ var KeywordMap = map[string]Token{
 	// 	},
 	// },
 
-	"use": Token{
+	"use": {
 		Type: Use,
 		Value: Value{
 			Type:   "keyword",
@@ -58,7 +58,7 @@ var KeywordMap = map[string]Token{
 		},
 	},
 
-	"import": Token{
+	"import": {
 		Type: Import,
 		Value: Value{
 			Type:   "keyword",
@@ -66,7 +66,7 @@ var KeywordMap = map[string]Token{
 		},
 	},
 
-	"include": Token{
+	"include": {
 		Type: Include,
 		Value: Value{
 			Type:   "keyword",
@@ -74,7 +74,7 @@ var KeywordMap = map[string]Token{
 		},
 	},
 
-	"launch": Token{
+	"launch": {
 		Type: Launch,
 		Value: Value{
 			Type:   "keyword",
@@ -82,7 +82,7 @@ var KeywordMap = map[string]Token{
 		},
 	},
 
-	"enum": Token{
+	"enum": {
 		Type: Enum,
 		Value: Value{
 			Type:   "keyword",
@@ -90,7 +90,7 @@ var KeywordMap = map[string]Token{
 		},
 	},
 
-	"select": Token{
+	"select": {
 		ID:   9,
 		Type: "SELECT",
 		Value: Value{
@@ -99,7 +99,7 @@ var KeywordMap = map[string]Token{
 		},
 	},
 
-	"for": Token{
+	"for": {
 		ID:   9,
 		Type: "FOR",
 		Value: Value{
@@ -108,7 +108,7 @@ var KeywordMap = map[string]Token{
 		},
 	},
 
-	"if": Token{
+	"if": {
 		ID:   9,
 		Type: "IF",
 		Value: Value{
@@ -117,7 +117,7 @@ var KeywordMap = map[string]Token{
 		},
 	},
 
-	"else": Token{
+	"else": {
 		ID:   9,
 		Type: "ELSE",
 		Value: Value{
@@ -126,7 +126,7 @@ var KeywordMap = map[string]Token{
 		},
 	},
 
-	"in": Token{
+	"in": {
 		ID:   9,
 		Type: "KEYWORD",
 		Value: Value{
@@ -135,7 +135,7 @@ var KeywordMap = map[string]Token{
 		},
 	},
 
-	"of": Token{
+	"of": {
 		ID:   9,
 		Type: "KEYWORD",
 		Value: Value{
@@ -144,7 +144,7 @@ var KeywordMap = map[string]Token{
 		},
 	},
 
-	"over": Token{
+	"over": {
 		ID:   9,
 		Type: "KEYWORD",
 		Value: Value{
@@ -153,7 +153,7 @@ var KeywordMap = map[string]Token{
 		},
 	},
 
-	"function": Token{
+	"function": {
 		ID:   9,
 		Type: "FUNCTION",
 		Value: Value{
@@ -162,7 +162,7 @@ var KeywordMap = map[string]Token{
 		},
 	},
 
-	"func": Token{
+	"func": {
 		ID:   9,
 		Type: "FUNCTION",
 		Value: Value{
@@ -171,7 +171,7 @@ var KeywordMap = map[string]Token{
 		},
 	},
 
-	"fn": Token{
+	"fn": {
 		ID:   9,
 		Type: "FN",
 		Value: Value{
@@ -180,7 +180,7 @@ var KeywordMap = map[string]Token{
 		},
 	},
 
-	"return": Token{
+	"return": {
 		ID:   9,
 		Type: "RETURN",
 		Value: Value{
@@ -189,7 +189,7 @@ var KeywordMap = map[string]Token{
 		},
 	},
 
-	"onexit": Token{
+	"onexit": {
 		ID:   9,
 		Type: "ONEXIT",
 		Value: Value{
@@ -199,7 +199,7 @@ var KeywordMap = map[string]Token{
 		},
 	},
 
-	"onreturn": Token{
+	"onreturn": {
 		ID:   9,
 		Type: "ONRETURN",
 		Value: Value{
@@ -209,7 +209,7 @@ var KeywordMap = map[string]Token{
 		},
 	},
 
-	"onleave": Token{
+	"onleave": {
 		ID:   9,
 		Type: "ONLEAVE",
 		Value: Value{
@@ -219,7 +219,7 @@ var KeywordMap = map[string]Token{
 		},
 	},
 
-	"defer": Token{
+	"defer": {
 		ID:   9,
 		Type: "DEFER",
 		Value: Value{

@@ -30,10 +30,10 @@ int main() {
     std::string s = "0";
   };
   struct yo {
-    something sth = {};
+    something sth;
     bool ayy = false;
   };
-  something s = {};
+  something s;
   yo e = {
       .sth =
           {
@@ -47,8 +47,5 @@ int main() {
   };
   var m2 = m["me"];
   int result = m["num"] + e.sth.a;
-  Println(m["me"], e.sth.a, e.ayy, result);
   s.a = s.a + result;
-  Print(s.a);
-  Something();
 }

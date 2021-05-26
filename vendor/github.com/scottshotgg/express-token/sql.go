@@ -4,7 +4,7 @@ package token
 
 // SQLMap is a map of all the SQL specific tokens
 var SQLMap = map[string]Token{
-	"SELECT": Token{
+	"SELECT": {
 		ID:   9,
 		Type: Keyword,
 		Value: Value{
@@ -12,7 +12,7 @@ var SQLMap = map[string]Token{
 			String: "SELECT",
 		},
 	},
-	"FROM": Token{
+	"FROM": {
 		ID:   9,
 		Type: Keyword,
 		Value: Value{
@@ -20,7 +20,7 @@ var SQLMap = map[string]Token{
 			String: "FROM",
 		},
 	},
-	"WHERE": Token{
+	"WHERE": {
 		ID:   9,
 		Type: Keyword,
 		Value: Value{
