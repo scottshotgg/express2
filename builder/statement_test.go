@@ -23,6 +23,21 @@ func TestParseBinOpAssignmentStatement(t *testing.T) {
 	fmt.Printf(jsonFormatString, nodeJSON)
 }
 
+func TestParseIsEqualBoolDeclarationStatement(t *testing.T) {
+	b, err = getBuilderFromString(test.Tests[test.StatementTest]["isEqualBool"])
+	if err != nil {
+		t.Errorf(errFormatString, err)
+	}
+
+	node, err = b.ParseIdentStatement()
+	if err != nil {
+		t.Errorf(errFormatString, err)
+	}
+
+	nodeJSON, _ = json.Marshal(node)
+	fmt.Printf(jsonFormatString, nodeJSON)
+}
+
 // func TestParseDeclarationStatement(t *testing.T) {
 // 	// TODO: we need the rest of the declaration types and stuff
 // 	b, err = getBuilderFromString(test.Tests[test.StatementTest]["decl"])

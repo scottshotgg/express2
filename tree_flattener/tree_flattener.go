@@ -28,7 +28,7 @@ func getArrayType(node *builder.Node) string {
 	}
 
 	typeOf := values[0].Kind
-	for _, value := range values[1:len(values)] {
+	for _, value := range values[1:] {
 		if value.Kind != typeOf {
 			fmt.Println("not supporting dynamically typed arrays rn")
 			os.Exit(9)
