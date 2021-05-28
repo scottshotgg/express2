@@ -22,6 +22,8 @@ func (b *Builder) ParseGroupOfExpressions() (*Node, error) {
 		err   error
 	)
 
+	fmt.Println("type:", b.Tokens[b.Index].Type)
+
 	for b.Tokens[b.Index].Type != token.RParen {
 		expr, err = b.ParseExpression()
 		if err != nil {
@@ -39,8 +41,10 @@ func (b *Builder) ParseGroupOfExpressions() (*Node, error) {
 		}
 	}
 
-	// // Step over the right paren token
-	// b.Index++
+	if b.Tokens[b.Index].Type == token.RParen {
+		// Step over the right paren token
+		b.Index++
+	}
 
 	return &Node{
 		Type:  "egroup",
@@ -123,7 +127,7 @@ func (b *Builder) ParseExpression() (*Node, error) {
 			break
 		}
 
-		fmt.Println("OPFUNC1", b.Tokens[b.Index+1])
+		fmt.Println("OPFUNC2", b.Tokens[b.Index+1])
 
 		// Step over the factor
 		b.Index++
@@ -158,7 +162,7 @@ func (b *Builder) ParseTerm2() (*Node, error) {
 		if !ok {
 			break
 		}
-		fmt.Println("OPFUNC0", b.Tokens[b.Index+1])
+		fmt.Println("OPFUNC1", b.Tokens[b.Index+1])
 
 		// Step over the factor
 		b.Index++
@@ -171,6 +175,8 @@ func (b *Builder) ParseTerm2() (*Node, error) {
 
 			return factor, err
 		}
+
+		fmt.Println("term2:", factor)
 	}
 
 	return factor, nil
@@ -208,9 +214,20 @@ func (b *Builder) ParseTerm1() (*Node, error) {
 
 			return factor, err
 		}
+
+		fmt.Println("factor1:", factor)
 	}
 
 	return factor, nil
+}
+
+// This should go in the function map on the scopetree
+var cFuncs = map[string]bool{
+	"Println": true,
+	"printf":  true,
+	"sleep":   true,
+	"msleep":  true,
+	"now":     true,
 }
 
 func (b *Builder) ParseFactor() (*Node, error) {
@@ -239,29 +256,54 @@ func (b *Builder) ParseFactor() (*Node, error) {
 		}, nil
 
 	case token.Type:
-		return &Node{
-			Type:  "type",
-			Value: b.Tokens[b.Index].Value.String,
-		}, nil
+		var node, err = b.ParseType(nil)
+		if err != nil {
+			return nil, err
+		}
+
+		var blob, _ = json.Marshal(node)
+		fmt.Println("blob:", string(blob))
+
+		return node, nil
+		// return &Node{
+		// 	Type:  "type",
+		// 	Value: b.Tokens[b.Index].Value.String,
+		// }, nil
 
 	// Variable identifier
 	case token.Ident:
 		var typeOf = "ident"
 
-		// // Check the scope map for the variable, if we already have a variable declared then use that
-		var n = b.ScopeTree.GetType(b.Tokens[b.Index].Value.String)
-		blob, _ := json.Marshal(n)
-		fmt.Println("n:", string(blob))
-		blob, _ = json.Marshal(b.ScopeTree.Types)
-		fmt.Println("types:", string(blob))
-		fmt.Println("b.Tokens[b.Index].Value.String:", b.Tokens[b.Index].Value.String)
+		var value = b.Tokens[b.Index].Value.String
+
+		// Check the scope map for the variable, if we already have a variable declared then use that
+		var n = b.ScopeTree.GetType(value)
 		if n != nil {
 			typeOf = "type"
+
+			var next = b.Tokens[b.Index+1]
+			if next.Type == token.LBrace {
+				b.Index++
+				nn, err := b.ParseExpression()
+				if err != nil {
+					return nil, err
+				}
+
+				var blob, _ = json.Marshal(n)
+				fmt.Println("nblob:", string(blob))
+
+				return &Node{
+					Type:  "literal",
+					Kind:  n.Kind,
+					Value: value,
+					Right: nn,
+				}, nil
+			}
 		}
 
 		return &Node{
 			Type:  typeOf,
-			Value: b.Tokens[b.Index].Value.String,
+			Value: value,
 		}, nil
 
 	// Deref operator

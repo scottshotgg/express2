@@ -1,6 +1,7 @@
 package builder
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -279,17 +280,21 @@ func (b *Builder) ParseMapBlockStatement() (*Node, error) {
 		err   error
 	)
 
-	for b.Index < len(b.Tokens) &&
-		b.Tokens[b.Index].Type != token.RBrace {
-		stmt, err = b.ParseStatement()
+	for b.Index < len(b.Tokens) && b.Tokens[b.Index].Type != token.RBrace {
+		stmt, err = b.ParseExpression()
 		if err != nil {
 			return nil, err
 		}
+
+		blob, _ := json.Marshal(stmt)
+		fmt.Println("kvstmtkv:", string(blob))
 
 		// All statements in a map have to be key-value pairs
 		if stmt.Type != "kv" {
 			return nil, errors.Errorf("All statements in a map have to be key-value pairs: %+v\n", stmt)
 		}
+
+		fmt.Println("stmt:", stmt)
 
 		stmts = append(stmts, stmt)
 	}
@@ -397,7 +402,7 @@ func (b *Builder) ParseBlockStatement() (*Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		// fmt.Println("i am here", stmt)
+		fmt.Println("i am here", stmt)
 
 		stmts = append(stmts, stmt)
 	}
@@ -924,6 +929,9 @@ func (b *Builder) ParseLiteralStatement() (*Node, error) {
 		return nil, err
 	}
 
+	blob, _ := json.Marshal(left)
+	fmt.Println("leftblobby:", string(blob))
+
 	b.Index++
 
 	switch b.Tokens[b.Index].Type {
@@ -944,10 +952,25 @@ func (b *Builder) ParseIdentStatement() (*Node, error) {
 	// 	return b.AppendTokenToError("Could not get assignment statement without ident")
 	// }
 
+	// TODO(scottshotgg): this is a super stupid and hacky way of doing the function call parsing. It really needs to be part of the expression parsing
+	// var value = b.Tokens[b.Index].Value.String
+	// if cFuncs[value] {
+	// 	defer func() { b.Index++ }()
+	// 	b.Index++
+	// 	return b.ParseCall(&Node{
+	// 		Type:  "ident",
+	// 		Value: value,
+	// 	})
+	// }
+
 	// Parse the first ident; this COULD be a type
 	identOrType, err := b.ParseExpression()
 	if err != nil {
 		return nil, err
+	}
+
+	if identOrType.Type == "call" {
+		return identOrType, nil
 	}
 
 	// Increment over the ident token
@@ -966,7 +989,7 @@ func (b *Builder) ParseIdentStatement() (*Node, error) {
 		// Right: expr,
 	}
 
-	fmt.Println("identOrType, err", identOrType, err)
+	fmt.Println("identOrType, err", identOrType, err, b.Tokens[b.Index].Type)
 
 	switch b.Tokens[b.Index].Type {
 	case token.Ident:
@@ -1031,6 +1054,42 @@ func (b *Builder) ParseIdentStatement() (*Node, error) {
 		fmt.Println("node.Right:", node.Right)
 
 		b.Index++
+
+		return node, nil
+
+	case token.LBrace:
+		// Set the proper node values
+		node.Type = "decl"
+		node.Value = identOrType
+
+		node.Right, err = b.ParseExpression()
+		if err != nil {
+			return nil, err
+		}
+
+		b.Index++
+
+		blob, _ := json.Marshal(node)
+		fmt.Println("blobby:", string(blob))
+
+		return node, nil
+
+	case token.Set:
+		b.Index++
+
+		// Set the proper node values
+		node.Type = "kv"
+		node.Left = identOrType
+
+		node.Right, err = b.ParseExpression()
+		if err != nil {
+			return nil, err
+		}
+
+		b.Index++
+
+		blob, _ := json.Marshal(node)
+		fmt.Println("setblobby:", string(blob))
 
 		return node, nil
 
@@ -1560,10 +1619,38 @@ func (b *Builder) ParseStatement() (*Node, error) {
 	case token.Literal:
 		return b.ParseLiteralStatement()
 
-	case
-		token.Ident,
-		token.Type:
-		return b.ParseIdentStatement()
+	case token.Ident:
+		var n, err = b.ParseIdentStatement()
+		if err != nil {
+			return nil, err
+		}
+
+		if n.Type == "decl" {
+			blob, _ := json.Marshal(n)
+			fmt.Println("nblobn:", string(blob))
+
+			err = b.ScopeTree.Declare(n)
+			if err != nil {
+				return nil, err
+			}
+			blob, _ = json.Marshal(b.ScopeTree)
+			fmt.Println("ScopeTree:", string(blob))
+		}
+
+		return n, nil
+
+	case token.Type:
+		var n, err = b.ParseIdentStatement()
+		if err != nil {
+			return nil, err
+		}
+
+		err = b.ScopeTree.Declare(n)
+		if err != nil {
+			return nil, err
+		}
+
+		return n, nil
 
 	case token.Function:
 		return b.ParseFunctionStatement()

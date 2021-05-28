@@ -37,12 +37,14 @@ func New(tokens []token.Token) *Builder {
 			token.Increment: b.ParseIncrement,
 			token.Accessor:  b.ParseSelection,
 			token.LBracket:  b.ParseIndexExpression,
+			// token.LBrace:    b.ParseBlockExpression,
 			token.LParen:    b.ParseCall,
 			token.LThan:     b.ParseLessThanExpression,
 			token.GThan:     b.ParseGreaterThanExpression,
 			token.EqOrLThan: b.ParseLessOrEqualThanExpression,
 			token.EqOrGThan: b.ParseGreaterOrEqualThanExpression,
 			token.PriOp:     b.ParseBinOp,
+			// token.Set:       b.ParseSet,
 		},
 
 		// Tier 2 operators
@@ -54,7 +56,6 @@ func New(tokens []token.Token) *Builder {
 		// Tier 2 operators
 		2: {
 			token.IsEqual: b.ParseEqualityExpression,
-			// token.Set:   b.ParseSet,
 		},
 	}
 

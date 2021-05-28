@@ -1,1 +1,62 @@
-{"Type":"program","Value":[{"Type":"function","Kind":"main","Value":{"Type":"block","Value":[{"Type":"decl","Value":{"Type":"type","Value":"int"},"Left":{"Type":"ident","Value":"i"},"Right":{"Type":"literal","Kind":"int","Value":0}},{"Type":"decl","Value":{"Type":"type","Value":"bool"},"Left":{"Type":"ident","Value":"b"},"Right":{"Type":"comp","Value":"==","Left":{"Type":"binop","Value":"+","Left":{"Type":"literal","Kind":"int","Value":2},"Right":{"Type":"literal","Kind":"int","Value":2}},"Right":{"Type":"binop","Value":"+","Left":{"Type":"literal","Kind":"int","Value":3},"Right":{"Type":"literal","Kind":"int","Value":3}}}},{"Type":"struct","Left":{"Type":"ident","Value":"something"},"Right":{"Type":"block","Kind":"struct","Value":[{"Type":"decl","Value":{"Type":"type","Value":"int"},"Left":{"Type":"ident","Value":"a"},"Right":{"Type":"literal","Kind":"int","Value":5}},{"Type":"decl","Value":{"Type":"type","Value":"string"},"Left":{"Type":"ident","Value":"s"},"Right":{"Type":"literal","Kind":"string","Value":"0"}}]}},{"Type":"struct","Left":{"Type":"ident","Value":"yo"},"Right":{"Type":"block","Kind":"struct","Value":[{"Type":"decl","Value":{"Type":"type","Value":"something"},"Left":{"Type":"ident","Value":"sth"}},{"Type":"decl","Value":{"Type":"type","Value":"bool"},"Left":{"Type":"ident","Value":"ayy"},"Right":{"Type":"literal","Kind":"bool","Value":false}}]}},{"Type":"decl","Value":{"Type":"type","Value":"something"},"Left":{"Type":"ident","Value":"s"}},{"Type":"decl","Value":{"Type":"type","Value":"yo"},"Left":{"Type":"ident","Value":"e"},"Right":{"Type":"block","Value":[{"Type":"assignment","Left":{"Type":"ident","Value":"sth"},"Right":{"Type":"block","Value":[{"Type":"assignment","Left":{"Type":"ident","Value":"a"},"Right":{"Type":"literal","Kind":"int","Value":9}}]}}]}},{"Type":"assignment","Left":{"Type":"selection","Left":{"Type":"ident","Value":"s"},"Right":{"Type":"ident","Value":"a"}},"Right":{"Type":"literal","Kind":"int","Value":88}},{"Type":"decl","Value":{"Type":"type","Value":"map"},"Left":{"Type":"ident","Value":"m"},"Right":{"Type":"block","Value":[{"Type":"kv","Left":{"Type":"literal","Kind":"string","Value":"me"},"Right":{"Type":"literal","Kind":"string","Value":"you"}},{"Type":"kv","Left":{"Type":"literal","Kind":"string","Value":"num"},"Right":{"Type":"literal","Kind":"int","Value":8}}]}},{"Type":"decl","Value":{"Type":"type","Value":"var"},"Left":{"Type":"ident","Value":"m2"},"Right":{"Type":"index","Left":{"Type":"ident","Value":"m"},"Right":{"Type":"literal","Kind":"string","Value":"me"}}},{"Type":"decl","Value":{"Type":"type","Value":"int"},"Left":{"Type":"ident","Value":"result"},"Right":{"Type":"binop","Value":"+","Left":{"Type":"index","Left":{"Type":"ident","Value":"m"},"Right":{"Type":"literal","Kind":"string","Value":"num"}},"Right":{"Type":"selection","Left":{"Type":"ident","Value":"e"},"Right":{"Type":"selection","Left":{"Type":"ident","Value":"sth"},"Right":{"Type":"ident","Value":"a"}}}}},{"Type":"assignment","Left":{"Type":"selection","Left":{"Type":"ident","Value":"s"},"Right":{"Type":"ident","Value":"a"}},"Right":{"Type":"selection","Left":{"Type":"ident","Value":"s"},"Right":{"Type":"binop","Value":"+","Left":{"Type":"ident","Value":"a"},"Right":{"Type":"ident","Value":"result"}}}}]},"Metadata":{"args":{"Type":"sgroup","Value":null}}}]}
+{
+  "Type": "function",
+  "Kind": "delayedPrintln",
+  "Value": {
+    "Type": "block",
+    "Value": [
+      {
+        "Type": "call",
+        "Value": {
+          "Type": "call",
+          "Value": {
+            "Type": "ident",
+            "Value": "msleep"
+          },
+          "Metadata": {
+            "args": {
+              "Type": "egroup",
+              "Value": [
+                {
+                  "Type": "call",
+                  "Value": {
+                    "Type": "ident",
+                    "Value": "now"
+                  },
+                  "Metadata": {
+                    "args": {
+                      "Type": "egroup",
+                      "Value": null
+                    }
+                  }
+                },
+                {
+                  "Type": "literal",
+                  "Kind": "int",
+                  "Value": 1000
+                }
+              ]
+            }
+          }
+        },
+        "Metadata": {
+          "args": {
+            "Type": "egroup",
+            "Value": [
+              {
+                "Type": "literal",
+                "Kind": "string",
+                "Value": "hi"
+              }
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "Metadata": {
+    "args": {
+      "Type": "sgroup",
+      "Value": null
+    }
+  }
+}

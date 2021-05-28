@@ -216,13 +216,15 @@ func (b *Builder) ParseType(typeHint *TypeValue) (*Node, error) {
 		}
 	)
 
-	fmt.Println("node, typeOf", typeOf, node)
+	fmt.Println("node, typeOf", typeOf, node, b.Index, len(b.Tokens)-1)
 
 	for b.Index < len(b.Tokens)-1 {
+		fmt.Println("parsing", b.Tokens[b.Index+1].Type)
 		switch b.Tokens[b.Index+1].Type {
 
 		// Array operator
 		case token.LBracket:
+			fmt.Println("parsing array type")
 			node, err = b.ParseArrayType(typeOf)
 
 		// Pointer operator
@@ -238,7 +240,7 @@ func (b *Builder) ParseType(typeHint *TypeValue) (*Node, error) {
 		// 	n, err = b.ParseAnnotatedType(node)
 
 		default:
-			b.Index++
+			// b.Index++
 			return node, nil
 		}
 

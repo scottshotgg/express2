@@ -345,6 +345,7 @@ func (c *Compiler) compileFile(filename string) error {
 	fmt.Println("\nTranspiling to C++ ...")
 	start = time.Now()
 	var tr = transpiler.New(ast, b, "main", c.LibBase)
+
 	cpp, err := tr.Transpile()
 	c.PipelineTimes["transpile"] = time.Since(start).String()
 	if err != nil {
@@ -353,14 +354,10 @@ func (c *Compiler) compileFile(filename string) error {
 	// TODO: fix this ... :*(
 	// c.OutputData["cpp"] = []byte(cpp)
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		var result, err = c.writeAndFormat(cpp, rawFilename+".cpp")
-		if err != nil {
-			fmt.Printf("There was an error writing C++ file; this does NOT inherently effect binary generation: %s : %+v\n", result, err)
-		}
-	}()
+	result, err := c.writeAndFormat(cpp, rawFilename+".cpp")
+	if err != nil {
+		fmt.Printf("There was an error writing C++ file; this does NOT inherently effect binary generation: %s : %+v\n", result, err)
+	}
 
 	err = c.generateBinary(cpp, rawFilename)
 	if err != nil {

@@ -19,7 +19,7 @@ var (
 		"intLitArray": "[ 4, 6, 9, 7 ]",
 		"intLit":      "7",
 		"identIndex":  "something[9][0]",
-		"identCall":   "funcYou(too, 7)",
+		"identCall":   "funcYou(now() + 7)",
 		"blockExpr":   "{ int i = 7 }",
 		"identSelect": "some.thing.whatever.yeah",
 		"binop":       "9 + 8 * 7",
@@ -37,6 +37,12 @@ var (
   } else {
     launch something()
   }`,
+		"anotherFuncDef": `
+		func delayedPrintln() {
+			msleep(now() + 1000)
+			Println("hi")
+		  }
+		`,
 		"funcDef":       "func something(int i, string s) int { return 10 }",
 		"simpleAssign":  "i = 10",
 		"callNonAssign": "c.fputs(5, i, s)",

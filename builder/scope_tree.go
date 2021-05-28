@@ -196,7 +196,7 @@ func (st *ScopeTree) Declare(ref *Node) error {
 	var scopeRef = st.Vars[refName]
 	// If it is not equal to nil then we already have something under that name in the CURRENT scope
 	if scopeRef != nil {
-		return errors.Errorf("Variable already exists: \nScopeRef:%+v\nRef:%+v\n", scopeRef, ref)
+		return errors.Errorf("Variable already exists: %s\nScopeRef:%+v\nRef:%+v\n", refName, scopeRef, ref)
 	}
 
 	// Put the ref into the table

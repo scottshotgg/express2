@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	token "github.com/scottshotgg/express-token"
 	"github.com/scottshotgg/express2/builder"
 	"github.com/scottshotgg/express2/tree_flattener"
 )
@@ -162,6 +163,8 @@ func (t *Transpiler) Transpile() (string, error) {
 	}
 
 	for i := range nodes {
+		blob, _ := json.Marshal(nodes[i])
+		fmt.Println("blob:", string(blob))
 		// TODO: Switch on the statement type to figure out how to process it
 		// TODO: Flatten anything with a scope
 
@@ -846,6 +849,9 @@ func (t *Transpiler) TranspileExpression(n *builder.Node) (*string, error) {
 
 	case "ref":
 		return t.TranspileRefExpression(n)
+
+	case "type":
+		return t.TranspileType(n)
 	}
 
 	return nil, errors.Errorf("Not implemented expression: %+v", n)
@@ -857,7 +863,7 @@ func (t *Transpiler) TranspileMapStatement(n *builder.Node) (*string, error) {
 	}
 
 	// Transpile the ident
-	var vString, err = t.TranspileExpression(n.Left)
+	vString, err := t.TranspileExpression(n.Left)
 	if err != nil {
 		return nil, err
 	}
@@ -890,6 +896,12 @@ func (t *Transpiler) TranspileLaunchStatement(n *builder.Node) (*string, error) 
 		return nil, errors.New("Node is not a launch node")
 	}
 
+	blob, _ := json.Marshal(n)
+	fmt.Println("launch:", string(blob))
+
+	blob, _ = json.Marshal(n)
+	fmt.Println("launch.left:", string(blob))
+
 	// Transpile the ident
 	var vString, err = t.TranspileStatement(n.Left)
 	if err != nil {
@@ -897,22 +909,23 @@ func (t *Transpiler) TranspileLaunchStatement(n *builder.Node) (*string, error) 
 	}
 
 	// Include libmill for coroutines
-	// includeChan <- &builder.Node{
-	// 	Type: "include",
-	// 	Kind: "path",
-	// 	Left: &builder.Node{
-	// 		Type:  "literal",
-	// 		Value: t.LibBase + "libmill/libmill.h",
-	// 	},
-	// }
 	includeChan <- &builder.Node{
 		Type: "include",
-		// This is not supposed to be a `path` import; it is a library feature, stop re-adding that shit
+		Kind: "path",
 		Left: &builder.Node{
 			Type:  "literal",
-			Value: "libmill.h",
+			Value: t.LibBase + "libmill/libmill.h",
 		},
 	}
+
+	// includeChan <- &builder.Node{
+	// 	Type: "include",
+	// 	// This is not supposed to be a `path` import; it is a library feature, stop re-adding that shit
+	// 	Left: &builder.Node{
+	// 		Type:  "literal",
+	// 		Value: "libmill.h",
+	// 	},
+	// }
 
 	// This has a lambda in it since you can launch any statement ...
 	var nString = "go([=](...){" + *vString + "}());"
@@ -1001,6 +1014,7 @@ func (t *Transpiler) TranspileDeferStatement(n *builder.Node) (*string, error) {
 }
 
 func (t *Transpiler) TranspileStatement(n *builder.Node) (*string, error) {
+	fmt.Println("wtf3333", n.Type)
 	switch n.Type {
 
 	case "if":
@@ -1067,8 +1081,7 @@ func (t *Transpiler) TranspileStatement(n *builder.Node) (*string, error) {
 		return t.TranspileAssignmentStatement(n)
 
 	case "decl":
-		var stmt, err = t.TranspileDeclarationStatement(n)
-		return stmt, err
+		return t.TranspileDeclarationStatement(n)
 
 	case "function":
 		// funcChan <- n
@@ -1248,6 +1261,8 @@ func addDeferToBlock(blockP *string) {
 
 func (t *Transpiler) TranspileIdentExpression(n *builder.Node) (*string, error) {
 	if n.Type != "ident" {
+		blob, _ := json.Marshal(n)
+		fmt.Println("bbbbbbb:", string(blob))
 		return nil, errors.New("Node is not an ident")
 	}
 
@@ -1261,7 +1276,9 @@ func (t *Transpiler) TranspileIdentExpression(n *builder.Node) (*string, error) 
 
 func (t *Transpiler) TranspileType(n *builder.Node) (*string, error) {
 	if n.Type != "type" {
-		return nil, errors.New("Node is not an type")
+		blob, _ := json.Marshal(n)
+		fmt.Println("blob:", string(blob))
+		return nil, errors.New("Node is not a type")
 	}
 
 	nString, ok := n.Value.(string)
@@ -1302,8 +1319,17 @@ func (t *Transpiler) TranspileType(n *builder.Node) (*string, error) {
 			},
 		}
 
+	// TODO(scottshotgg): for now every array will just be a list
 	case "array":
-		nString = "std::array<"
+		includeChan <- &builder.Node{
+			Type: "include",
+			Left: &builder.Node{
+				Type:  "literal",
+				Value: "vector",
+			},
+		}
+
+		nString = "std::vector<" + n.Kind + ">"
 
 	case "pointer":
 		nString = "*"
@@ -1324,13 +1350,25 @@ func (t *Transpiler) TranspileType(n *builder.Node) (*string, error) {
 }
 
 // This changes an Express literal to be formatted the way C++ expects
-func prepLiteral(kind, cpp string) *string {
-	switch kind {
+func (t *Transpiler) prepLiteral(n *builder.Node, cpp string) *string {
+	switch n.Kind {
 	case "string":
 		cpp = "\"" + cpp + "\""
 
 	case "char":
 		cpp = "'" + cpp + "'"
+
+	case "struct":
+		// Transpile the block for the value
+		vString, err := t.TranspileBlockExpression(n.Right)
+		if err != nil {
+			fmt.Println("err:", err)
+			os.Exit(9)
+		}
+
+		*vString = n.Value.(string) + *vString
+
+		return vString
 	}
 
 	return &cpp
@@ -1341,7 +1379,10 @@ func (t *Transpiler) TranspileLiteralExpression(n *builder.Node) (*string, error
 		return nil, errors.New("Node is not an literal")
 	}
 
-	return prepLiteral(n.Kind, fmt.Sprintf("%v", n.Value)), nil
+	blob, _ := json.Marshal(n)
+	fmt.Println("its me again: n:", string(blob))
+
+	return t.prepLiteral(n, fmt.Sprintf("%v", n.Value)), nil
 }
 
 func (t *Transpiler) TranspileArrayExpression(n *builder.Node) (*string, error) {
@@ -1357,10 +1398,13 @@ func (t *Transpiler) TranspileArrayExpression(n *builder.Node) (*string, error) 
 
 	value := n.Value.([]*builder.Node)
 	for _, v := range value {
+		fmt.Println("v:", *v)
 		vString, err = t.TranspileExpression(v)
 		if err != nil {
 			return nil, err
 		}
+
+		fmt.Println("vString:", vString)
 
 		nString += *vString + ", "
 	}
@@ -1401,6 +1445,8 @@ func (t *Transpiler) TranspileAssignmentStatement(n *builder.Node) (*string, err
 		return nil, err
 	}
 
+	fmt.Println("IS THIS THE ONE:", *vString)
+
 	nString += *vString + ";"
 
 	return &nString, nil
@@ -1409,6 +1455,11 @@ func (t *Transpiler) TranspileAssignmentStatement(n *builder.Node) (*string, err
 func (t *Transpiler) TranspileDeclarationStatement(n *builder.Node) (*string, error) {
 	if n.Type != "decl" {
 		return nil, errors.New("Node is not an declaration")
+	}
+
+	var err = t.Builder.ScopeTree.Declare(n)
+	if err != nil {
+		return nil, err
 	}
 
 	var (
@@ -1420,7 +1471,7 @@ func (t *Transpiler) TranspileDeclarationStatement(n *builder.Node) (*string, er
 	// This will require some prepping atleast to figure out
 	// if we need any pre-statements
 
-	var typeOf, err = t.TranspileType(n.Value.(*builder.Node))
+	typeOf, err := t.TranspileType(n.Value.(*builder.Node))
 	if err != nil {
 		return nil, err
 	}
@@ -1460,10 +1511,41 @@ func (t *Transpiler) TranspileDeclarationStatement(n *builder.Node) (*string, er
 	switch *typeOf {
 	case "map":
 		vString, err = t.TranspileMapBlockStatement(n.Right)
+		if err != nil {
+			return nil, err
+		}
+
 		// typeOfBlock, err := t.DeduceMapBlockType(n.Right)
 		// fmt.Println("typeOfBlock, err", *typeOfBlock, err)
 		// os.Exit(9)
-		nString = "std::" + *typeOf + "<var, var>" + nString
+
+		kvs, ok := n.Right.Value.([]*builder.Node)
+		if !ok {
+			return nil, errors.New("kvs not ok")
+		}
+
+		var (
+			varType   = token.VarType
+			keyType   = &varType
+			valueType = &varType
+		)
+
+		if len(kvs) > 0 {
+			keyType, err = t.resolveType(kvs[0].Left)
+			if err != nil {
+				return nil, err
+			}
+
+			valueType, err = t.resolveType(kvs[0].Right)
+			if err != nil {
+				return nil, err
+			}
+
+			blob, _ := json.Marshal(kvs[0])
+			fmt.Println("kvblob:", string(blob))
+		}
+
+		nString = fmt.Sprintf("std::map<%s, %s> %s", *keyType, *valueType, nString)
 
 	default:
 		nString = *typeOf + " " + nString
@@ -1479,6 +1561,50 @@ func (t *Transpiler) TranspileDeclarationStatement(n *builder.Node) (*string, er
 	// fmt.Println("nString", nString)
 
 	return &nString, nil
+}
+
+func (t *Transpiler) resolveType(n *builder.Node) (*string, error) {
+	blob, _ := json.Marshal(n)
+	fmt.Println("vvvvvvv:", string(blob))
+	switch n.Type {
+	case "ident":
+		var v = t.Builder.ScopeTree.Get(n.Value.(string))
+		if v == nil {
+			blob, _ := json.Marshal(t.Builder.ScopeTree)
+			fmt.Println("scopeTree:", string(blob))
+			return nil, errors.New("ident not found:" + n.Value.(string))
+		}
+
+		var vv, ok = v.Value.(*builder.Node).Value.(string)
+		if !ok {
+			return nil, errors.New("could not get type")
+		}
+
+		return &vv, nil
+
+	case "literal":
+		switch n.Kind {
+		case "struct":
+			var v = n.Value.(string)
+			return &v, nil
+		}
+
+		return &n.Kind, nil
+
+	case "type":
+		var t, ok = n.Value.(string)
+		if !ok {
+			return nil, errors.New("could not resolveType from type:")
+		}
+
+		return &t, nil
+
+	case "block":
+		fmt.Println("I AM HERE")
+		os.Exit(9)
+	}
+
+	return nil, errors.New("unknown node type to resolveType: " + n.Type)
 }
 
 // func (t *Transpiler)  TranspileIncrementExpression(n *builder.Node) (*string, error) {
@@ -1564,6 +1690,11 @@ func (t *Transpiler) TranspileBinOpExpression(n *builder.Node) (*string, error) 
 }
 
 func (t *Transpiler) TranspileBlockStatement(n *builder.Node) (*string, error) {
+	if n == nil {
+		var nString = "{}"
+		return &nString, nil
+	}
+
 	if n.Type != "block" {
 		return nil, errors.New("Node is not a block")
 	}
@@ -1575,8 +1706,6 @@ func (t *Transpiler) TranspileBlockStatement(n *builder.Node) (*string, error) {
 	)
 
 	for _, stmt := range n.Value.([]*builder.Node) {
-		fmt.Printf("stmt %+v", stmt)
-
 		vString, err = t.TranspileStatement(stmt)
 		if err != nil {
 			return nil, err
@@ -1670,6 +1799,11 @@ func (t *Transpiler) TranspileMapBlockStatement(n *builder.Node) (*string, error
 // TODO: for now all variables will have a `.` in front, later on it
 // should only be the public variables
 func (t *Transpiler) TranspileBlockExpression(n *builder.Node) (*string, error) {
+	if n == nil {
+		var nString = "{}"
+		return &nString, nil
+	}
+
 	if n.Type != "block" {
 		return nil, errors.New("Node is not a block")
 	}
@@ -1729,6 +1863,31 @@ func (t *Transpiler) TranspileEGroup(n *builder.Node) (*string, error) {
 	return &nString, nil
 }
 
+func (t *Transpiler) TranspileStreamEGroup(n *builder.Node) (*string, error) {
+	if n.Type != "egroup" {
+		return nil, errors.New("Node is not a egroup")
+	}
+
+	var (
+		nStrings = make([]string, len(n.Value.([]*builder.Node)))
+		vString  *string
+		err      error
+	)
+
+	for i, e := range n.Value.([]*builder.Node) {
+		vString, err = t.TranspileExpression(e)
+		if err != nil {
+			return nil, err
+		}
+
+		nStrings[i] = *vString
+	}
+
+	var nString = strings.Join(nStrings, " << ")
+
+	return &nString, nil
+}
+
 func (t *Transpiler) TranspileSGroup(n *builder.Node) (*string, error) {
 	if n.Type != "sgroup" {
 		return nil, errors.New("Node is not a sgroup")
@@ -1771,99 +1930,88 @@ func (t *Transpiler) TranspileCallExpression(n *builder.Node) (*string, error) {
 		err     error
 	)
 
-	vString, err = t.TranspileIdentExpression(n.Value.(*builder.Node))
+	vString, err = t.TranspileExpression(n.Value.(*builder.Node))
 	if err != nil {
 		return nil, err
 	}
+
+	blob, _ := json.Marshal(vString)
+	fmt.Println("vsTrIng:", string(blob))
 
 	nString += *vString
 
 	var args = n.Metadata["args"]
 
+	var argString string
+
+	blob, _ = json.Marshal(n.Value.(*builder.Node))
+	fmt.Println("n.Value.(*builder.Node):", string(blob))
+
 	// Just do the checking here for now, not sure the merits of making the sgroup function check
 	if args != nil {
+		funcName, ok := n.Value.(*builder.Node).Value.(string)
+		if ok {
+			if cFuncs[n.Value.(*builder.Node).Value.(string)] {
+				includeChan <- &builder.Node{
+					Type: "include",
+					Left: &builder.Node{
+						Type:  "literal",
+						Value: "stdio.h",
+					},
+				}
+			}
+
+			if funcName == "Println" {
+				var argString, err = t.TranspileStreamEGroup(args.(*builder.Node))
+				if err != nil {
+					return nil, err
+				}
+
+				var ending = " std::endl"
+
+				if len(*argString) > 0 {
+					ending = "<<" + ending
+				}
+
+				nString = "std::cout <<" + *argString + ending
+
+				return &nString, nil
+			}
+		}
+
 		vString, err = t.TranspileEGroup(args.(*builder.Node))
 		if err != nil {
 			return nil, err
 		}
+		blob, _ = json.Marshal(vString)
+		fmt.Println("egroup vstring:", string(blob))
 
-		nString += *vString
+		argString += *vString
 	} else {
-		nString += "()"
+		argString += "()"
 	}
+	blob, _ = json.Marshal(vString)
+	fmt.Println("argstring:", string(blob))
+
+	nString += argString
 
 	return &nString, nil
 }
 
+var cFuncs = map[string]bool{
+	"printf": true,
+}
+
 func (t *Transpiler) TranspileForInStatement(n *builder.Node) (*string, error) {
-	// Change forin to be a block statement containing:
-	//	- declare var
-	//	- declare array/iter
-	//	- while var < iter.length
-	//	- loop_block
-	//	-	increment var
-
-	// return nil, errors.New("not implemented: forin")
-
-	if n.Type != "forin" {
-		return nil, errors.New("Node is not a forin")
-	}
-
-	var (
-		nString = "{"
-		vString *string
-		err     error
-	)
-
-	// Make and translate the ident into a declaration
-	ds := TransformIdentToDefaultDeclaration(n.Metadata["start"].(*builder.Node))
-	vString, err = t.TranspileDeclarationStatement(ds)
-	if err != nil {
-		return nil, err
-	}
-
-	nString += *vString
-
-	// Make and translate the array expression into a declaration
-	dss := TransformExpressionToDeclaration(n.Metadata["end"].(*builder.Node))
-	vString, err = t.TranspileDeclarationStatement(dss)
-	if err != nil {
-		return nil, err
-	}
-
-	nString += *vString
-
-	// Make and translate the less than operation
-	vString, err = t.TranspileConditionExpression(&builder.Node{
-		Type:  "comp",
-		Value: "<",
-		Left:  n.Metadata["start"].(*builder.Node),
-		Right: GenerateLengthCall(dss),
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	nString += fmt.Sprintf("while(%s)", *vString)
+	var nString = fmt.Sprintf("for (auto const& %s : %s)", n.Left.Left.Value.(string), n.Right.Value.(string))
 
 	// Translate the block statement
-	vString, err = t.TranspileBlockStatement(n.Value.(*builder.Node))
+	vString, err := t.TranspileBlockStatement(n.Value.(*builder.Node))
 	if err != nil {
 		return nil, err
 	}
 
 	nString += *vString
-
-	// Lastly, make and translate an increment statement for the ident
-	vString, err = t.TranspileIncrementExpression(&builder.Node{
-		Type: "inc",
-		Left: n.Metadata["start"].(*builder.Node),
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	nString += *vString + "}"
 
 	return &nString, nil
 }
@@ -1948,30 +2096,90 @@ func (t *Transpiler) TranspileWhileStatement(n *builder.Node) (*string, error) {
 		`while` `(` expr `)` block
 	*/
 
-	if n.Type != "while" {
-		return nil, errors.New("Node is not a while")
+	var nString string
+
+	var v = t.Builder.ScopeTree.Get(n.Right.Value.(string))
+
+	blob, _ := json.Marshal(v)
+	fmt.Println("vvvvblobbyhill:", string(blob))
+
+	if v != nil && v.Value != nil && v.Value.(*builder.Node).Kind == "map" {
+		nString = fmt.Sprintf("for (auto const& set : %s)", n.Right.Value.(string))
+		start := n.Metadata["start"]
+		if start == nil {
+			return nil, errors.New("No start amount ...")
+			// return nil
+		}
+
+		n.Value.(*builder.Node).Value = append([]*builder.Node{{
+			Type: "decl",
+			Value: &builder.Node{
+				Type: "type",
+				// Kind: "int",
+				Value: "auto",
+			},
+			Left: start.(*builder.Node),
+			Right: &builder.Node{
+				Type:  "literal",
+				Kind:  "auto",
+				Value: "set.first",
+			},
+		}}, n.Value.(*builder.Node).Value.([]*builder.Node)...)
+
+		blob, _ = json.Marshal(n.Value.(*builder.Node).Value)
+		fmt.Println("blobbyhill:", string(blob))
+
+	} else {
+		start := n.Metadata["start"]
+		if start == nil {
+			return nil, errors.New("No start amount ...")
+			// return nil
+		}
+
+		/*
+			while statements are simple, we already have all the tools:
+			`while` `(` expr `)` block
+		*/
+
+		if n.Type != "while" {
+			return nil, errors.New("Node is not a while")
+		}
+
+		var (
+			nString = fmt.Sprintf("int %s=0;{ while(", start.(*builder.Node).Value)
+			// vString *string
+			// err     error
+		)
+
+		fmt.Printf("transpile expr: %+v\n", n.Left.Right)
+		condition, err := t.TranspileExpression(n.Left)
+		if err != nil {
+			return nil, err
+		}
+
+		nString += *condition + ")"
+
+		block, err := t.TranspileBlockStatement(n.Value.(*builder.Node))
+		if err != nil {
+			return nil, err
+		}
+
+		var b = *block
+
+		b = b[:len(b)-1] + start.(*builder.Node).Value.(string) + "++;" + b[len(b)-1:]
+
+		nString += b + "}"
+
+		return &nString, nil
 	}
 
-	var (
-		nString = "{ while("
-		// vString *string
-		// err     error
-	)
-
-	fmt.Printf("transpile expr: %+v\n", n.Left.Right)
-	condition, err := t.TranspileExpression(n.Left)
+	// Translate the block statement
+	vString, err := t.TranspileBlockStatement(n.Value.(*builder.Node))
 	if err != nil {
 		return nil, err
 	}
 
-	nString += *condition + ")"
-
-	block, err := t.TranspileBlockStatement(n.Value.(*builder.Node))
-	if err != nil {
-		return nil, err
-	}
-
-	nString += *block + "}"
+	nString += *vString
 
 	return &nString, nil
 }
