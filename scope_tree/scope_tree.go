@@ -1,6 +1,7 @@
 package scope_tree
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"sync"
@@ -108,6 +109,7 @@ func (st *ScopeTree) Set(ref *builder.Node) error {
 
 		// Search for the reference name in the current scope's symbol table
 		var scopeRef = st.vars[refName]
+		fmt.Println("refName:", refName)
 		// If it is not equal to nil then we already have something under that name in the CURRENT scope
 		if scopeRef != nil {
 			return errors.Errorf("Variable already exists: \nScopeRef:%+v\nRef:%+v\n", scopeRef, ref)

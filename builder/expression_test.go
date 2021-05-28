@@ -8,22 +8,6 @@ import (
 	"github.com/scottshotgg/express2/test"
 )
 
-func TestParseBinOpExpression(t *testing.T) {
-	b, err = getBuilderFromString(test.Tests[test.ExpressionTest]["binop"])
-	if err != nil {
-		t.Errorf(errFormatString, err)
-	}
-
-	node, err = b.ParseExpression()
-	if err != nil {
-		t.Errorf(errFormatString, err)
-	}
-
-	nodeJSON, _ = json.Marshal(node)
-	fmt.Printf(jsonFormatString, nodeJSON)
-	// fmt.Printf(nodeString, *node.Metadata["args"].(*builder.Node).Value.([]*builder.Node)[0].Right)
-}
-
 func TestParseGroupOfExpressions(t *testing.T) {
 	b, err = getBuilderFromString("(1, i, s, 9)")
 	if err != nil {
@@ -154,7 +138,7 @@ func TestParseIdentIndexExpression(t *testing.T) {
 }
 
 func TestParseCallExpression(t *testing.T) {
-	b, err = getBuilderFromString(test.Tests[test.ExpressionTest]["identCall"])
+	b, err = getBuilderFromString("now() + 7")
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}

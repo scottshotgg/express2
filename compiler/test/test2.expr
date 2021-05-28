@@ -1,35 +1,53 @@
+struct Token = {
+  string name = ""
+  var value
+}
+
+func delayedPrintln() {
+  msleep(now() + 1000)
+  Println("hi")
+}
+
 func main() {
-  int i = 0
+  defer Println("\\n--- ENDING ---")
+  Println("\\n--- STARTING ---\\n")
+  launch delayedPrintln()
 
-  bool b = 2 + 2 == 3 + 3
-
-  struct something = {
-    int a = 5
-    string s = "0"
+  Token ident = {
+    name = "ident"
   }
 
-  struct yo = {
-    something sth
-    bool ayy = false
+  map tokens = {
+    "ident": ident
   }
 
-  something s
-  yo e = {
-    sth = {
-      a = 9
-    }
+  // Show some var usage
+
+  // var array
+  var[] vv = [666, "something_here", false, 73.986622195]
+
+  // var assignment and automatic type changing
+  for x in vv {
+    tokens["ident"].value = vv[x]
+    Println("vv[x]:", vv[x])
+    Println("tokens[\\\"ident\\\"].value:", tokens["ident"].value, "\\n")
   }
 
-  s.a = 88
+  // Fill a map
+  int[] i = [1, 2, 3, 4, 5, 6, 7, 8, 9]
 
-  map m = {
-    "me": "you"
-    "num": 8
+  // The compiler cannot minimize your type and thus uses the 
+  // default ground state of <var, var>
+  map m = {}
+
+  for x in i {
+    m[x] = i[x]
   }
 
-  var m2 = m["me"]
+  Println("---")
 
-  int result = m["num"] + e.sth.a
-
-  s.a = s.a + result
+  for x in m {
+    m["result"] = m["result"] + m[x] * m[x]
+    Println("square: ", m[x] * m[x], "\\nresult: ", m["result"], "\\n")
+  }
 }
