@@ -151,7 +151,54 @@ func TestParseFunctionStatement(t *testing.T) {
 		t.Errorf(errFormatString, err)
 	}
 
-	nodeJSON, _ = json.Marshal(b.ScopeTree.Get("something"))
+	nodeJSON, _ = json.Marshal(node)
+	fmt.Printf(jsonFormatString, nodeJSON)
+}
+
+var testt = `
+  func main() {
+	// var assignment and automatic type changing
+	Println("tokens[\\\"ident\\\"].value:", tokens["ident"].value, "\\n")
+  
+	// Fill a map
+	int[] i = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+  
+	// The compiler cannot minimize your type and thus uses the 
+	// default ground state of <var, var>
+	map m = {}
+  
+	for x in i {
+	  m[x] = i[x]
+	}
+  }`
+
+func TestTestt(t *testing.T) {
+	b, err = getBuilderFromString(testt)
+	if err != nil {
+		t.Fatalf(errFormatString, err)
+	}
+
+	ast, err := b.BuildAST()
+	if err != nil {
+		t.Fatalf(errFormatString, err)
+	}
+
+	nodeJSON, _ = json.Marshal(ast)
+	fmt.Printf(jsonFormatString, nodeJSON)
+}
+
+func TestParseAnotherFunctionStatement(t *testing.T) {
+	b, err = getBuilderFromString(test.Tests[test.StatementTest]["anotherFuncDef"])
+	if err != nil {
+		t.Fatalf(errFormatString, err)
+	}
+
+	node, err = b.ParseFunctionStatement()
+	if err != nil {
+		t.Fatalf(errFormatString, err)
+	}
+
+	nodeJSON, _ = json.Marshal(node)
 	fmt.Printf(jsonFormatString, nodeJSON)
 }
 

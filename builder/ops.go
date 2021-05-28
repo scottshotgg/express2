@@ -1,6 +1,7 @@
 package builder
 
 import (
+	"encoding/json"
 	"fmt"
 
 	token "github.com/scottshotgg/express-token"
@@ -18,7 +19,16 @@ func (b *Builder) ParseSet(n *Node) (*Node, error) {
 		return nil, err
 	}
 
+	var blob, _ = json.Marshal(right)
+	fmt.Println("rightblob:", string(blob))
+
+	blob, _ = json.Marshal(n)
+	fmt.Println("nnnnnnnnnnnblob:", string(blob))
+
 	// Step over the Expression
+	// b.Index++
+
+	// Step over the expression
 	b.Index++
 
 	return &Node{
@@ -194,6 +204,33 @@ func (b *Builder) ParseIndexExpression(n *Node) (*Node, error) {
 		Right: expr,
 	}, nil
 }
+
+// func (b *Builder) ParseBlockExpression(n *Node) (*Node, error) {
+// 	if b.Index > len(b.Tokens)-1 {
+// 		return nil, ErrOutOfTokens
+// 	}
+
+// 	if b.Tokens[b.Index].Type != token.LBrace {
+// 		return b.AppendTokenToError("Could not get left bracket")
+// 	}
+
+// 	b.Index++
+
+// 	expr, err := b.ParseExpression()
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	// Step over the expression
+// 	b.Index++
+
+// 	return &Node{
+// 		Type: "index",
+// 		// Value: n,
+// 		Left:  n,
+// 		Right: expr,
+// 	}, nil
+// }
 
 func (b *Builder) ParseSelection(n *Node) (*Node, error) {
 	if b.Index > len(b.Tokens)-1 {

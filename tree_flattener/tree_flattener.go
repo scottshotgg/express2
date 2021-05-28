@@ -20,7 +20,15 @@ func getIntType() *builder.Node {
 
 // expects an egroup
 func getArrayType(node *builder.Node) string {
-	values := node.Value.([]*builder.Node)
+	if node.Type == "ident" {
+		return node.Value.(string)
+	}
+
+	values, ok := node.Value.([]*builder.Node)
+	if !ok {
+		fmt.Println("values not ok")
+		os.Exit(9)
+	}
 
 	if len(values) < 1 {
 		fmt.Println("not supporting empty array shit rn")
@@ -45,7 +53,7 @@ func getArrayType(node *builder.Node) string {
 	forin &{type  array map[dim:[0xc00000a1a0]] <nil> <nil>}
 */
 
-func transformIdentToDecl(typeOf string, node *builder.Node) *builder.Node {
+func transformIdentToDecl(typeOf string, value interface{}, node *builder.Node) *builder.Node {
 	switch typeOf {
 	case "int":
 		return &builder.Node{
@@ -55,7 +63,23 @@ func transformIdentToDecl(typeOf string, node *builder.Node) *builder.Node {
 			Right: &builder.Node{
 				Type:  "literal",
 				Kind:  "int",
-				Value: 0,
+				Value: value,
+			},
+		}
+
+	case "auto":
+		return &builder.Node{
+			Type: "decl",
+			Value: &builder.Node{
+				Type: "type",
+				// Kind: "int",
+				Value: "auto",
+			},
+			Left: node,
+			Right: &builder.Node{
+				Type:  "literal",
+				Kind:  "auto",
+				Value: value,
 			},
 		}
 	}
@@ -92,7 +116,7 @@ func transformArrayToDecl(typeOf string, node *builder.Node) *builder.Node {
 		// ident
 		Left: &builder.Node{
 			Type:  "ident",
-			Value: "RANDOM_NAME_LATER",
+			Value: node.Value,
 		},
 		Right: node,
 	}
@@ -177,6 +201,7 @@ func anonymizeIdentName(n *builder.Node) error {
 
 func FlattenForIn(node *builder.Node) []*builder.Node {
 	arrayType := getArrayType(node.Metadata["end"].(*builder.Node))
+
 	// randomIdent := makeRandomIdent()
 	start := node.Metadata["start"]
 	if start == nil {
@@ -191,7 +216,10 @@ func FlattenForIn(node *builder.Node) []*builder.Node {
 
 	fmt.Printf("ident %+v\n", start)
 
-	incVar := transformIdentToDecl("int", start.(*builder.Node))
+	keyVar := transformIdentToDecl("auto", "set.first", start.(*builder.Node))
+	// valueVar := transformIdentToDecl("auto", "set.second", node.Metadata["end"].(*builder.Node))
+	// incVar := transformIdentToDecl("auto", start.(*builder.Node))
+
 	arrayVar := transformArrayToDecl(arrayType, node.Metadata["end"].(*builder.Node))
 	block := node.Value.(*builder.Node)
 
@@ -202,14 +230,16 @@ func FlattenForIn(node *builder.Node) []*builder.Node {
 		return nil
 	}
 
-	stmts := append(block.Value.([]*builder.Node), makeIncrementOp(node.Metadata["start"].(*builder.Node)))
+	stmts := append(block.Value.([]*builder.Node)) //, makeIncrementOp(node.Metadata["start"].(*builder.Node)))
 	while := &builder.Node{
 		Type: "while",
 		Value: &builder.Node{
 			Type:  "block",
 			Value: stmts,
 		},
-		Left: makeLTComp(incVar.Left, makeLengthCall(arrayVar.Left)),
+		Metadata: node.Metadata,
+		Right:    node.Metadata["end"].(*builder.Node),
+		Left:     makeLTComp(keyVar.Left, makeLengthCall(arrayVar.Left)),
 	}
 
 	// recurse, assign result to while.Value, return while.Value
@@ -220,14 +250,14 @@ func FlattenForIn(node *builder.Node) []*builder.Node {
 	// recurse into block
 
 	fmt.Println("something", []*builder.Node{
-		incVar,
-		arrayVar,
+		keyVar,
+		// arrayVar,
 		while,
 	})
 
 	return []*builder.Node{
-		incVar,
-		arrayVar,
+		// incVar,
+		// arrayVar,
 		while,
 	}
 }
@@ -359,8 +389,8 @@ func FlattenNode(node *builder.Node) error {
 func FlattenForOf(node *builder.Node) []*builder.Node {
 	randomIdent := makeRandomIdent()
 	arrayType := getArrayType(node.Metadata["end"].(*builder.Node))
-	incVar := transformIdentToDecl("int", node.Metadata["start"].(*builder.Node))
-	indVar := transformIdentToDecl(arrayType, randomIdent)
+	incVar := transformIdentToDecl("int", 0, node.Metadata["start"].(*builder.Node))
+	indVar := transformIdentToDecl(arrayType, 0, randomIdent)
 	arrayVar := transformArrayToDecl(arrayType, node.Metadata["end"].(*builder.Node))
 	block := node.Value.(*builder.Node)
 	stmts := append(block.Value.([]*builder.Node), makeIncrementOp(node.Metadata["start"].(*builder.Node)))

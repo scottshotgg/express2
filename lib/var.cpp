@@ -27,7 +27,76 @@ private:
   int precision;
 
 public:
+  std::string to_string() {
+    std::ostringstream stream;
+
+    switch (type) {
+      case nullType:
+        stream << "null ";
+        break;
+
+      case intType:
+        // printf("printing int\n");
+        stream << *(int *)data;
+        break;
+
+      case boolType:
+        // printf("printing bool\n");
+        if (*(bool *)data) {
+          stream << "true";
+        }  else {
+          stream << "false";
+        }
+        break;
+        
+
+      case charType:
+        // printf("printing char\n");
+        stream << "\"" << *(char *)data << "\"";
+        break;
+
+      case floatType:
+        stream
+          << std::setprecision (std::numeric_limits<double>::digits10 + 1)
+          << *(double *)data;
+        break;
+
+      case stringType:
+        // cout << "printing string" << endl;
+        stream << "\"" << *(string *)data << "\"";
+        break;
+
+      case objectType: {
+        int counter = 0;
+        map<var, var> objectMap = *(map<var, var> *)data;
+        stream << "{ ";
+        for (auto property : objectMap) {
+          // stream << property.first << property.second.first <<
+          // property.second.second << "\n";
+          stream << property.first << ": " << property.second;
+
+          if (counter < objectMap.size() - 1) {
+            stream << ", ";
+          }
+          counter++;
+        }
+
+        stream << " }";
+        break;
+      }
+
+      default:
+        printf("wtf to do Type: %u\n", type);
+    }
+
+    return stream.str();
+  }
+
   void deallocate() {
+    if (data == nullptr) {
+      return;
+    }
+
     switch (type) {
     case intType: {
       // cout << "int decons; Type: " << type << " Value: " << *(int *)data
@@ -89,7 +158,10 @@ public:
   //   }
 
   // }
-  var(void) : type(nullType), data(nullptr) {}
+  var(void) : type(nullType), data(nullptr) {
+    // cout << "nullptr cons; Type: " << type << " Value: " << "nullptr"
+      //  << " Pointer: " << data << endl;
+    }
   var(int *value) : type(pointerType), data(value) {}
   var(void *value) : type(pointerType), data(value) {}
   // var(nullptr) : type(pointerType), data(value){}
@@ -302,6 +374,15 @@ public:
     }
   }
 
+  // // TODO(scottshotgg): not sure if I need this or not 
+  // void operator=(const var v) {
+  //     // var::~var();
+  //     deallocate();
+
+  //     type = v.Type();
+  //     data = v.Value();
+  // }
+
   // // FIXME: fix this
   // void operator=(initializer_list<var> propList) {
   //   deallocate();
@@ -311,55 +392,7 @@ public:
   // }
 
   friend ostream &operator<<(ostream &stream, var v) {
-    switch (v.type) {
-    case nullType:
-      return stream << "undefined ";
-
-    case intType:
-      // //printf("printing int\n");
-      return stream << *(int *)v.data;
-
-    case boolType:
-      if (*(bool *)v.data) {
-        return stream << "true";
-      }
-      
-      return stream << "false";
-
-    case charType:
-      return stream << "\"" << *(char *)v.data << "\"";
-
-    case floatType:
-      return stream
-        << std::setprecision (std::numeric_limits<double>::digits10 + 1)
-        << *(double *)v.data;
-
-    case stringType:
-      // //cout << "printing string" << endl;;
-      return stream << "\"" << *(string *)v.data << "\"";
-
-    case objectType: {
-      int counter = 0;
-      map<var, var> objectMap = *(map<var, var> *)v.data;
-      stream << "{ ";
-      for (auto property : objectMap) {
-        // stream << property.first << property.second.first <<
-        // property.second.second << "\n";
-        stream << property.first << ": " << property.second;
-
-        if (counter < objectMap.size() - 1) {
-          stream << ", ";
-        }
-        counter++;
-      }
-      return stream << " }";
-    }
-
-    default:
-      printf("wtf to do Type: %u\n", v.type);
-    }
-
-    return stream;
+    return stream << v.to_string();
   }
 };
 
@@ -479,6 +512,10 @@ bool operator<(const var &left, const var &right) {
 
 // Integer operations
 int operator+(const int left, const var &right) {
+  if (right.Value() == nullptr) {
+    return left;
+  }
+
   // //printf("+ int var\n");
   return left + *(int *)right.Value();
 }
@@ -535,7 +572,17 @@ var operator+(const var &left, const char *right) {
   return var(*(string *)left.Value() + right);
 }
 
+// TODO: this is not done
 int operator+(const var &left, const var &right) {
+  if (left.Value() == nullptr) {
+    return 0 + right;
+  }
+
+  if (right.Value() == nullptr) {
+    return 0 + left;
+  }
+
+    // TODO(scottshotgg): this should do a switch for each side AND THEN add them together
     // printf("hey its me")
   return *(int*)left.Value() + *(int*)right.Value();
 }
