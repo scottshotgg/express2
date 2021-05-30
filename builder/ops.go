@@ -25,9 +25,6 @@ func (b *Builder) ParseSet(n *Node) (*Node, error) {
 	blob, _ = json.Marshal(n)
 	fmt.Println("nnnnnnnnnnnblob:", string(blob))
 
-	// Step over the Expression
-	// b.Index++
-
 	// Step over the expression
 	b.Index++
 
@@ -158,16 +155,15 @@ func (b *Builder) ParseIncrement(n *Node) (*Node, error) {
 }
 
 func (b *Builder) ParseCall(n *Node) (*Node, error) {
-	// Check ourselves ...
-	if b.Tokens[b.Index].Type != token.LParen {
-		return b.AppendTokenToError("Could not get left paren")
-	}
-
 	// We are not allowing for named arguments right now
 	args, err := b.ParseGroupOfExpressions()
 	if err != nil {
 		return nil, err
 	}
+
+	// if b.Index < len(b.Tokens) && b.Tokens[b.Index].Type == token.RParen {
+	// 	b.Index++
+	// }
 
 	return &Node{
 		Type:  "call",
@@ -184,7 +180,7 @@ func (b *Builder) ParseIndexExpression(n *Node) (*Node, error) {
 	}
 
 	if b.Tokens[b.Index].Type != token.LBracket {
-		return b.AppendTokenToError("Could not get left bracket")
+		return nil, b.AppendTokenToError("Could not get left bracket")
 	}
 
 	b.Index++
@@ -211,7 +207,7 @@ func (b *Builder) ParseIndexExpression(n *Node) (*Node, error) {
 // 	}
 
 // 	if b.Tokens[b.Index].Type != token.LBrace {
-// 		return b.AppendTokenToError("Could not get left bracket")
+// 		return nil, b.AppendTokenToError("Could not get left bracket")
 // 	}
 
 // 	b.Index++
@@ -238,7 +234,7 @@ func (b *Builder) ParseSelection(n *Node) (*Node, error) {
 	}
 
 	if b.Tokens[b.Index].Type != token.Accessor {
-		return b.AppendTokenToError("Could not get selection operator")
+		return nil, b.AppendTokenToError("Could not get selection operator")
 	}
 
 	// Step over the accessor

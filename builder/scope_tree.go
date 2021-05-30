@@ -178,8 +178,13 @@ func (st *ScopeTree) Declare(ref *Node) error {
 		// ref.Left.Value should be the name of the ident
 		refName, ok = ref.Left.Value.(string)
 		if !ok {
+			blob, _ := json.Marshal(ref)
+			fmt.Println("blobberino:", string(blob))
 			return errors.Errorf("Node value was not a string %+v", ref)
 		}
+
+	case "package":
+		log.Fatalln("fuck you, package")
 
 	default:
 		return errors.Errorf("Node type is not supported for declaration: %+v", ref)

@@ -1,6 +1,10 @@
 package builder
 
-import "github.com/pkg/errors"
+import (
+	"fmt"
+
+	"github.com/pkg/errors"
+)
 
 const (
 	formatString = "; %+v"
@@ -12,10 +16,12 @@ var (
 	ErrOutOfTokens    = errors.New("Out of tokens")
 )
 
-func (b *Builder) AppendTokenToError(errText string) (*Node, error) {
+func (b *Builder) AppendTokenToError(errText string) error {
+	var err = errors.New(errText)
+
 	if b.Index < len(b.Tokens)-1 {
-		return nil, errors.Errorf(errText+formatString, b.Tokens[b.Index])
+		return errors.Wrap(err, fmt.Sprintf("%+v", b.Tokens[b.Index]))
 	}
 
-	return nil, errors.New(errText + "; No token to print")
+	return errors.Wrap(err, "no token to print")
 }
