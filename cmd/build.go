@@ -16,6 +16,7 @@ package cmd
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"strings"
 
@@ -174,8 +175,7 @@ to quickly create a Cobra application.`,
 
 		err = c.CompileFile(filenameArg)
 		if err != nil {
-			fmt.Printf("\nerror: %s\n", err)
-			os.Exit(9)
+			log.Fatalf("\nerror: %+v\n\n", err)
 		}
 
 		// if viper.GetBool("emit-cpp") || viper.GetBool("emit-all") {

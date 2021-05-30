@@ -156,21 +156,9 @@ func TestParseFunctionStatement(t *testing.T) {
 }
 
 var testt = `
-  func main() {
-	// var assignment and automatic type changing
-	Println("tokens[\\\"ident\\\"].value:", tokens["ident"].value, "\\n")
-  
-	// Fill a map
-	int[] i = [1, 2, 3, 4, 5, 6, 7, 8, 9]
-  
-	// The compiler cannot minimize your type and thus uses the 
-	// default ground state of <var, var>
-	map m = {}
-  
-	for x in i {
-	  m[x] = i[x]
-	}
-  }`
+func main() {
+	int i = now() + 1000
+}`
 
 func TestTestt(t *testing.T) {
 	b, err = getBuilderFromString(testt)
@@ -239,6 +227,36 @@ func TestParseBlockStatement(t *testing.T) {
 	}
 
 	node, err = b.ParseBlockStatement()
+	if err != nil {
+		t.Errorf(errFormatString, err)
+	}
+
+	nodeJSON, _ = json.Marshal(node)
+	fmt.Printf(jsonFormatString, nodeJSON)
+}
+
+func TestParseStatement_1622331331(t *testing.T) {
+	var testt = `
+	func results(map m, int x) {
+		m[x] = x * x
+		m[res] = m[res] + m[x]
+	  
+		Println(
+		  "square: ", m[x], 
+		  "\\nresult: ", 
+		  m[res], 
+		  "\\n"
+		)
+	  
+		m[x] = m[x].to_string()
+	  }
+	`
+	b, err = getBuilderFromString(testt)
+	if err != nil {
+		t.Errorf(errFormatString, err)
+	}
+
+	node, err = b.ParseStatement()
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}

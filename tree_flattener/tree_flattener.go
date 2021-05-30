@@ -10,7 +10,18 @@ import (
 	"github.com/scottshotgg/express2/builder"
 )
 
-func getIntType() *builder.Node {
+type Flattener struct {
+	IncludeChan chan string
+	Wg          sync.WaitGroup
+}
+
+func New() *Flattener {
+	return &Flattener{
+		IncludeChan: make(chan string, 10),
+	}
+}
+
+func (f *Flattener) getIntType() *builder.Node {
 	return &builder.Node{
 		Type: "type",
 		// Kind: "int",
@@ -19,7 +30,7 @@ func getIntType() *builder.Node {
 }
 
 // expects an egroup
-func getArrayType(node *builder.Node) string {
+func (f *Flattener) getArrayType(node *builder.Node) string {
 	if node.Type == "ident" {
 		return node.Value.(string)
 	}
@@ -53,12 +64,12 @@ func getArrayType(node *builder.Node) string {
 	forin &{type  array map[dim:[0xc00000a1a0]] <nil> <nil>}
 */
 
-func transformIdentToDecl(typeOf string, value interface{}, node *builder.Node) *builder.Node {
+func (f *Flattener) transformIdentToDecl(typeOf string, value interface{}, node *builder.Node) *builder.Node {
 	switch typeOf {
 	case "int":
 		return &builder.Node{
 			Type:  "decl",
-			Value: getIntType(),
+			Value: f.getIntType(),
 			Left:  node,
 			Right: &builder.Node{
 				Type:  "literal",
@@ -87,12 +98,12 @@ func transformIdentToDecl(typeOf string, value interface{}, node *builder.Node) 
 	return nil
 }
 
-func transformIdentAndValueToDecl(typeOf string, node, value *builder.Node) *builder.Node {
+func (f *Flattener) transformIdentAndValueToDecl(typeOf string, node, value *builder.Node) *builder.Node {
 	switch typeOf {
 	case "int":
 		return &builder.Node{
 			Type:  "decl",
-			Value: getIntType(),
+			Value: f.getIntType(),
 			Left:  node,
 			Right: value,
 		}
@@ -101,7 +112,7 @@ func transformIdentAndValueToDecl(typeOf string, node, value *builder.Node) *bui
 	return nil
 }
 
-func transformArrayToDecl(typeOf string, node *builder.Node) *builder.Node {
+func (f *Flattener) transformArrayToDecl(typeOf string, node *builder.Node) *builder.Node {
 	return &builder.Node{
 		Type: "decl",
 		// Type
@@ -122,7 +133,7 @@ func transformArrayToDecl(typeOf string, node *builder.Node) *builder.Node {
 	}
 }
 
-func transformIdentToAssignment(node *builder.Node, value *builder.Node) *builder.Node {
+func (f *Flattener) transformIdentToAssignment(node *builder.Node, value *builder.Node) *builder.Node {
 	return &builder.Node{
 		Type:  "assignment",
 		Left:  node,
@@ -130,7 +141,7 @@ func transformIdentToAssignment(node *builder.Node, value *builder.Node) *builde
 	}
 }
 
-func makeFunctionCall(node *builder.Node) *builder.Node {
+func (f *Flattener) makeFunctionCall(node *builder.Node) *builder.Node {
 	return &builder.Node{
 		Type: "call",
 		Value: &builder.Node{
@@ -146,7 +157,7 @@ func makeFunctionCall(node *builder.Node) *builder.Node {
 	}
 }
 
-func makeLengthCall(node *builder.Node) *builder.Node {
+func (f *Flattener) makeLengthCall(node *builder.Node) *builder.Node {
 	return &builder.Node{
 		Type: "call",
 		Value: &builder.Node{
@@ -162,7 +173,7 @@ func makeLengthCall(node *builder.Node) *builder.Node {
 	}
 }
 
-func makeLTComp(lhs *builder.Node, rhs *builder.Node) *builder.Node {
+func (f *Flattener) makeLTComp(lhs *builder.Node, rhs *builder.Node) *builder.Node {
 	return &builder.Node{
 		Type:  "comp",
 		Value: "<",
@@ -171,14 +182,14 @@ func makeLTComp(lhs *builder.Node, rhs *builder.Node) *builder.Node {
 	}
 }
 
-func makeIncrementOp(node *builder.Node) *builder.Node {
+func (f *Flattener) makeIncrementOp(node *builder.Node) *builder.Node {
 	return &builder.Node{
 		Type: "inc",
 		Left: node,
 	}
 }
 
-func makeRandomIdent() *builder.Node {
+func (f *Flattener) makeRandomIdent() *builder.Node {
 	return &builder.Node{
 		Type:  "ident",
 		Value: "RANDOM",
@@ -187,7 +198,7 @@ func makeRandomIdent() *builder.Node {
 
 // This needs to work with a scopeMap and then change the reference
 // so that everyone referencing this var will feel the change
-func anonymizeIdentName(n *builder.Node) error {
+func (f *Flattener) anonymizeIdentName(n *builder.Node) error {
 	if n == nil {
 		return errors.New("Nil node ... anonymizeIdentName")
 	}
@@ -199,8 +210,8 @@ func anonymizeIdentName(n *builder.Node) error {
 
 // Don't need any type information for this except for the array
 
-func FlattenForIn(node *builder.Node) []*builder.Node {
-	arrayType := getArrayType(node.Metadata["end"].(*builder.Node))
+func (f *Flattener) FlattenForIn(node *builder.Node) []*builder.Node {
+	arrayType := f.getArrayType(node.Metadata["end"].(*builder.Node))
 
 	// randomIdent := makeRandomIdent()
 	start := node.Metadata["start"]
@@ -216,15 +227,15 @@ func FlattenForIn(node *builder.Node) []*builder.Node {
 
 	fmt.Printf("ident %+v\n", start)
 
-	keyVar := transformIdentToDecl("auto", "set.first", start.(*builder.Node))
+	keyVar := f.transformIdentToDecl("auto", "set.first", start.(*builder.Node))
 	// valueVar := transformIdentToDecl("auto", "set.second", node.Metadata["end"].(*builder.Node))
 	// incVar := transformIdentToDecl("auto", start.(*builder.Node))
 
-	arrayVar := transformArrayToDecl(arrayType, node.Metadata["end"].(*builder.Node))
+	arrayVar := f.transformArrayToDecl(arrayType, node.Metadata["end"].(*builder.Node))
 	block := node.Value.(*builder.Node)
 
 	// Flatten all statements in the block
-	var err = FlattenNode(block)
+	var err = f.FlattenNode(block)
 	if err != nil {
 		log.Printf("err: %+v\n", err)
 		return nil
@@ -239,7 +250,7 @@ func FlattenForIn(node *builder.Node) []*builder.Node {
 		},
 		Metadata: node.Metadata,
 		Right:    node.Metadata["end"].(*builder.Node),
-		Left:     makeLTComp(keyVar.Left, makeLengthCall(arrayVar.Left)),
+		Left:     f.makeLTComp(keyVar.Left, f.makeLengthCall(arrayVar.Left)),
 	}
 
 	// recurse, assign result to while.Value, return while.Value
@@ -262,7 +273,7 @@ func FlattenForIn(node *builder.Node) []*builder.Node {
 	}
 }
 
-// func FlattenBlock(node *builder.Node) []*builder.Node {
+// func (f * Flattener) FlattenBlock(node *builder.Node) []*builder.Node {
 // 	var newStmts []*builder.Node
 
 // 	for _, stmt := range node.Value.([]*builder.Node) {
@@ -274,7 +285,7 @@ func FlattenForIn(node *builder.Node) []*builder.Node {
 
 // }
 
-func makeIncludeNode(importName string) *builder.Node {
+func (f *Flattener) makeIncludeNode(importName string) *builder.Node {
 	return &builder.Node{
 		Type: "include",
 		Left: &builder.Node{
@@ -284,22 +295,19 @@ func makeIncludeNode(importName string) *builder.Node {
 	}
 }
 
-var includeChan = make(chan string, 10)
-
-func Flatten(node *builder.Node) ([]*builder.Node, error) {
+func (f *Flattener) Flatten(node *builder.Node) ([]*builder.Node, error) {
 	if node.Type != "program" {
 		return nil, errors.New("Flatten must be called with a tree; `program` node")
 	}
 
 	var (
 		includes []*builder.Node
-		wg       sync.WaitGroup
 	)
 
 	// Spin off a worker to process to includes that are found
-	wg.Add(1)
+	f.Wg.Add(1)
 	go func() {
-		defer wg.Done()
+		defer f.Wg.Done()
 
 		// Keep a map to track which includes we already have
 		var (
@@ -307,7 +315,7 @@ func Flatten(node *builder.Node) ([]*builder.Node, error) {
 			ok          bool
 		)
 
-		for includeName := range includeChan {
+		for includeName := range f.IncludeChan {
 			fmt.Println("includeName", includeName)
 			// If it's already in the map then just skip it
 			_, ok = includesMap[includeName]
@@ -316,23 +324,25 @@ func Flatten(node *builder.Node) ([]*builder.Node, error) {
 			}
 
 			includesMap[includeName] = struct{}{}
-			includes = append(includes, makeIncludeNode(includeName))
+			includes = append(includes, f.makeIncludeNode(includeName))
 		}
 	}()
 
+	f.IncludeChan <- "iostream"
+
 	// Flatten all nodes in the program
 	for _, n := range node.Value.([]*builder.Node) {
-		var err = FlattenNode(n)
+		var err = f.FlattenNode(n)
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	// Close the channel and alert the import worker that we are done
-	close(includeChan)
+	close(f.IncludeChan)
 
 	// Wait for all extraneous imports to be transpiled
-	wg.Wait()
+	f.Wg.Wait()
 
 	// Turn the node into a block, this will allow for all of the anonymous idents to
 	// avoid confliction with current idents, but will also preserve the scope
@@ -340,27 +350,27 @@ func Flatten(node *builder.Node) ([]*builder.Node, error) {
 	return includes, nil
 }
 
-func FlattenNode(node *builder.Node) error {
+func (f *Flattener) FlattenNode(node *builder.Node) error {
 	var newStmts []*builder.Node
 
 	switch node.Type {
 	case "forin":
-		includeChan <- "array"
-		newStmts = append(newStmts, FlattenForIn(node)...)
+		f.IncludeChan <- "array"
+		newStmts = append(newStmts, f.FlattenForIn(node)...)
 
 	case "forof":
-		includeChan <- "array"
-		newStmts = append(newStmts, FlattenForOf(node)...)
+		f.IncludeChan <- "array"
+		newStmts = append(newStmts, f.FlattenForOf(node)...)
 
 	case "function":
-		var err = FlattenNode(node.Value.(*builder.Node))
+		var err = f.FlattenNode(node.Value.(*builder.Node))
 		if err != nil {
 			return err
 		}
 
 	case "block":
 		for _, stmt := range node.Value.([]*builder.Node) {
-			var err = FlattenNode(stmt)
+			var err = f.FlattenNode(stmt)
 			if err != nil {
 				return err
 			}
@@ -386,14 +396,14 @@ func FlattenNode(node *builder.Node) error {
 	return nil
 }
 
-func FlattenForOf(node *builder.Node) []*builder.Node {
-	randomIdent := makeRandomIdent()
-	arrayType := getArrayType(node.Metadata["end"].(*builder.Node))
-	incVar := transformIdentToDecl("int", 0, node.Metadata["start"].(*builder.Node))
-	indVar := transformIdentToDecl(arrayType, 0, randomIdent)
-	arrayVar := transformArrayToDecl(arrayType, node.Metadata["end"].(*builder.Node))
+func (f *Flattener) FlattenForOf(node *builder.Node) []*builder.Node {
+	randomIdent := f.makeRandomIdent()
+	arrayType := f.getArrayType(node.Metadata["end"].(*builder.Node))
+	incVar := f.transformIdentToDecl("int", 0, node.Metadata["start"].(*builder.Node))
+	indVar := f.transformIdentToDecl(arrayType, 0, randomIdent)
+	arrayVar := f.transformArrayToDecl(arrayType, node.Metadata["end"].(*builder.Node))
 	block := node.Value.(*builder.Node)
-	stmts := append(block.Value.([]*builder.Node), makeIncrementOp(node.Metadata["start"].(*builder.Node)))
+	stmts := append(block.Value.([]*builder.Node), f.makeIncrementOp(node.Metadata["start"].(*builder.Node)))
 	while := &builder.Node{
 		Type: "while",
 		// Value: , // THIS NEEDS TO BE THE BLOCK AFTER IT IS CHECKED
@@ -401,14 +411,14 @@ func FlattenForOf(node *builder.Node) []*builder.Node {
 			Type: "block",
 			Value: append(
 				[]*builder.Node{
-					transformIdentToAssignment(randomIdent, &builder.Node{
+					f.transformIdentToAssignment(randomIdent, &builder.Node{
 						Type:  "selection",
 						Left:  node.Metadata["end"].(*builder.Node),
 						Right: node.Metadata["start"].(*builder.Node),
 					})},
 				stmts...),
 		},
-		Left: makeLTComp(incVar.Left, arrayVar.Left),
+		Left: f.makeLTComp(incVar.Left, arrayVar.Left),
 	}
 
 	return []*builder.Node{

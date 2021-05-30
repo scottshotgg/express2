@@ -1,17 +1,26 @@
+import "/home/scottshotgg/Development/go/src/github.com/scottshotgg/express2/compiler/test/time.expr"
+
 struct Token = {
   string name = ""
   var value
 }
 
-func delayedPrintln() {
-  msleep(now() + 1000)
-  Println("hi")
+func to_string(var v) string {
+  return v.to_string()
 }
 
+string num = "current_num"
+string res = "result"
+
 func main() {
+  sleep(1)
+
+  int t = time.Now()
+  Println("Current time is:", t)
+  sleep(1)
+
   defer Println("\\n--- ENDING ---")
   Println("\\n--- STARTING ---\\n")
-  launch delayedPrintln()
 
   Token ident = {
     name = "ident"
@@ -33,21 +42,39 @@ func main() {
     Println("tokens[\\\"ident\\\"].value:", tokens["ident"].value, "\\n")
   }
 
+  Println("---\\n")
+
   // Fill a map
   int[] i = [1, 2, 3, 4, 5, 6, 7, 8, 9]
 
   // The compiler cannot minimize your type and thus uses the 
   // default ground state of <var, var>
-  map m = {}
+  map m
 
   for x in i {
-    m[x] = i[x]
-  }
+    m[x] = x * x
+    m[res] = m[res] + m[x]
+    //m[x] = m[x].to_string()
+    m[x] = to_string(x*x)
 
-  Println("---")
-
-  for x in m {
-    m["result"] = m["result"] + m[x] * m[x]
-    Println("square: ", m[x] * m[x], "\\nresult: ", m["result"], "\\n")
+    printResults(m, x)
   }
+  
+  m[res] = m[res].to_string()
+  m["done"] = true
+
+  Println("m:", m)
+
+  sleep(1)
+
+  Println("Program took:", time.Now() - t, "seconds")
+}
+
+func printResults(map m, int x) {
+  Println(
+    "square:", x * x, 
+    "\\nresult:", 
+    m[res], 
+    "\\n"
+  )
 }

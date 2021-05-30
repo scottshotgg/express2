@@ -262,7 +262,6 @@ func (c *Compiler) CompileFile(filename string) error {
 	)
 
 	c.PipelineTimes["compile"] = time.Since(globalStart).String()
-
 	if err != nil {
 		return err
 	}
@@ -346,13 +345,15 @@ func (c *Compiler) compileFile(filename string) error {
 	start = time.Now()
 	var tr = transpiler.New(ast, b, "main", c.LibBase)
 
-	cpp, err := tr.Transpile()
+	err = tr.Transpile()
 	c.PipelineTimes["transpile"] = time.Since(start).String()
 	if err != nil {
 		return err
 	}
 	// TODO: fix this ... :*(
 	// c.OutputData["cpp"] = []byte(cpp)
+
+	var cpp = tr.ToCpp()
 
 	result, err := c.writeAndFormat(cpp, rawFilename+".cpp")
 	if err != nil {

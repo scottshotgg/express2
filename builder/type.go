@@ -142,13 +142,14 @@ func buildStructureFromTypeValue(t *TypeValue) (*Node, error) {
 func (b *Builder) ParseType(typeHint *TypeValue) (*Node, error) {
 	// Check ourselves ...
 	if b.Tokens[b.Index].Type != token.Type {
-		return b.AppendTokenToError("Could not get type")
+		return nil, b.AppendTokenToError("Could not get type")
 	}
 
 	var (
 		injectedType = ""
 		t            *TypeValue
-		typeOf       = b.Tokens[b.Index].Value.String
+		typeOf       = b.Tokens[b.Index].Value.Type
+		typeName     = b.Tokens[b.Index].Value.String
 		metadata     = map[string]interface{}{}
 	)
 
@@ -161,7 +162,7 @@ func (b *Builder) ParseType(typeHint *TypeValue) (*Node, error) {
 
 	switch typeHint.Type {
 	case CTypeValue:
-		var typeName = b.Tokens[b.Index+1].Value.String
+		typeName = b.Tokens[b.Index+1].Value.String
 		fmt.Println("typeName", typeName)
 
 		t = &TypeValue{
@@ -176,13 +177,13 @@ func (b *Builder) ParseType(typeHint *TypeValue) (*Node, error) {
 		b.Index++
 
 	case PrimitiveValue:
-		fmt.Println("B TOKENS", b.Tokens[b.Index].Value.String)
-		t = b.ScopeTree.GetType(b.Tokens[b.Index].Value.String)
-		fmt.Println("t from scope on primitive", t, b.Tokens[b.Index].Value.String)
+		fmt.Println("B TOKENS", b.Tokens[b.Index].Value.Type)
+		t = b.ScopeTree.GetType(b.Tokens[b.Index].Value.Type)
+		fmt.Println("t from scope on primitive", t, b.Tokens[b.Index].Value.Type)
 		injectedType = t.Kind
 
 	case ImportedValue:
-		var typeName = b.Tokens[b.Index+1].Value.String
+		var typeName = b.Tokens[b.Index+1].Value.Type
 		fmt.Println("typeName", typeHint.Kind)
 
 		// Skip over the selection operator
@@ -193,17 +194,17 @@ func (b *Builder) ParseType(typeHint *TypeValue) (*Node, error) {
 		fmt.Println("t", *t)
 		injectedType = t.Kind
 		// typeOf = typeHint.Kind + "::" + typeName
-		typeOf = typeName
+		typeOf = b.Tokens[b.Index+1].Value.String
 		metadata["package"] = typeHint.Kind
 
 	default:
 		fmt.Printf("b.ScopeTree %+v\n", *b.ScopeTree)
 		fmt.Printf("b.ScopeTree %+v\n", *b.ScopeTree.Parent)
-		return nil, errors.Errorf("Type could not be found in scope default: %s", b.Tokens[b.Index].Value.String)
+		return nil, errors.Errorf("Type could not be found in scope default: %s", b.Tokens[b.Index].Value.Type)
 	}
 
 	if t == nil {
-		return nil, errors.Errorf("Type could not be found in scope: %s", b.Tokens[b.Index].Value.String)
+		return nil, errors.Errorf("Type could not be found in scope: %s", b.Tokens[b.Index].Value.Type)
 	}
 
 	var (

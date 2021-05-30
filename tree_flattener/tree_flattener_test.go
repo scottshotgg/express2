@@ -1,18 +1,14 @@
 package tree_flattener_test
 
 import (
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
-	"testing"
 
 	ast "github.com/scottshotgg/express-ast"
 	lex "github.com/scottshotgg/express-lex"
 	token "github.com/scottshotgg/express-token"
 	"github.com/scottshotgg/express2/builder"
 	"github.com/scottshotgg/express2/transpiler"
-	"github.com/scottshotgg/express2/tree_flattener"
 )
 
 func getTokensFromString(s string) ([]token.Token, error) {
@@ -74,41 +70,41 @@ func getStatementASTFromString(test string) (*builder.Node, error) {
 	return b.ParseStatement()
 }
 
-func TestFlattenForIn(t *testing.T) {
-	testBytes, err := ioutil.ReadFile("test.expr")
-	if err != nil {
-		t.Fatalf("Could not read file: %+v", err)
-	}
+// func TestFlattenForIn(t *testing.T) {
+// 	testBytes, err := ioutil.ReadFile("test.expr")
+// 	if err != nil {
+// 		t.Fatalf("Could not read file: %+v", err)
+// 	}
 
-	test := string(testBytes)
+// 	test := string(testBytes)
 
-	node, err := getASTFromString(test)
-	if err != nil {
-		t.Fatalf("Could not create transpiler: %+v", err)
-	}
+// 	node, err := getASTFromString(test)
+// 	if err != nil {
+// 		t.Fatalf("Could not create transpiler: %+v", err)
+// 	}
 
-	tree_flattener.Flatten(node)
+// 	tree_flattener.Flatten(node)
 
-	fmt.Printf("\nNode: %+v\n", node)
-}
+// 	fmt.Printf("\nNode: %+v\n", node)
+// }
 
-func TestFlattenForOf(t *testing.T) {
-	testBytes, err := ioutil.ReadFile("test.expr")
-	if err != nil {
-		t.Fatalf("Could not read file: %+v", err)
-	}
+// func TestFlattenForOf(t *testing.T) {
+// 	testBytes, err := ioutil.ReadFile("test.expr")
+// 	if err != nil {
+// 		t.Fatalf("Could not read file: %+v", err)
+// 	}
 
-	test := string(testBytes)
+// 	test := string(testBytes)
 
-	node, err := getASTFromString(test)
-	if err != nil {
-		t.Fatalf("Could not create transpiler: %+v", err)
-	}
+// 	node, err := getASTFromString(test)
+// 	if err != nil {
+// 		t.Fatalf("Could not create transpiler: %+v", err)
+// 	}
 
-	tree_flattener.Flatten(node)
+// 	tree_flattener.Flatten(node)
 
-	fmt.Printf("\nNode: %+v\n", node)
-}
+// 	fmt.Printf("\nNode: %+v\n", node)
+// }
 
 // func TestTranspileFlattenedForIn(t *testing.T) {
 // 	node, err := getStatementASTFromString(test.Tests[test.StatementTest]["forin"])
@@ -133,28 +129,28 @@ func TestFlattenForOf(t *testing.T) {
 // 	fmt.Printf("\nC++: %s\n\n", *cpp)
 // }
 
-func TestFlatten(t *testing.T) {
-	testBytes, err := ioutil.ReadFile("test.expr")
-	if err != nil {
-		t.Fatalf("Could not read file: %+v", err)
-	}
+// func TestFlatten(t *testing.T) {
+// 	testBytes, err := ioutil.ReadFile("test.expr")
+// 	if err != nil {
+// 		t.Fatalf("Could not read file: %+v", err)
+// 	}
 
-	var test = string(testBytes)
+// 	var test = string(testBytes)
 
-	node, err := getASTFromString(test)
-	if err != nil {
-		t.Fatalf("Could not create transpiler: %+v", err)
-	}
+// 	node, err := getASTFromString(test)
+// 	if err != nil {
+// 		t.Fatalf("Could not create transpiler: %+v", err)
+// 	}
 
-	// fmt.Printf("Before: %+v\n", node)
-	stringy, _ := json.Marshal(node)
+// 	// fmt.Printf("Before: %+v\n", node)
+// 	stringy, _ := json.Marshal(node)
 
-	fmt.Println(string(stringy))
+// 	fmt.Println(string(stringy))
 
-	tree_flattener.Flatten(node)
+// 	tree_flattener.Flatten(node)
 
-	// fmt.Printf("After: %+v\n", node)
-	stringy, _ = json.Marshal(node)
+// 	// fmt.Printf("After: %+v\n", node)
+// 	stringy, _ = json.Marshal(node)
 
-	fmt.Println(string(stringy))
-}
+// 	fmt.Println(string(stringy))
+// }

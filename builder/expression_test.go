@@ -23,6 +23,21 @@ func TestParseGroupOfExpressions(t *testing.T) {
 	fmt.Printf(jsonFormatString, nodeJSON)
 }
 
+func TestParseNestedGroupOfExpressions(t *testing.T) {
+	b, err = getBuilderFromString("(2, (a, 9), 3, false)")
+	if err != nil {
+		t.Errorf(errFormatString, err)
+	}
+
+	node, err = b.ParseGroupOfExpressions()
+	if err != nil {
+		t.Errorf(errFormatString, err)
+	}
+
+	nodeJSON, _ = json.Marshal(node)
+	fmt.Printf(jsonFormatString, nodeJSON)
+}
+
 func TestParseDerefExpression(t *testing.T) {
 	b, err = getBuilderFromString(test.Tests[test.ExpressionTest]["deref"])
 	if err != nil {
@@ -138,7 +153,7 @@ func TestParseIdentIndexExpression(t *testing.T) {
 }
 
 func TestParseCallExpression(t *testing.T) {
-	b, err = getBuilderFromString("now() + 7")
+	b, err = getBuilderFromString("sleep()")
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -149,6 +164,73 @@ func TestParseCallExpression(t *testing.T) {
 	}
 
 	nodeJSON, _ = json.Marshal(node)
+	fmt.Printf(jsonFormatString, nodeJSON)
+}
+
+func TestParseNestedCallExpression(t *testing.T) {
+	b, err = getBuilderFromString("sleep(sleep())")
+	if err != nil {
+		t.Errorf(errFormatString, err)
+	}
+
+	node, err = b.ParseExpression()
+	if err != nil {
+		t.Errorf(errFormatString, err)
+	}
+
+	nodeJSON, _ = json.Marshal(node)
+	fmt.Printf(jsonFormatString, nodeJSON)
+}
+
+func TestParseNestedCallExpressionWithExtras(t *testing.T) {
+	b, err = getBuilderFromString(`
+		sleep(sleep())
+		for x in y {}
+	`)
+	if err != nil {
+		t.Errorf(errFormatString, err)
+	}
+
+	node1, err := b.ParseStatement()
+	if err != nil {
+		t.Errorf(errFormatString, err)
+	}
+
+	node2, err := b.ParseStatement()
+	if err != nil {
+		t.Errorf(errFormatString, err)
+	}
+
+	nodeJSON, _ = json.Marshal(node1)
+	fmt.Printf(jsonFormatString, nodeJSON)
+
+	nodeJSON, _ = json.Marshal(node2)
+	fmt.Printf(jsonFormatString, nodeJSON)
+}
+
+func TestParsePackageCallExpression(t *testing.T) {
+	b, err = getBuilderFromString(`
+	time.Now()
+	var i = "v"
+	`)
+	if err != nil {
+		t.Errorf(errFormatString, err)
+	}
+
+	node1, err := b.ParseStatement()
+	if err != nil {
+		t.Errorf(errFormatString, err)
+	}
+
+	node2, err := b.ParseStatement()
+	if err != nil {
+		t.Errorf(errFormatString, err)
+	}
+
+	nodeJSON, _ = json.Marshal(node1)
+	fmt.Printf(jsonFormatString, nodeJSON)
+
+	nodeJSON, _ = json.Marshal(node2)
 	fmt.Printf(jsonFormatString, nodeJSON)
 }
 
