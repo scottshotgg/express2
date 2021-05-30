@@ -10,7 +10,7 @@ import (
 func (b *Builder) ParseGroupOfExpressions() (*Node, error) {
 	// Check ourselves
 	if b.Tokens[b.Index].Type != token.LParen {
-		return b.AppendTokenToError("Could not get group of expressions")
+		return nil, b.AppendTokenToError("Could not get group of expressions")
 	}
 
 	// Skip over the left paren token
@@ -24,7 +24,7 @@ func (b *Builder) ParseGroupOfExpressions() (*Node, error) {
 
 	fmt.Println("type:", b.Tokens[b.Index].Type)
 
-	for b.Tokens[b.Index].Type != token.RParen {
+	for b.Index < len(b.Tokens) && b.Tokens[b.Index].Type != token.RParen {
 		expr, err = b.ParseExpression()
 		if err != nil {
 			return expr, err
@@ -36,15 +36,15 @@ func (b *Builder) ParseGroupOfExpressions() (*Node, error) {
 		exprs = append(exprs, expr)
 
 		// Check and skip over the separator
-		if b.Tokens[b.Index].Type == token.Separator {
+		if b.Index < len(b.Tokens) && b.Tokens[b.Index].Type == token.Separator {
 			b.Index++
 		}
 	}
 
-	if b.Tokens[b.Index].Type == token.RParen {
-		// Step over the right paren token
-		b.Index++
-	}
+	// // Check and skip over the separator
+	// if b.Tokens[b.Index].Type == token.RParen {
+	// 	b.Index++
+	// }
 
 	return &Node{
 		Type:  "egroup",
@@ -56,12 +56,12 @@ func (b *Builder) ParseDerefExpression() (*Node, error) {
 	// Check ourselves ...
 	if b.Tokens[b.Index].Type != token.PriOp &&
 		b.Tokens[b.Index].Value.String == "*" {
-		return b.AppendTokenToError("Could not get deref")
+		return nil, b.AppendTokenToError("Could not get deref")
 	}
 
 	// Look ahead and make sure it is an ident;you can't deref just anything...
 	if b.Tokens[b.Index+1].Type != token.Ident {
-		return b.AppendTokenToError("Could not get ident to deref")
+		return nil, b.AppendTokenToError("Could not get ident to deref")
 	}
 
 	// Step over the deref
@@ -82,12 +82,12 @@ func (b *Builder) ParseRefExpression() (*Node, error) {
 	// Check ourselves ...
 	if b.Tokens[b.Index].Type != token.Ampersand &&
 		b.Tokens[b.Index].Value.String == "&" {
-		return b.AppendTokenToError("Could not get ref")
+		return nil, b.AppendTokenToError("Could not get ref")
 	}
 
 	// Look ahead and make sure it is an ident; you can't ref anything...
 	if b.Tokens[b.Index+1].Type != token.Ident {
-		return b.AppendTokenToError("Could not get ident to ref")
+		return nil, b.AppendTokenToError("Could not get ident to ref")
 	}
 
 	// Step over the deref
@@ -106,6 +106,26 @@ func (b *Builder) ParseRefExpression() (*Node, error) {
 	}, nil
 }
 
+func (b *Builder) nextOpFunc(tier int) opCallbackFn {
+	var opFunc, ok = b.OpFuncMap[tier][b.Tokens[b.Index+1].Type]
+	if !ok {
+		return opFunc
+	}
+
+	// fmt.Printf("b.Tokens[b.Index-1] %+v\n", b.Tokens[b.Index-1].Value)
+	// fmt.Printf("b.Tokens[b.Index+1]: %+v\n", b.Tokens[b.Index+1])
+
+	// switch b.Tokens[b.Index-1].Type {
+	// case token.RParen:
+	// 	if b.Tokens[b.Index+1].Type == token.LParen {
+	// 		b.Index++
+	// 		return nil
+	// 	}
+	// }
+
+	return opFunc
+}
+
 func (b *Builder) ParseExpression() (*Node, error) {
 	term, err := b.ParseTerm2()
 	if err != nil {
@@ -114,16 +134,10 @@ func (b *Builder) ParseExpression() (*Node, error) {
 
 	fmt.Println("term:", term)
 
-	var (
-		ok     bool
-		opFunc opCallbackFn
-	)
-
 	// LOOKAHEAD performed to figure out whether the expression is done
 	for b.Index < len(b.Tokens)-1 {
-		// Look for a tier2 operator in the func map
-		opFunc, ok = b.OpFuncMap[2][b.Tokens[b.Index+1].Type]
-		if !ok {
+		var opFunc = b.nextOpFunc(2)
+		if opFunc == nil {
 			break
 		}
 
@@ -149,19 +163,13 @@ func (b *Builder) ParseTerm2() (*Node, error) {
 		return factor, err
 	}
 
-	var (
-		ok     bool
-		opFunc opCallbackFn
-	)
-
 	// LOOKAHEAD performed to figure out whether the expression is done
 	for b.Index < len(b.Tokens)-1 {
-
-		// Look for a tier2 operator in the func map
-		opFunc, ok = b.OpFuncMap[1][b.Tokens[b.Index+1].Type]
-		if !ok {
+		var opFunc = b.nextOpFunc(1)
+		if opFunc == nil {
 			break
 		}
+
 		fmt.Println("OPFUNC1", b.Tokens[b.Index+1])
 
 		// Step over the factor
@@ -188,19 +196,13 @@ func (b *Builder) ParseTerm1() (*Node, error) {
 		return factor, err
 	}
 
-	var (
-		ok     bool
-		opFunc opCallbackFn
-	)
-
 	// LOOKAHEAD performed to figure out whether the expression is done
 	for b.Index < len(b.Tokens)-1 {
-
-		// Look for a tier1 operator in the func map
-		opFunc, ok = b.OpFuncMap[0][b.Tokens[b.Index+1].Type]
-		if !ok {
+		var opFunc = b.nextOpFunc(0)
+		if opFunc == nil {
 			break
 		}
+
 		fmt.Println("OPFUNC0", b.Tokens[b.Index+1])
 
 		// Step over the factor
@@ -301,6 +303,17 @@ func (b *Builder) ParseFactor() (*Node, error) {
 			}
 		}
 
+		// Check the scope map for the variable, if we already have a variable declared then use that
+		var nv = b.ScopeTree.Get(value)
+		if nv != nil {
+			if nv.Type == "program" {
+				return &Node{
+					Type:  "package",
+					Value: value,
+				}, nil
+			}
+		}
+
 		return &Node{
 			Type:  typeOf,
 			Value: value,
@@ -316,7 +329,16 @@ func (b *Builder) ParseFactor() (*Node, error) {
 
 	// Nested expression
 	case token.LParen:
-		return b.ParseNestedExpression()
+		var n, err = b.ParseGroupOfExpressions()
+		if err != nil {
+			return nil, err
+		}
+
+		if b.Tokens[b.Index].Type == token.RParen {
+			b.Index++
+		}
+
+		return n, nil
 
 	// Array expression
 	case token.LBracket:
@@ -331,13 +353,13 @@ func (b *Builder) ParseFactor() (*Node, error) {
 		return a, c
 	}
 
-	return b.AppendTokenToError("Could not parse expression from token")
+	return nil, b.AppendTokenToError("Could not parse expression from token")
 }
 
 func (b *Builder) ParseNestedExpression() (*Node, error) {
 	// Check ourselves
 	if b.Tokens[b.Index].Type != token.LParen {
-		return b.AppendTokenToError("Could not get nested expression")
+		return nil, b.AppendTokenToError("Could not get nested expression")
 	}
 
 	// Skip over the left paren
@@ -352,7 +374,7 @@ func (b *Builder) ParseNestedExpression() (*Node, error) {
 	b.Index++
 
 	if b.Tokens[b.Index].Type != token.RParen {
-		return b.AppendTokenToError("No right paren found at end of nested expression")
+		return nil, b.AppendTokenToError("No right paren found at end of nested expression")
 	}
 
 	// Skip over the right paren
@@ -364,7 +386,7 @@ func (b *Builder) ParseNestedExpression() (*Node, error) {
 func (b *Builder) ParseArrayExpression() (*Node, error) {
 	// Check ourselves
 	if b.Tokens[b.Index].Type != token.LBracket {
-		return b.AppendTokenToError("Could not get array expression")
+		return nil, b.AppendTokenToError("Could not get array expression")
 	}
 
 	// Skip over the left bracket token

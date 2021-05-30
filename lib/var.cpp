@@ -17,7 +17,8 @@ enum varType {
   stringType,
   structType,
   objectType,
-  arrayType
+  arrayType,
+  intAType
 };
 
 class var {
@@ -32,7 +33,7 @@ public:
 
     switch (type) {
       case nullType:
-        stream << "null ";
+        stream << "null";
         break;
 
       case intType:
@@ -85,8 +86,27 @@ public:
         break;
       }
 
+      case intAType: {
+        int counter = 0;
+        std::vector<int, std::allocator<int>> objectMap = *(std::vector<int, std::allocator<int>> *)data;
+        stream << "[ ";
+        for (auto property : objectMap) {
+          // stream << property.first << property.second.first <<
+          // property.second.second << "\n";
+          stream << property;
+
+          if (counter < objectMap.size() - 1) {
+            stream << ", ";
+          }
+          counter++;
+        }
+
+        stream << " ]";
+        break;
+      }
+
       default:
-        printf("wtf to do Type: %u\n", type);
+        printf("wtf to do, type: %u\n", type);
     }
 
     return stream.str();
@@ -201,6 +221,12 @@ public:
   }
 
   var(map<var, var> propMap) : type(objectType), data(new map<var, var>(propMap)) {
+    // cout << "object cons; Type: " << type << " Value: \""
+    //    << "\" Pointer: " << data << endl;
+    // data = new map<var,var>(propMap);
+  }
+
+  var(std::vector<int, std::allocator<int>> value) : type(intAType), data(new std::vector<int, std::allocator<int>>(value)) {
     // cout << "object cons; Type: " << type << " Value: \""
     //    << "\" Pointer: " << data << endl;
     // data = new map<var,var>(propMap);
@@ -356,6 +382,15 @@ public:
       // *(string*)data = right;
     }
   }
+
+  void operator=(std::vector<int> right) {
+    if (type != intAType) {
+      deallocate();
+      type = intAType;
+    }
+
+    data = &right;
+  }
   
   
   friend bool operator>(const var &left, const var &right);
@@ -406,52 +441,7 @@ typedef var object;
 // TODO: im pretty sure this isn't even doing anything ...
 // FIXME: for some reason this is already working
 bool operator>(const var &left, const var &right) {
-  // FIXME: gotta switch on the type here
-  // if they're the same type
-  //    compare the data values
-  // if they're different
-  //    compare using the 'upgrade-able types' formula
-
-    // If the types are the same ...
-  if (left.type == right.type) {
-    // Determine the type of comparison based on the type
-    switch (left.type) {
-      case intType: {
-        cout << "intType" << endl;
-        cout << *(int *)left.data << " " << *(int *)right.data << endl;
-        return *(int *)left.data > *(int *)right.data;
-      }
-
-      case boolType: {
-        cout << "boolType" << endl;
-        return *(bool *)left.data > *(bool *)right.data;
-      }
-
-      case floatType: {
-        cout << "floatType" << endl;
-        return *(double *)left.data > *(double *)right.data;
-      }
-
-      case charType: {
-        cout << "charType" << endl;
-        return *(char *)left.data > *(char *)right.data;
-      }
-
-      case stringType: {
-        cout << "stringType" << endl;
-        return *(int *)left.data > *(int *)right.data;
-      }
-
-      // case objectType: {
-      //   cout << "objectType hey me" << endl;
-      //   return *(map<var, var> *)left.data >= *(map<var, var> *)right.data;
-      // }
-    }
-  }
-
-  // return false;
-  
-  return *(int *)left.data > *(int *)right.data;
+  return operator<(right, left);
 }
 
 // FIXME: for some reason this is already working

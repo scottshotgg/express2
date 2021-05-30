@@ -86,7 +86,7 @@ func (b *Builder) BuildAST() (*Node, error) {
 
 		// Just a fallback; probably won't need it later
 		if stmt == nil {
-			return b.AppendTokenToError("Statement was nil")
+			return nil, b.AppendTokenToError("Statement was nil")
 		}
 
 		stmts = append(stmts, stmt)
