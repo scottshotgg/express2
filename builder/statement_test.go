@@ -81,6 +81,25 @@ func TestParseAssignmentFromIndexStatement(t *testing.T) {
 	fmt.Printf(jsonFormatString, nodeJSON)
 }
 
+func TestParsePointerDeclarationStatement(t *testing.T) {
+	b, err = getBuilderFromString(test.Tests[test.StatementTest]["pointerDeclaration"])
+	if err != nil {
+		t.Errorf(errFormatString, err)
+	}
+
+	node, err = b.ParseStatement()
+	if err != nil {
+		t.Errorf(errFormatString, err)
+	}
+
+	// Use DFS for this
+	// 	nodeJSON, _ = json.Marshal(node) fmt.Printf(jsonFormatString, nodeJSON)
+	// fmt.Printf(astFormatString, node.Left)
+	// fmt.Printf(astFormatString, node.Right)
+	nodeJSON, _ = json.Marshal(node)
+	fmt.Printf(jsonFormatString, nodeJSON)
+}
+
 // func TestScopeTreeAssignmentStatement(t *testing.T) {
 
 // }

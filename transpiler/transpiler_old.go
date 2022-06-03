@@ -819,13 +819,19 @@ func (t *Transpiler) TranspileDerefExpression(n *builder.Node) (*string, error) 
 		return nil, errors.New("Node is not an deref")
 	}
 
+	var nString = "*"
+
 	// Left is the ident; right is nothing
 	lhs, err := t.TranspileExpression(n.Left)
 	if err != nil {
 		return nil, err
 	}
 
-	var nString = "*" + *lhs
+	if n.Kind == "type" {
+		nString = *lhs + nString
+	} else {
+		nString += *lhs
+	}
 
 	return &nString, nil
 }
@@ -1145,14 +1151,14 @@ func (t *Transpiler) TranspileStatement(n *builder.Node) (*string, error) {
 	case "while":
 		return t.TranspileWhileStatement(n)
 
-	case "forof":
-		return t.TranspileForOfStatement(n)
+	// case "forof":
+	// 	return t.TranspileForOfStatement(n)
 
 	case "forin":
 		return t.TranspileForInStatement(n)
 
 	case "forstd":
-		// TODO:
+		return t.TranspileForStdStatment(n)
 
 	case "package":
 		// packageChan <- n
@@ -1530,12 +1536,18 @@ func (t *Transpiler) TranspileDeclarationStatement(n *builder.Node) (*string, er
 	// This will require some prepping atleast to figure out
 	// if we need any pre-statements
 
-	typeOf, err := t.TranspileType(n.Value.(*builder.Node))
-	if err != nil {
-		return nil, err
-	}
+	var tt = ""
+	var typeOf = &tt
+	var err error
 
-	log.Println("TYPE", *typeOf, n.Left)
+	if n.Left.Type != "deref" {
+		typeOf, err = t.TranspileExpression(n.Value.(*builder.Node))
+		if err != nil {
+			return nil, err
+		}
+
+		log.Println("TYPE", *typeOf, n.Left)
+	}
 
 	// Don't add the type yet
 
@@ -1556,7 +1568,7 @@ func (t *Transpiler) TranspileDeclarationStatement(n *builder.Node) (*string, er
 	if n.Right == nil {
 		// If the declaration is a struct, then give it the default init if no expression is provided
 		if n.Value.(*builder.Node).Kind == "struct" {
-			nString += "={}"
+			nString += "= {}"
 		}
 
 		if *typeOf == "map" {
@@ -1618,6 +1630,11 @@ func (t *Transpiler) TranspileDeclarationStatement(n *builder.Node) (*string, er
 
 	if err != nil {
 		return nil, err
+	}
+
+	if n.Left.Type == "deref" && n.Left.Kind == "type" {
+		nString += *vString
+		return &nString, nil
 	}
 
 	nString += " = " + *vString + ";"
@@ -2111,7 +2128,7 @@ func (t *Transpiler) TranspileForInStatement(n *builder.Node) (*string, error) {
 	return &nString, nil
 }
 
-func (t *Transpiler) TranspileForOfStatement(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileForStdStatment(n *builder.Node) (*string, error) {
 	// Change forin to be a block statement containing:
 	//	- declare temp var
 	//	- declare array/iter
@@ -2122,8 +2139,8 @@ func (t *Transpiler) TranspileForOfStatement(n *builder.Node) (*string, error) {
 
 	// return nil, errors.New("not implemented: forof")
 
-	if n.Type != "forof" {
-		return nil, errors.New("Node is not a forof")
+	if n.Type != "forstd" {
+		return nil, errors.New("Node is not a forstd")
 	}
 
 	var (

@@ -1540,17 +1540,22 @@ func (b *Builder) ParseDerefStatement() (*Node, error) {
 		return deref, nil
 	}
 
-	// Check for the equals token
-	if b.Tokens[b.Index].Type != token.Assign {
-		if deref.Type == "call" {
-			return deref, nil
+	var t = "decl"
+
+	if deref.Kind != "type" {
+		t = "assignment"
+		// Check for the equals token
+		if b.Tokens[b.Index].Type != token.Assign {
+			if deref.Type == "call" {
+				return deref, nil
+			}
+
+			return nil, b.AppendTokenToError(fmt.Sprintf("No equals found after ident in deref: %+v", b.Tokens[b.Index]))
 		}
 
-		return nil, b.AppendTokenToError(fmt.Sprintf("No equals found after ident in deref: %+v", b.Tokens[b.Index]))
+		// Increment over the equals
+		b.Index++
 	}
-
-	// Increment over the equals
-	b.Index++
 
 	// Parse the right hand side
 	expr, err := b.ParseExpression()
@@ -1562,7 +1567,7 @@ func (b *Builder) ParseDerefStatement() (*Node, error) {
 	b.Index++
 
 	return &Node{
-		Type:  "assignment",
+		Type:  t,
 		Left:  deref,
 		Right: expr,
 	}, nil

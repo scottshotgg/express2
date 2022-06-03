@@ -59,11 +59,6 @@ func (b *Builder) ParseDerefExpression() (*Node, error) {
 		return nil, b.AppendTokenToError("Could not get deref")
 	}
 
-	// Look ahead and make sure it is an ident;you can't deref just anything...
-	if b.Tokens[b.Index+1].Type != token.Ident {
-		return nil, b.AppendTokenToError("Could not get ident to deref")
-	}
-
 	// Step over the deref
 	b.Index++
 
@@ -72,9 +67,19 @@ func (b *Builder) ParseDerefExpression() (*Node, error) {
 		return ident, err
 	}
 
+	fmt.Println("IDENT: WTFF", ident)
+
+	var kind = "ident"
+
+	switch ident.Type {
+	case "type":
+		kind = "type"
+	}
+
 	return &Node{
 		Type: "deref",
 		Left: ident,
+		Kind: kind,
 	}, nil
 }
 
