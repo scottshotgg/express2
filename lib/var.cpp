@@ -391,6 +391,14 @@ public:
 
     data = &right;
   }
+
+  // void operator=(const var *right) {
+  //   printf("hey its me");
+
+  //   deallocate();
+  //   type = (*right).Type();
+  //   data = (*right).Value();
+  // }
   
   
   friend bool operator>(const var &left, const var &right);
@@ -410,13 +418,13 @@ public:
   }
 
   // // TODO(scottshotgg): not sure if I need this or not 
-  // void operator=(const var v) {
-  //     // var::~var();
-  //     deallocate();
+  void operator=(const var v) {
+      // var::~var();
+      deallocate();
 
-  //     type = v.Type();
-  //     data = v.Value();
-  // }
+      type = v.Type();
+      data = v.Value();
+  }
 
   // // FIXME: fix this
   // void operator=(initializer_list<var> propList) {
