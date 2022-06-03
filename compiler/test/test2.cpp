@@ -41,6 +41,30 @@ int Now() {
 
 } // namespace __time
 
+namespace __stack {
+// Includes:
+// none
+
+// Imports:
+// none
+
+// Namespaces:
+// none
+
+// Types:
+// none
+
+// Structs:
+
+// Prototypes:
+// none
+
+// Functions:// none
+// Main:
+// generated: false
+
+} // namespace __stack
+
 // Types:
 // none
 
@@ -49,14 +73,37 @@ struct Token {
   std::string name = "";
   var value;
 };
+struct Stack {
+  std::vector<var> value;
+};
+Stack s;
 std::string num = "current_num";
 std::string res = "result";
 
 // Prototypes:
-void printResults(std::map<var, var> m, int x);
+void Push(var v);
+var Pop();
 std::string to_string(var v);
+void printResults(std::map<var, var> m, int x);
 
 // Functions:
+void Push(var v) {
+  defer onReturn, onExit;
+  s.value.push_back(v);
+}
+
+var Pop() {
+  defer onReturn, onExit;
+  var v = s.value[s.value.size() - 1];
+  s.value.pop_back();
+  return v;
+}
+
+std::string to_string(var v) {
+  defer onReturn, onExit;
+  return v.to_string();
+}
+
 void printResults(std::map<var, var> m, int x) {
   defer onReturn, onExit;
   std::cout << "square:"
@@ -67,15 +114,20 @@ void printResults(std::map<var, var> m, int x) {
             << std::endl;
 }
 
-std::string to_string(var v) {
-  defer onReturn, onExit;
-  return v.to_string();
-}
-
 // Main:
 // generated: false
 int main() {
   defer onReturn, onExit;
+  std::cout << "size before:"
+            << " " << s.value.size() << std::endl;
+  Push(7);
+  Push("hello");
+  Push(false);
+  Push(777.333);
+  Push("7lskdjfsdlkjfldkj");
+  std::cout << "size after:"
+            << " " << s.value.size() << std::endl;
+  std::cout << Pop() << std::endl;
   sleep(1);
   int t = __time::Now();
   std::cout << "Current time is:"
@@ -128,6 +180,5 @@ int main() {
   sleep(1);
   std::cout << "Program took:"
             << " " << __time::Now() - t << " "
-            << "seconds"
-            << " " << {} << std::endl;
+            << "seconds" << std::endl;
 }

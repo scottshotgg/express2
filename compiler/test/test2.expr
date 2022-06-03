@@ -1,8 +1,25 @@
 import "/home/scottshotgg/Development/go/src/github.com/scottshotgg/express2/compiler/test/time.expr"
+import "/home/scottshotgg/Development/go/src/github.com/scottshotgg/express2/compiler/test/stdlib/stack.expr"
 
 struct Token = {
   string name = ""
   var value
+}
+
+struct Stack = {
+    var[] value
+}
+
+Stack s
+
+func Push(var v) {
+  s.value.push_back(v)
+}
+
+func Pop() var {
+  var v = s.value[s.value.size()-1]
+  s.value.pop_back()
+  return v
 }
 
 func to_string(var v) string {
@@ -13,6 +30,20 @@ string num = "current_num"
 string res = "result"
 
 func main() {
+  Println("size before:", s.value.size())
+
+  Push(7)
+  Push("hello")
+  Push(false)
+  Push(777.333)
+  Push("7lskdjfsdlkjfldkj")
+  Println("size after:", s.value.size())
+  Println(Pop())
+
+  for int yi = 1; yi < 10; yi++ {
+
+  }
+
   sleep(1)
 
   int t = time.Now()

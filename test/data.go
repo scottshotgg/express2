@@ -27,6 +27,9 @@ var (
 	}
 
 	statementTestMap = map[string]string{
+		"pointerDeclaration": `func main() {
+			*int i
+			}`,
 		"isEqualBool": "bool b = 2 + 2 == 3 + 3",
 		"sgroup":      "(int i, string s)",
 		"decl":        "int i = 10",
@@ -51,7 +54,7 @@ var (
 		"import":        "import \"../compiler/test/something.expr\"",
 		"cimport":       "import c",
 		"include":       "include \"somethingHere.expr\"",
-		"stdFor":        "for int i = 1; i < 10; i++ { int i = 10 }",
+		"stdFor":        "for int i = 1; i < 10; i++ { int k = 10 }",
 		"arrayDef":      "int[] i = [ 8, 9, 0 ]",
 		// "forin":            "for i in is { i = 10 }",
 		"forin":            "for i in [ 7, 8, 9 ] { j = 10 }",
