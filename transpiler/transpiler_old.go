@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	token "github.com/scottshotgg/express-token"
+
 	"github.com/scottshotgg/express2/builder"
 	"github.com/scottshotgg/express2/tree_flattener"
 )
@@ -916,7 +916,8 @@ func (t *Transpiler) TranspileMapStatement(n *builder.Node) (*string, error) {
 	}
 
 	// Could just have it add `struct` here but this will show us changes
-	var nString = "std::map<std::string, std::string>" + " " + *vString + "= "
+	// var nString = "std::map<std::string, std::string>" + " " + *vString + "= "
+	var nString = "std::map<var, var>" + " " + *vString + "= "
 
 	// Transpile the block for the value
 	vString, err = t.TranspileMapBlockStatement(n.Right)
@@ -1141,6 +1142,7 @@ func (t *Transpiler) TranspileStatement(n *builder.Node) (*string, error) {
 		// var name = n.Kind
 		// return &name, nil
 		// return t.TranspileFunctionStatement(n)
+		return nil, nil
 
 	case "return":
 		return t.TranspileReturnStatement(n)
@@ -1595,33 +1597,34 @@ func (t *Transpiler) TranspileDeclarationStatement(n *builder.Node) (*string, er
 		// fmt.Println("typeOfBlock, err", *typeOfBlock, err)
 		// os.Exit(9)
 
-		kvs, ok := n.Right.Value.([]*builder.Node)
-		if !ok {
-			return nil, errors.New("kvs not ok")
-		}
+		// kvs, ok := n.Right.Value.([]*builder.Node)
+		// if !ok {
+		// 	return nil, errors.New("kvs not ok")
+		// }
 
 		var (
-			varType   = token.VarType
-			keyType   = &varType
-			valueType = &varType
+		// varType   = token.VarType
+		// keyType   = &varType
+		// valueType = &varType
 		)
 
-		if len(kvs) > 0 {
-			keyType, err = t.resolveType(kvs[0].Left)
-			if err != nil {
-				return nil, err
-			}
+		// if len(kvs) > 0 {
+		// 	keyType, err = t.resolveType(kvs[0].Left)
+		// 	if err != nil {
+		// 		return nil, err
+		// 	}
 
-			valueType, err = t.resolveType(kvs[0].Right)
-			if err != nil {
-				return nil, err
-			}
+		// 	valueType, err = t.resolveType(kvs[0].Right)
+		// 	if err != nil {
+		// 		return nil, err
+		// 	}
 
-			blob, _ := json.Marshal(kvs[0])
-			fmt.Println("kvblob:", string(blob))
-		}
+		// 	blob, _ := json.Marshal(kvs[0])
+		// 	fmt.Println("kvblob:", string(blob))
+		// }
 
-		nString = fmt.Sprintf("std::map<%s, %s> %s", *keyType, *valueType, nString)
+		// nString = fmt.Sprintf("std::map<%s, %s> %s", *keyType, *valueType, nString)
+		nString = fmt.Sprintf("std::map<var, var> %s", nString)
 
 	default:
 		nString = *typeOf + " " + nString
@@ -1790,6 +1793,11 @@ func (t *Transpiler) TranspileBlockStatement(n *builder.Node) (*string, error) {
 		vString, err = t.TranspileStatement(stmt)
 		if err != nil {
 			return nil, err
+		}
+
+		// TODO: this needs to be here for "function"
+		if vString == nil {
+			continue
 		}
 
 		fmt.Println("vString", *vString)

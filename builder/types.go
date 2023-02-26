@@ -1,6 +1,9 @@
 package builder
 
-import token "github.com/scottshotgg/express-token"
+import (
+	ast "github.com/scottshotgg/express-ast"
+	token "github.com/scottshotgg/express-token"
+)
 
 type (
 	opCallbackFn func(n *Node) (*Node, error)
@@ -17,6 +20,8 @@ type (
 		Metadata map[string]interface{} `json:",omitempty"`
 		Left     *Node                  `json:",omitempty"`
 		Right    *Node                  `json:",omitempty"`
+
+		ReturnType *ast.Type
 	}
 
 	TypeValueType int

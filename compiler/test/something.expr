@@ -1,5 +1,5 @@
 package something
 
-func what() {
+func what() int {
   return 7
 }

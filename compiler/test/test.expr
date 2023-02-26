@@ -29,7 +29,7 @@ struct myStruct = {
 /* This does not work right now for some reason:
     : Building AST ... panic: interface conversion: interface {} is []*builder.Node, not string
 
-  function something2() {
+  func something2() {
     string h = "hi"
   }
 */
@@ -78,7 +78,7 @@ func main() {
 
   enum {
     some
-    one = some + 2
+    one
     here
   }
 
@@ -115,21 +115,14 @@ func main() {
 
   int i = 800008
 
-  for j in [1,2,3] {
-    i = j
-  }
+
   int k = 10
 
-  for j in [1,2,3] {
-    for j in [4,5,6] {
-      i = j
-    }
-  }
-
   // Functions do not have to be pre-defined
-  something()
+  another(k, thing)
 }
 
 func another(int i, string s) {
   int j = 6666666
-}
+  printf("something")
+} 

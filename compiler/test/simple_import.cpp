@@ -1,14 +1,38 @@
-// Namespace:
-// none
+// Includes:
 
+// Imports:
+#include "/home/scottshotgg/Development/go/src/github.com/scottshotgg/express2/lib/defer.cpp"
+#include <iostream>
+
+// Namespaces:
+namespace __something {
 // Includes:
 // none
 
 // Imports:
-#include "/home/scottshotgg/Development/go/src/github.com/scottshotgg/express2/lib/defer.cpp"
-#include "/home/scottshotgg/Development/go/src/github.com/scottshotgg/express2/lib/var.cpp"
-#include <map>
-#include <string>
+// none
+
+// Namespaces:
+namespace something {}
+
+// Types:
+// none
+
+// Structs:
+
+// Prototypes:
+int what();
+
+// Functions:
+int what() {
+  defer onReturn, onExit;
+  return 7;
+}
+
+// Main:
+// generated: false
+
+} // namespace __something
 
 // Types:
 // none
@@ -23,31 +47,5 @@
 // generated: false
 int main() {
   defer onReturn, onExit;
-  enum {
-    Male,
-    Female,
-    Helicopter,
-  };
-  struct Person {
-    std::string Name = "";
-    int Age = 0;
-    int Gender = Male;
-    std::map<var, var> Characteristics = {
-        {444, 222},
-    };
-  };
-  FILE *f = fopen("something", "w+");
-  std::map<var, var> chars = {
-      {"IsProAF", true},
-      {69, "truth"},
-  };
-  Person test = {
-      .Name = "scott",
-      .Age = 24,
-      .Gender = Helicopter,
-      .Characteristics = chars,
-  };
-  std::string output = test.Name + " is a bawss";
-  fputs(output.c_str(), f);
-  fclose(f);
+  __something::what();
 }

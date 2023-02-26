@@ -5,14 +5,14 @@ import (
 )
 
 var (
-// primTypes = []string{
-// 	"int",
-// 	"float",
-// 	"bool",
-// 	"char",
-// 	"byte",
-// 	"string",
-// }
+//	primTypes = []string{
+//		"int",
+//		"float",
+//		"bool",
+//		"char",
+//		"byte",
+//		"string",
+//	}
 )
 
 func New(tokens []token.Token) *Builder {

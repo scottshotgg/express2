@@ -394,6 +394,7 @@ func (b *Builder) ParseBlockStatement() (*Node, error) {
 		stmt  *Node
 		stmts []*Node
 		err   error
+		rt    *ast.Type
 	)
 
 	for b.Index < len(b.Tokens) &&
@@ -401,6 +402,14 @@ func (b *Builder) ParseBlockStatement() (*Node, error) {
 		stmt, err = b.ParseStatement()
 		if err != nil {
 			return nil, err
+		}
+
+		// If we are returning something from the block then we need to ground the type
+		if stmt.Type == "return" {
+			if stmt.Left != nil {
+				rt = greatestCommonType(rt, ast.TypeFromString(stmt.Left.Kind))
+				fmt.Println("rt:", rt)
+			}
 		}
 
 		fmt.Println("i am here", stmt)
@@ -411,10 +420,64 @@ func (b *Builder) ParseBlockStatement() (*Node, error) {
 	// Step over the right brace token
 	b.Index++
 
+	// TODO: set node.Metadata["returns"] stmt from the rt
+
 	return &Node{
-		Type:  "block",
-		Value: stmts,
+		Type:       "block",
+		Value:      stmts,
+		ReturnType: rt,
 	}, nil
+}
+
+// func greatestCommonLT(rt, lt ast.LiteralType) (ast.LiteralType, bool) {
+// 	if rt == lt {
+// 		return rt, false
+// 	}
+
+// 	// TODO: need to do some upgrade map?
+// }
+
+func greatestCommonType(rt, lt *ast.Type) *ast.Type {
+	if rt == nil {
+		return lt
+	}
+
+	if lt == nil {
+		panic("WTF THE LEFT TYPE PASSED IN WAS NIL")
+	}
+
+	if lt.Type == rt.Type {
+		return lt
+	}
+
+	if rt.UpgradesTo != nil && lt.Type == rt.UpgradesTo.Type {
+		return lt
+	}
+
+	// default:
+	// 	// TODO: we need to change this to a Type so that we can do an upgradeable comparison
+	// 	if rt.ShadowType != nil {
+	// 		switch *rt.ShadowType {
+	// 		case
+	// 			lt.Type,
+	// 			lt.UpgradesTo:
+
+	// 		}
+	// 	}
+
+	if lt.UpgradesTo != nil {
+		if lt.UpgradesTo.Type == rt.Type {
+			return rt
+		}
+
+		if lt.UpgradesTo.Type == rt.UpgradesTo.Type {
+			return lt.UpgradesTo
+		}
+	}
+
+	// TODO: at some point the compiler needs to generate code to apply this at runtime
+	panic("not sure if ast.NewVarType(ast.NoneType) will work")
+	// return ast.NewVarType(ast.NoneType)
 }
 
 func (b *Builder) ParseReturnStatement() (*Node, error) {
@@ -1494,10 +1557,20 @@ func (b *Builder) ParseFunctionStatement() (*Node, error) {
 		}
 	}
 
-	node.Value, err = b.ParseBlockStatement()
+	bs, err := b.ParseBlockStatement()
 	if err != nil {
 		return nil, err
 	}
+
+	// // TODO: probably need to do a more concerned check here later
+	// if node.Metadata["returns"] == nil && bs.ReturnType != nil {
+	// 	node.Metadata["returns"] = &Node{
+	// 		Type:  "type",
+	// 		Value: bs.Kind,
+	// 	}
+	// }
+
+	node.Value = bs
 
 	// node.Value = addDeferDeclarationToBlock(block)
 

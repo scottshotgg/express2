@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/scottshotgg/express-ast"
+	ast "github.com/scottshotgg/express-ast"
 )
 
 type WalkerFunc func(n ast.Node) error
@@ -25,7 +25,7 @@ var TexasRanger = func(n ast.Node) error {
 
 	// If the types are not directly the same then check whether the right hand side can upgrade
 	if type1.Type != type2.Type {
-		if type1.Type != type2.UpgradesTo {
+		if type2.UpgradesTo != nil && type1.Type != type2.UpgradesTo.Type {
 			return errors.New("Types did not match")
 		}
 	}

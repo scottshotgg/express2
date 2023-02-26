@@ -16,6 +16,7 @@ import (
 	ast "github.com/scottshotgg/express-ast"
 	lex "github.com/scottshotgg/express-lex"
 	token "github.com/scottshotgg/express-token"
+
 	"github.com/scottshotgg/express2/builder"
 	"github.com/scottshotgg/express2/transpiler"
 )

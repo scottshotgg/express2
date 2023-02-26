@@ -358,7 +358,7 @@ func (b *Builder) ParseFactor() (*Node, error) {
 		return a, c
 	}
 
-	return nil, b.AppendTokenToError("Could not parse expression from token")
+	return nil, b.AppendTokenToError(fmt.Sprintf("Could not parse expression from token: %+v", b.Tokens[b.Index]))
 }
 
 func (b *Builder) ParseNestedExpression() (*Node, error) {
