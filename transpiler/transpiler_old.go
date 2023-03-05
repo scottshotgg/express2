@@ -976,7 +976,7 @@ func (t *Transpiler) TranspileLaunchStatement(n *builder.Node) (*string, error) 
 	// }
 
 	// This has a lambda in it since you can launch any statement ...
-	var nString = "go([=](...){" + *vString + "}());"
+	var nString = "go(coroutine [=](...){" + *vString + "}());"
 
 	return &nString, nil
 }
@@ -1160,11 +1160,16 @@ func (t *Transpiler) TranspileStatement(n *builder.Node) (*string, error) {
 		return t.TranspileForInStatement(n)
 
 	case "forstd":
-		return t.TranspileForStdStatment(n)
+		return t.TranspileForStdStatement(n)
+
+	case "forever":
+		return t.TranspileForEverStatement(n)
 
 	case "package":
-		// packageChan <- n
+		// t.PackageChan <- n
 		return t.TranspilePackageStatement(n)
+
+		// return nil, nil
 
 	case "selection":
 		var exp, err = t.TranspileSelectExpression(n)
@@ -1175,6 +1180,21 @@ func (t *Transpiler) TranspileStatement(n *builder.Node) (*string, error) {
 		*exp += ";"
 
 		return exp, nil
+
+	case "c":
+		var rawCStmts, ok = n.Value.(string)
+		if !ok {
+			panic("NOT OK C BLOCK")
+		}
+
+		return &rawCStmts, nil
+
+	case "link":
+		// TODO: later on this should generate a
+		// shared object linking but for now since we
+		// are only doing libc we don't have to specifically
+		// handle anything
+		return nil, nil
 	}
 
 	return nil, errors.Errorf("Not implemented statement: %+v", n)
@@ -1185,22 +1205,27 @@ func (t *Transpiler) TranspilePackageStatement(n *builder.Node) (*string, error)
 		return nil, errors.New("Node is not a package statement")
 	}
 
-	var (
-		nString      = "namespace "
-		vString, err = t.TranspileExpression(n.Left)
-	)
+	var nString string
 
-	if err != nil {
-		return nil, err
+	if n.Left.Value.(string) != "main" {
+		nString += "namespace "
+
+		var (
+			vString, err = t.TranspileExpression(n.Left)
+		)
+
+		if err != nil {
+			return nil, err
+		}
+
+		nString += " " + *vString
 	}
-
-	nString += " " + *vString
 
 	// Get all of the statements inside the package
 
 	fmt.Println("STMTS LEN", len(n.Right.Value.([]*builder.Node)))
 
-	vString, err = t.TranspileBlockStatement(n.Right)
+	var vString, err = t.TranspileBlockStatement(n.Right)
 	if err != nil {
 		return nil, err
 	}
@@ -1217,7 +1242,7 @@ func (t *Transpiler) TranspileReturnStatement(n *builder.Node) (*string, error) 
 		return nil, errors.New("Node is not a return statement")
 	}
 
-	// Return statments come in the form `return` { expr }
+	// Return Statements come in the form `return` { expr }
 
 	var nString = "return"
 
@@ -2136,7 +2161,7 @@ func (t *Transpiler) TranspileForInStatement(n *builder.Node) (*string, error) {
 	return &nString, nil
 }
 
-func (t *Transpiler) TranspileForStdStatment(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileForStdStatement(n *builder.Node) (*string, error) {
 	// Change forin to be a block statement containing:
 	//	- declare temp var
 	//	- declare array/iter
@@ -2201,6 +2226,38 @@ func (t *Transpiler) TranspileForStdStatment(n *builder.Node) (*string, error) {
 		Type: "inc",
 		Left: n.Metadata["start"].(*builder.Node),
 	})
+	if err != nil {
+		return nil, err
+	}
+
+	nString += *vString + "}"
+
+	return &nString, nil
+}
+
+func (t *Transpiler) TranspileForEverStatement(n *builder.Node) (*string, error) {
+	// Change forin to be a block statement containing:
+	//	- declare temp var
+	//	- declare array/iter
+	//	- while tempvar < iter.length
+	//	- var = iter[tempvar]
+	//	- loop_block
+	//	-	increment var
+
+	// return nil, errors.New("not implemented: forof")
+
+	if n.Type != "forever" {
+		return nil, errors.New("Node is not a forever")
+	}
+
+	var (
+		nString = "{\nwhile(true)"
+		vString *string
+		err     error
+	)
+
+	// Translate the block statement
+	vString, err = t.TranspileBlockStatement(n.Value.(*builder.Node))
 	if err != nil {
 		return nil, err
 	}

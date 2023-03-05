@@ -105,6 +105,7 @@ const (
 	Include      = "INCLUDE"
 	Launch       = "LAUNCH"
 	Enum         = "ENUM"
+	Link         = "LINK"
 
 	VarType         = "var"
 	IntType         = "int"

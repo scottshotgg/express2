@@ -166,6 +166,7 @@ func (meta *Lexer) Lex() ([]token.Token, error) {
 		// Else see if it's recognized lexeme
 		var lexemeToken, ok = token.TokenMap[char]
 
+		// // TODO: this used to be uncommented
 		// // Only the operators are allowed to be without spaces after them; this may change, kinda hate no spaces between the symbols
 		// // Also enclosers (rbrace, lbrace, etc) are allowed as well. End tokens (; and ,) as well
 		// // Make something in the token library for this, a specific struct field
@@ -189,6 +190,7 @@ func (meta *Lexer) Lex() ([]token.Token, error) {
 		// 		continue
 		// 	}
 		// }
+		// // TODO: this used to be uncommented ^
 
 		// If it is not a recognized lexeme, add it to the accumulator and move on
 		if !ok {

@@ -197,6 +197,26 @@ func (b *Builder) ParseForStdStatement() (*Node, error) {
 	return &node, nil
 }
 
+func (b *Builder) ParseForEverStatement() (*Node, error) {
+	// Check ourselves ...
+	if b.Tokens[b.Index].Type != token.For {
+		return nil, b.AppendTokenToError("Could not get for ever")
+	}
+
+	// Step over the for token
+	b.Index++
+
+	val, err := b.ParseBlockStatement()
+	if err != nil {
+		return nil, err
+	}
+
+	return &Node{
+		Type:  "forever",
+		Value: val,
+	}, nil
+}
+
 func (b *Builder) ParseForStatement() (*Node, error) {
 	// Check ourselves ...
 	if b.Tokens[b.Index].Type != token.For {
@@ -210,6 +230,11 @@ func (b *Builder) ParseForStatement() (*Node, error) {
 	// For right now just look ahead two
 	if b.Tokens[b.Index+2].Type == token.Keyword {
 		return b.ParseForPrepositionStatement()
+	}
+
+	// For-ever statement
+	if b.Tokens[b.Index+1].Type == token.LBrace {
+		return b.ParseForEverStatement()
 	}
 
 	return b.ParseForStdStatement()
@@ -268,7 +293,7 @@ func (b *Builder) ParseIfStatement() (*Node, error) {
 func (b *Builder) ParseMapBlockStatement() (*Node, error) {
 	// Check ourselves ...
 	if b.Tokens[b.Index].Type != token.LBrace {
-		return nil, b.AppendTokenToError("Could not get left brace")
+		return nil, b.AppendTokenToError("Could not get left brace of map")
 	}
 
 	// Increment over the left brace token
@@ -329,7 +354,7 @@ func (b *Builder) ParseEnumBlockStatement() (*Node, error) {
 
 	// Check ourselves ...
 	if b.Tokens[b.Index].Type != token.LBrace {
-		return nil, b.AppendTokenToError("Could not get left brace")
+		return nil, b.AppendTokenToError("Could not get left brace of enum")
 	}
 
 	// Increment over the left brace token
@@ -384,7 +409,7 @@ func (b *Builder) ParseEnumBlockStatement() (*Node, error) {
 func (b *Builder) ParseBlockStatement() (*Node, error) {
 	// Check ourselves ...
 	if b.Tokens[b.Index].Type != token.LBrace {
-		return nil, b.AppendTokenToError("Could not get left brace")
+		return nil, b.AppendTokenToError("Could not get left brace of block")
 	}
 
 	// Increment over the left brace token
@@ -404,13 +429,26 @@ func (b *Builder) ParseBlockStatement() (*Node, error) {
 			return nil, err
 		}
 
-		// If we are returning something from the block then we need to ground the type
-		if stmt.Type == "return" {
-			if stmt.Left != nil {
-				rt = greatestCommonType(rt, ast.TypeFromString(stmt.Left.Kind))
-				fmt.Println("rt:", rt)
-			}
-		}
+		// // If we are returning something from the block then we need to ground the type
+		// if stmt.Type == "return" {
+		// 	if stmt.Left != nil {
+		// 		var t = stmt.Left.Kind
+
+		// 		if stmt.Left.Type == "ident" {
+		// 			// // Find the original type
+		// 			tv := b.ScopeTree.Local(stmt.Left.Value.(string))
+		// 			if tv == nil {
+		// 				panic(stmt)
+		// 				// return false, errors.Errorf("could not alias to unfound type: %s", n.Left.Value.(string))
+		// 			}
+
+		// 			t = tv.Right.Kind
+		// 		}
+
+		// 		rt = greatestCommonType(rt, ast.TypeFromString(t))
+		// 		fmt.Println("rt:", rt)
+		// 	}
+		// }
 
 		fmt.Println("i am here", stmt)
 
@@ -1557,20 +1595,24 @@ func (b *Builder) ParseFunctionStatement() (*Node, error) {
 		}
 	}
 
-	bs, err := b.ParseBlockStatement()
-	if err != nil {
-		return nil, err
+	if b.Tokens[b.Index].Type == token.LBrace {
+		fmt.Println("got a function body")
+
+		bs, err := b.ParseBlockStatement()
+		if err != nil {
+			return nil, err
+		}
+
+		// // TODO: probably need to do a more concerned check here later
+		// if node.Metadata["returns"] == nil && bs.ReturnType != nil {
+		// 	node.Metadata["returns"] = &Node{
+		// 		Type:  "type",
+		// 		Value: bs.Kind,
+		// 	}
+		// }
+
+		node.Value = bs
 	}
-
-	// // TODO: probably need to do a more concerned check here later
-	// if node.Metadata["returns"] == nil && bs.ReturnType != nil {
-	// 	node.Metadata["returns"] = &Node{
-	// 		Type:  "type",
-	// 		Value: bs.Kind,
-	// 	}
-	// }
-
-	node.Value = bs
 
 	// node.Value = addDeferDeclarationToBlock(block)
 
@@ -1688,8 +1730,8 @@ func (b *Builder) ParseStatement() (*Node, error) {
 	case token.Object:
 		return b.ParseObjectStatement()
 
-	// case token.C:
-	// 	return b.ParseCBlock()
+	case token.C:
+		return b.ParseCBlock()
 
 	// For literal and idents, we will need to figure out what
 	// kind of statement it is
@@ -1782,7 +1824,134 @@ func (b *Builder) ParseStatement() (*Node, error) {
 
 	case token.Return:
 		return b.ParseReturnStatement()
+
+	case token.Link:
+		return b.ParseLinkStatement()
 	}
 
 	return nil, b.AppendTokenToError(fmt.Sprintf("Could not create statement from: %+v", b.Tokens[b.Index].Type))
+}
+
+func (b *Builder) ParseLinkStatement() (*Node, error) {
+	// Check ourselves ...
+	if b.Tokens[b.Index].Type != token.Link {
+		return nil, b.AppendTokenToError("Could not create link statement")
+	}
+
+	// Skip over the `link` token
+	b.Index++
+
+	// TODO: this should actually dump the function headers into the current scope
+	// Create the ident
+	ident, err := b.ParseExpression()
+	if err != nil {
+		return nil, err
+	}
+
+	// Increment over the ident token
+	b.Index++
+
+	// Create the ident
+	block, err := b.ParseIdentStatement()
+	if err != nil {
+		return nil, err
+	}
+
+	// // Create a new child scope for the function
+	// b.ScopeTree, err = b.ScopeTree.NewChildScope(ident.Value.(string))
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	// // Check for the equals token
+	// if b.Tokens[b.Index].Type != token.Assign {
+	// 	return nil, b.AppendTokenToError("No equals found after ident in map declaration")
+	// }
+
+	// // Increment over the equals
+	// b.Index++
+
+	// // Parse the right hand side
+	// body, err := b.ParseMapBlockStatement()
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	// body.Kind = "link"
+
+	// // Assign our scope back to the current one
+	// b.ScopeTree, err = b.ScopeTree.Leave()
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	for _, kv := range block.Value.([]*Node) {
+		// Function header to link TO
+		var funcHeader = b.ScopeTree.Get(kv.Right.Value.(string))
+		funcHeader.Value = &Node{
+			Type: "block",
+			Value: []*Node{
+				{
+					Type: "return",
+					Left: &Node{
+						Type: "call",
+						Metadata: map[string]interface{}{
+							"args": &Node{
+								Type:  "egroup",
+								Value: convertArgsLibC(funcHeader),
+							},
+						},
+						Value: &Node{
+							Type: "ident",
+							// Function from library to link FROM
+							Value: kv.Left.Value.(string),
+						},
+					},
+				},
+			},
+		}
+	}
+
+	return &Node{
+		Type:  "link",
+		Left:  ident,
+		Right: block,
+	}, nil
+}
+
+// func EGroupFromSGroup() {
+
+// }
+
+func convertArgsLibC(fh *Node) []*Node {
+	var libcArgs []*Node
+
+	var args = fh.Metadata["args"]
+	for _, v := range args.(*Node).Value.([]*Node) {
+		if v.Value.(*Node).Kind == "string" {
+			libcArgs = append(libcArgs, &Node{
+				Type: "selection",
+				Left: v.Left,
+				Right: &Node{
+					Type: "call",
+					Value: &Node{
+						Type:  "ident",
+						Value: "c_str",
+						Metadata: map[string]interface{}{
+							"args": &Node{
+								Type:  "egroup",
+								Value: []*Node{},
+							},
+						},
+					},
+				},
+			})
+
+			continue
+		}
+
+		libcArgs = append(libcArgs, v)
+	}
+
+	return libcArgs
 }

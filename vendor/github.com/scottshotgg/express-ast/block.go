@@ -31,7 +31,7 @@ func (b *Block) elseStatementNode() {}
 // TokenLiteral returns the literal value of the token
 func (b *Block) TokenLiteral() token.Token { return b.Token }
 
-// Length returns the length of statments in the block
+// Length returns the length of Statements in the block
 func (b *Block) Length() int { return len(b.Statements) }
 
 func (b *Block) Kind() NodeType { return BlockNode }

@@ -42,6 +42,7 @@ var KeywordMap = map[string]Token{
 		},
 	},
 
+	// TODO: why is this taken out?
 	// "c": {
 	// 	Type: C,
 	// 	Value: Value{
@@ -105,6 +106,15 @@ var KeywordMap = map[string]Token{
 		Value: Value{
 			Type:   "loop", // TODO: what to put here?
 			String: "for",
+		},
+	},
+
+	"link": {
+		ID:   9,
+		Type: "LINK",
+		Value: Value{
+			Type:   "link", // TODO: what to put here?
+			String: "link",
 		},
 	},
 

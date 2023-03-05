@@ -20,18 +20,19 @@ func init() {
 	if err != nil {
 		// t.Fatalf("err %+v", err)
 		fmt.Printf("err %+v", err)
+		panic(err)
 	}
 }
 
 func TestRun(t *testing.T) {
-	err = c.RunFile("test/test.expr")
+	err = c.RunFile("test/link.expr")
 	if err != nil {
 		t.Fatalf("err %+v", err)
 	}
 }
 
 func TestCompile(t *testing.T) {
-	err = c.CompileFile("test/test.expr")
+	err = c.CompileFile("test/link.expr")
 	if err != nil {
 		t.Fatalf("err %+v", err)
 	}

@@ -281,9 +281,9 @@ func (st *ScopeTree) GetType(name string) *TypeValue {
 	// Search for the reference name in the current scope's symbol table
 	st.Lock.Lock()
 	// Don't know if we need to recursively lock ... it seems likely
-	defer st.Lock.Unlock()
-
 	var ref = st.Types[name]
+	st.Lock.Unlock()
+
 	if ref != nil {
 		fmt.Println("found it in the types", name)
 		// If we get something from the current scope then return

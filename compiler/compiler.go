@@ -391,7 +391,7 @@ func (c *Compiler) RunFile(filename string) error {
 
 	fmt.Println("\nDone!")
 
-	fmt.Println("\nOutput:", string(output))
+	fmt.Printf("\nOutput:\n%s", string(output))
 
 	return nil
 }
