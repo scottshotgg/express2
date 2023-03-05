@@ -1,0 +1,30 @@
+package strings
+
+func Atoi(string s) int
+
+link "lib.c" {
+  atoi: Atoi
+}
+
+func main() {
+  // TODO: anonymous strings need to have a constructor
+  // applied to them
+  //printf("6".c_str())
+
+  launch {
+    for {
+      printf("hi\\n")
+      msleep(now() + 50)
+    }
+  }
+
+  msleep(now() + 1000)
+
+  defer printf("hey its me\\n")
+
+  printf("Atoi: %d\\n", convert("97"))
+}
+
+func convert(string s) int {
+  return Atoi(s)
+}

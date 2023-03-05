@@ -1,5 +1,38 @@
 package something
 
+/* Make this work somehow; you can change the syntax
+  from C {
+    func atoi(string s) int
+  }
+*/
+
 func what() int {
-  return 7
+  /*
+    TODO: 
+      - Cannot return enum (ident resolution error)
+      - Cannot use enum as type for some reason
+      - I think these are because it is not going to the parent scope
+  */
+  
+  enum days {
+    monday
+    tuesday
+    wednesday
+    thursday
+  }
+
+  /* // This doesn't work right now
+    C {
+      int i = 6
+      printf("%d", i)
+    }
+  */
+
+  char c = '6'
+
+  return atoi("6")
+}
+
+func main() {
+  printf("what: %d", what())
 }

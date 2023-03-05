@@ -1,0 +1,10 @@
+import "test/strings.expr"
+include "http.cpp"
+
+func main() {
+  int i = strings.Atoi("97")
+  string s = strings.Itoa(i)
+
+  printf("i: %d\\n", i)
+  printf("s: %s\\n", s.c_str())
+}

@@ -1,0 +1,12 @@
+package strings
+
+func Atoi(string s) int {
+  return atoi(s.c_str())
+}
+
+func Itoa(int i) string {
+  string s = ""
+  s.append(1, char(i))
+
+  return s
+}

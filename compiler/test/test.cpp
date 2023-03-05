@@ -26,10 +26,16 @@ struct myStruct {
 };
 
 // Prototypes:
-void something();
 void another(int i, std::string s);
+void something();
 
 // Functions:
+void another(int i, std::string s) {
+  defer onReturn, onExit;
+  int j = 6666666;
+  printf("something");
+}
+
 void something() {
   defer onReturn, onExit;
   myStruct s = {
@@ -42,12 +48,6 @@ void something() {
   };
   int i = 10;
   another(i, "s");
-}
-
-void another(int i, std::string s) {
-  defer onReturn, onExit;
-  int j = 6666666;
-  printf("something");
 }
 
 // Main:
