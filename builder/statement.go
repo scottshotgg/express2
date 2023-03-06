@@ -1576,9 +1576,11 @@ func (b *Builder) ParseFunctionStatement() (*Node, error) {
 
 			// Step over the type token
 			b.Index++
-		} else {
-			return nil, errors.Errorf("could not parse returns on %s: %v", node.Kind, b.Tokens[b.Index])
-		}
+		} // else we have a _function header_
+
+		// else {
+		// 	return nil, errors.Errorf("could not parse returns on %s: %v", node.Kind, b.Tokens[b.Index])
+		// }
 	}
 
 	fmt.Println("node.Metadata[returns]:", node.Metadata["returns"])

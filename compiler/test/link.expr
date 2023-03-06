@@ -1,4 +1,6 @@
-package strings
+package main
+
+import "compiler/test/time.expr"
 
 func Atoi(string s) int
 
@@ -14,11 +16,11 @@ func main() {
   launch {
     for {
       printf("hi\\n")
-      msleep(now() + 50)
+      time.Sleep(100)
     }
   }
 
-  msleep(now() + 1000)
+  time.Sleep(1000)
 
   defer printf("hey its me\\n")
 

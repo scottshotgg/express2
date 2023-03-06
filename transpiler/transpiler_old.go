@@ -44,6 +44,8 @@ type Transpiler struct {
 	PackageChan  chan *builder.Node
 	ImportChan   chan *builder.Node
 	AppendChan   chan string
+
+	ChildTranspilers *sync.WaitGroup
 }
 
 func (t *Transpiler) emit(line string) {
@@ -111,6 +113,8 @@ func New(ast *builder.Node, b *builder.Builder, name, libBase string) *Transpile
 		AppendChan:  make(chan string, 5),
 		Wg:          &sync.WaitGroup{},
 		Wg1:         &sync.WaitGroup{},
+
+		ChildTranspilers: &sync.WaitGroup{},
 	}
 
 	// go appendWorker(&wg)
@@ -228,6 +232,9 @@ func (t *Transpiler) Transpile() error {
 		case "package":
 			t.PackageChan <- nodes[i]
 
+		case "link":
+			continue
+
 		default:
 			return errors.Errorf("Node was not categorized properly: %+v\n", nodes[i])
 		}
@@ -246,15 +253,21 @@ func (t *Transpiler) Transpile() error {
 	// Just a fucking dirty ass hackerino
 	time.Sleep(1 * time.Second)
 
+	t.ChildTranspilers.Wait()
+
 	// These are over used. Really the only reason that the function, struct, and type
 	// chans were here in the first place was to capture all of the stuff to put it at the top
 	// but tbh this should be a semantic parser step before it even gets to the AST
 
 	// Close the channel and alert the worker that we are done
 	close(t.PackageChan)
+	fmt.Println("1")
 	close(t.FuncChan)
+	fmt.Println("2")
 	close(t.TypeChan)
+	fmt.Println("3")
 	close(t.StructChan)
+	fmt.Println("4")
 
 	// Wait for everything to be transpiled
 	t.Wg1.Wait()
@@ -266,7 +279,7 @@ func (t *Transpiler) Transpile() error {
 	t.Wg.Wait()
 
 	if t.Functions["main"] == "" {
-		// return "", errors.New("No main function declared")
+		// return errors.New("No main function declared")
 	}
 
 	return nil
@@ -712,6 +725,9 @@ func (t *Transpiler) TranspileImportStatement(n *builder.Node) (*string, error) 
 		// cpp, err := tr.Transpile()
 		// fmt.Println("cpp, err", cpp, err)
 	}
+
+	t.ChildTranspilers.Add(1)
+	defer t.ChildTranspilers.Done()
 
 	var tt = New(n.Right, t.Builder, n.Left.Value.(string), t.LibBase)
 
@@ -1230,9 +1246,19 @@ func (t *Transpiler) TranspilePackageStatement(n *builder.Node) (*string, error)
 		return nil, err
 	}
 
+	if vString == nil || *vString == "" {
+		fmt.Println("EMPTY V STRING")
+		return nil, nil
+	}
+
 	nString += *vString
 
 	fmt.Println("NSTRING", nString)
+
+	if nString == "{}" {
+		fmt.Println("SETTING N STRING TO BLANK")
+		nString = ""
+	}
 
 	return &nString, nil
 }

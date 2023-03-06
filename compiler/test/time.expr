@@ -1,3 +1,9 @@
+package time
+
+func Sleep(int i) {
+    msleep(Now() + i)
+}
+
 func Now() int {
-    return time(NULL)
+    return now()
 }
