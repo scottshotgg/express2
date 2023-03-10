@@ -75,11 +75,11 @@ var KeywordMap = map[string]Token{
 		},
 	},
 
-	"launch": {
-		Type: Launch,
+	"thread": {
+		Type: Thread,
 		Value: Value{
 			Type:   "keyword",
-			String: "launch",
+			String: "thread",
 		},
 	},
 

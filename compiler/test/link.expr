@@ -1,6 +1,6 @@
 package main
 
-import "compiler/test/time.expr"
+import "test/time.expr"
 
 func Atoi(string s) int
 
@@ -13,12 +13,42 @@ func main() {
   // applied to them
   //printf("6".c_str())
 
-  launch {
-    for {
-      printf("hi\\n")
-      time.Sleep(100)
-    }
+  // BUG: Named blocks act weird in express
+  // launch {}
+  thread {
+    printf("hi\\n")
+    time.Sleep(100)
   }
+
+  // BUG: objects are not working right
+  // they don't import the object lib
+  // and they don't name themselves right
+  map m = {
+    "i": 9
+    9: "blah"
+  }
+
+  Println("m.i:", m["i"])
+  Println("m.9:", m[9])
+
+  // BUG: var array does not trigger
+  // var.cpp import
+  // var[] i = ["7", 6, 8]
+
+  // BUG: string array does not transpile
+  // as `std::string`
+  // string[] i = ["7", 6, 8]
+
+  struct Expiry = {
+    int seconds = 9
+    int nanos
+  }
+
+  Expiry e = {
+    nanos = 1
+  }
+
+  printf("Default seconds value: %d\\n", e.seconds)
 
   time.Sleep(1000)
 
@@ -30,3 +60,20 @@ func main() {
 func convert(string s) int {
   return Atoi(s)
 }
+
+struct s = {
+  name: "scott"
+  age: 29
+  
+  Name() => name
+  Age() => age
+}
+
+s.Name = func() string {
+  return s.name
+}
+
+s.Age = func() int {
+  return s.age
+}
+

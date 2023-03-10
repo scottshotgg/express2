@@ -103,7 +103,7 @@ const (
 	C            = "C"
 	Import       = "IMPORT"
 	Include      = "INCLUDE"
-	Launch       = "LAUNCH"
+	Thread       = "THREAD"
 	Enum         = "ENUM"
 	Link         = "LINK"
 

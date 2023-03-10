@@ -1482,9 +1482,9 @@ func (b *Builder) ParseIncludeStatement() (*Node, error) {
 	}, nil
 }
 
-func (b *Builder) ParseLaunchStatement() (*Node, error) {
+func (b *Builder) ParseThreadStatement() (*Node, error) {
 	// Check ourselves ...
-	if b.Tokens[b.Index].Type != token.Launch {
+	if b.Tokens[b.Index].Type != token.Thread {
 		return nil, b.AppendTokenToError("Could not get launch statement")
 	}
 
@@ -1498,7 +1498,7 @@ func (b *Builder) ParseLaunchStatement() (*Node, error) {
 	}
 
 	return &Node{
-		Type: "launch",
+		Type: "thread",
 		Left: expr,
 	}, nil
 }
@@ -1696,8 +1696,8 @@ func (b *Builder) ParseDerefStatement() (*Node, error) {
 func (b *Builder) ParseStatement() (*Node, error) {
 	switch b.Tokens[b.Index].Type {
 
-	case token.Launch:
-		return b.ParseLaunchStatement()
+	case token.Thread:
+		return b.ParseThreadStatement()
 
 	case token.Defer:
 		return b.ParseDeferStatement()

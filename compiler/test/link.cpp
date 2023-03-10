@@ -3,7 +3,9 @@
 
 // Imports:
 #include "/home/scottshotgg/Development/go/src/github.com/scottshotgg/express2/lib/defer.cpp"
+#include "/home/scottshotgg/Development/go/src/github.com/scottshotgg/express2/lib/var.cpp"
 #include <iostream>
+#include <map>
 #include <stdio.h>
 #include <string>
 
@@ -68,12 +70,25 @@ int convert(std::string s) {
 // generated: false
 int main() {
   defer onReturn, onExit;
-go(coroutine [=](...){{{
-while(true){printf("hi\n");__time::Sleep(100);
-}
-}
+go(coroutine [=](...){{printf("hi\n");__time::Sleep(100);
 }
 }());
+std::map<var, var> m = {
+    {"i", 9},
+    {9, "blah"},
+};
+std::cout << "m.i:"
+          << " " << m["i"] << std::endl;
+std::cout << "m.9:"
+          << " " << m[9] << std::endl;
+struct Expiry {
+int seconds = 9;
+int nanos;
+};
+Expiry e = {
+    .nanos = 1,
+};
+printf("Default seconds value: %d\n", e.seconds);
 __time::Sleep(1000);
 onReturn.deferStack.push([=](...) { printf("hey its me\n"); });
 printf("Atoi: %d\n", convert("97"));

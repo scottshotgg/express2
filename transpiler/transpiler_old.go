@@ -955,16 +955,16 @@ func (t *Transpiler) TranspileMapStatement(n *builder.Node) (*string, error) {
 	return &nString, nil
 }
 
-func (t *Transpiler) TranspileLaunchStatement(n *builder.Node) (*string, error) {
-	if n.Type != "launch" {
-		return nil, errors.New("Node is not a launch node")
+func (t *Transpiler) TranspileThreadStatement(n *builder.Node) (*string, error) {
+	if n.Type != "thread" {
+		return nil, errors.New("Node is not a thread node")
 	}
 
 	blob, _ := json.Marshal(n)
-	fmt.Println("launch:", string(blob))
+	fmt.Println("thread:", string(blob))
 
 	blob, _ = json.Marshal(n)
-	fmt.Println("launch.left:", string(blob))
+	fmt.Println("thread.left:", string(blob))
 
 	// Transpile the ident
 	var vString, err = t.TranspileStatement(n.Left)
@@ -1084,8 +1084,8 @@ func (t *Transpiler) TranspileStatement(n *builder.Node) (*string, error) {
 	case "if":
 		return t.TranspileIfStatement(n)
 
-	case "launch":
-		return t.TranspileLaunchStatement(n)
+	case "thread":
+		return t.TranspileThreadStatement(n)
 
 	case "defer":
 		return t.TranspileDeferStatement(n)

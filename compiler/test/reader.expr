@@ -7,14 +7,17 @@ struct Reader {
   int counter
   int index
 
-  func Read() byte
-  func ReadMulti(int amount) []byte
-  func ReadRange(int start, end) => $.ReadRange()
+  func Read(int amount) []byte
+  func ReadRange(int start, end) []byte
 }
 
-func New(byte[] data) => &Reader{ data: data }
+func New(byte[] data) *Reader { 
+  return &Reader {
+    data: data
+  }
+}
 
-Reader.Read = func() byte {
+func Read(int amount) []byte {
   if $.counter < data.Length() {
     defer $.counter++
     return data[$.counter]
