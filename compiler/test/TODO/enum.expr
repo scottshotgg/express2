@@ -1,0 +1,8 @@
+package main
+
+enum HairColor {
+  Blonde
+  Brown
+  Black
+  Red
+}

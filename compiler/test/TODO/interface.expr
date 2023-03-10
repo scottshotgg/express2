@@ -1,0 +1,29 @@
+package main
+
+interface Vehicle {
+  Start()
+  Drive()
+  Stop()
+}
+
+interface GPS {
+  Start()
+  Status()
+}
+
+// Abstract method
+func [Vehicle] Drive() { ... }
+
+#[impl Vehicle, derive Vehicle]
+struct Car {
+  ...
+}
+
+func [Car] Drive() { ... }
+
+#[impl Vehicle, impl GPS]
+
+#[derive Vehicle, derive GPS]
+struct Tesla {
+  ...
+}

@@ -1,0 +1,44 @@
+package main
+
+struct Person {
+  string name
+  int age
+}
+
+struct Dog {
+  string name
+  Breed breed
+  int age
+}
+
+enum Breed {
+  GoldenRetriever
+  Chiuauau
+  RotWeiler
+}
+
+// TODO: decide between method and func
+func [Person p, Dog d] Speak() string {
+  return this.name
+}
+
+// C: good but a little too implicit
+func Speak(Person p) { ... }
+
+// C++: maybe, not big on :: since we haven't used it anywhere else
+func Person::Speak() { ... }
+
+// Java: maybe
+func Person Speak() { ... }
+
+// Go: no, parens like this make my eyes burn a little bit
+func (Person p) Speak() { ... }
+
+func main() {
+  Person scott = {
+    name: "scott"
+    age: 29
+  }
+
+  scott.Speak()
+}

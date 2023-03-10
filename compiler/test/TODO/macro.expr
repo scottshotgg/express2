@@ -1,0 +1,22 @@
+package main
+
+/*
+  Macros are an programmer-directed way to tell the compiler to inline a function.
+  Macros MUST be pure functions; i.e, no side effects since they are computed at runtime.
+  This also means that in large part they cannot be methods, however if you have an immutable
+  method then that is also pure if the compiler can gaurantee at compile time that the struct
+  does not change dynamically before the macro is computed.
+*/
+
+macro Something(int a, int b) int {
+  return Another(a, b)
+}
+
+func Another(int a, int b) int {
+  return a + b
+}
+
+func main() {
+
+  println(smth)
+}

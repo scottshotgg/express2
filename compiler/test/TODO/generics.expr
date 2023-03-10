@@ -1,0 +1,29 @@
+package main
+
+# Simple generics
+struct Point<T> {
+  T x
+  T y
+}
+
+# Method on generic struct
+func [Point] Add() T {
+  return self.x + self.y
+}
+
+# Type contraint
+type T {
+  int | float
+}
+
+# Optional
+enum Result {
+  int
+  error
+}
+
+# Generic optional
+enum Result<T> {
+  T
+  error
+}
