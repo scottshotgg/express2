@@ -38,7 +38,7 @@ func TestNew(t *testing.T) {
 	fmt.Printf("scopeTree: %+v\n", scopeTree)
 }
 
-func TestSetDeclaration(t *testing.T) {
+func TestSetDecl(t *testing.T) {
 	TestNew(t)
 
 	var err error
@@ -57,7 +57,7 @@ func TestSetDeclaration(t *testing.T) {
 
 func TestSetAssignment(t *testing.T) {
 	// Set a variable first
-	TestSetDeclaration(t)
+	TestSetDecl(t)
 
 	var (
 		value = testNode.Right.Value.(int) + 10
@@ -77,8 +77,8 @@ func TestSetAssignment(t *testing.T) {
 	}
 }
 
-func TestGetDeclaration(t *testing.T) {
-	TestSetDeclaration(t)
+func TestGetDecl(t *testing.T) {
+	TestSetDecl(t)
 
 	var ref = scopeTree.Get(testNode.Left.Value.(string))
 	if ref == nil {
@@ -97,7 +97,7 @@ func TestGetDeclaration(t *testing.T) {
 }
 
 func TestGetAssignment(t *testing.T) {
-	TestSetDeclaration(t)
+	TestSetDecl(t)
 
 	var ref = scopeTree.Get(testNode.Left.Value.(string))
 	if ref == nil {

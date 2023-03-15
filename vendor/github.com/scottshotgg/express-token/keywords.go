@@ -27,7 +27,7 @@ var KeywordMap = map[string]Token{
 	},
 
 	"interface": {
-		Type: Struct,
+		Type: Interface,
 		Value: Value{
 			Type:   "keyword",
 			String: "interface",

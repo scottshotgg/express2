@@ -1,9 +1,13 @@
 package main
 
-contract Dog {
+interface Dog {
 	Breed() string
 }
 
+// TODO : scottshotgg : for some reason I had to add this
+// as in order to get Bulldog here. It's not catching the first
+// struct
+struct Blah {}
 struct Bulldog {}
 struct Husky {}
 
@@ -13,4 +17,21 @@ func [Bulldog b] Breed() string {
 
 func [Husky h] Breed() string {
 	return "husky"
+}
+
+func main() {
+	Husky h = {}
+
+	/*
+		When interface assignment is parsed:
+		- Create the helper funcs 
+		- Assignment ultimately changes from:
+			- ident
+			to
+			- { .self = ident, funcs=helper_calls }
+	*/
+
+	Dog d = h
+
+	Println(d.Breed())
 }

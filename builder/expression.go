@@ -360,7 +360,7 @@ func (b *Builder) ParseFactor() (*Node, error) {
 
 	// Named block
 	case token.LBrace:
-		var a, c = b.ParseBlockStatement()
+		var a, c = b.ParseBlockStmt()
 		// If this is an expression, then whatever called ParseExpression
 		// is going to increment the index again ...
 		b.Index--

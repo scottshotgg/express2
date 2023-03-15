@@ -22,28 +22,30 @@ type WithPriority struct {
 }
 
 type Transpiler struct {
-	LibBase      string
-	Name         string
-	Builder      *builder.Builder
-	AST          *builder.Node
-	ASTCloneJSON []byte
-	Extra        []string
-	Functions    map[string]string
-	Imports      map[string]string
-	Includes     map[string]string
-	Packages     map[string]string
-	Types        map[string]string
-	Structs      map[string]WithPriority
-	GenerateMain bool
-	Wg           *sync.WaitGroup
-	Wg1          *sync.WaitGroup
-	FuncChan     chan *builder.Node
-	TypeChan     chan *builder.Node
-	StructChan   chan *builder.Node
-	IncludeChan  chan *builder.Node
-	PackageChan  chan *builder.Node
-	ImportChan   chan *builder.Node
-	AppendChan   chan string
+	LibBase       string
+	Name          string
+	Builder       *builder.Builder
+	AST           *builder.Node
+	ASTCloneJSON  []byte
+	Extra         []string
+	Functions     map[string]string
+	Imports       map[string]string
+	Includes      map[string]string
+	Packages      map[string]string
+	Types         map[string]string
+	Structs       map[string]WithPriority
+	Interfaces    map[string]string
+	GenerateMain  bool
+	Wg            *sync.WaitGroup
+	Wg1           *sync.WaitGroup
+	FuncChan      chan *builder.Node
+	TypeChan      chan *builder.Node
+	StructChan    chan *builder.Node
+	InterfaceChan chan *builder.Node
+	IncludeChan   chan *builder.Node
+	PackageChan   chan *builder.Node
+	ImportChan    chan *builder.Node
+	AppendChan    chan string
 
 	ChildTranspilers *sync.WaitGroup
 }
@@ -82,7 +84,7 @@ func (t *Transpiler) functionWorker() {
 			os.Exit(9)
 		}
 
-		function, err = t.TranspileFunctionStatement(f)
+		function, err = t.TranspileFunctionStmt(f)
 		if err != nil {
 			log.Printf("Function error: %+v %+v\n", f, err)
 			os.Exit(9)
@@ -94,25 +96,27 @@ func (t *Transpiler) functionWorker() {
 
 func New(ast *builder.Node, b *builder.Builder, name, libBase string) *Transpiler {
 	var t = Transpiler{
-		LibBase:     libBase,
-		Name:        name,
-		AST:         ast,
-		Builder:     b,
-		Functions:   map[string]string{},
-		Imports:     map[string]string{},
-		Packages:    map[string]string{},
-		Includes:    map[string]string{},
-		Structs:     map[string]WithPriority{},
-		Types:       map[string]string{},
-		FuncChan:    make(chan *builder.Node, 100),
-		TypeChan:    make(chan *builder.Node, 100),
-		StructChan:  make(chan *builder.Node, 100),
-		IncludeChan: make(chan *builder.Node, 100),
-		PackageChan: make(chan *builder.Node, 100),
-		ImportChan:  make(chan *builder.Node, 100),
-		AppendChan:  make(chan string, 5),
-		Wg:          &sync.WaitGroup{},
-		Wg1:         &sync.WaitGroup{},
+		LibBase:       libBase,
+		Name:          name,
+		AST:           ast,
+		Builder:       b,
+		Functions:     map[string]string{},
+		Imports:       map[string]string{},
+		Packages:      map[string]string{},
+		Includes:      map[string]string{},
+		Interfaces:    map[string]string{},
+		Structs:       map[string]WithPriority{},
+		Types:         map[string]string{},
+		FuncChan:      make(chan *builder.Node, 100),
+		TypeChan:      make(chan *builder.Node, 100),
+		StructChan:    make(chan *builder.Node, 100),
+		InterfaceChan: make(chan *builder.Node, 100),
+		IncludeChan:   make(chan *builder.Node, 100),
+		PackageChan:   make(chan *builder.Node, 100),
+		ImportChan:    make(chan *builder.Node, 100),
+		AppendChan:    make(chan string, 5),
+		Wg:            &sync.WaitGroup{},
+		Wg1:           &sync.WaitGroup{},
 
 		ChildTranspilers: &sync.WaitGroup{},
 	}
@@ -152,6 +156,9 @@ func (t *Transpiler) Transpile() error {
 
 	t.Wg1.Add(1)
 	go t.structWorker()
+
+	t.Wg1.Add(1)
+	go t.interfaceWorker()
 
 	t.Wg1.Add(1)
 	go t.packageWorker()
@@ -198,7 +205,7 @@ func (t *Transpiler) Transpile() error {
 
 		case "decl":
 			// Just transpile the statement for now
-			stringP, err := t.TranspileStatement(nodes[i])
+			stringP, err := t.TranspileStmt(nodes[i])
 			if err != nil {
 				fmt.Printf("err %+v\n", err)
 				os.Exit(9)
@@ -209,7 +216,7 @@ func (t *Transpiler) Transpile() error {
 
 		case "use":
 			// Just transpile the statement for now
-			stringP, err := t.TranspileStatement(nodes[i])
+			stringP, err := t.TranspileStmt(nodes[i])
 			if err != nil {
 				fmt.Printf("err %+v\n", err)
 				os.Exit(9)
@@ -220,7 +227,7 @@ func (t *Transpiler) Transpile() error {
 
 		case "map":
 			// Just transpile the statement for now
-			stringP, err := t.TranspileStatement(nodes[i])
+			stringP, err := t.TranspileStmt(nodes[i])
 			if err != nil {
 				fmt.Printf("err %+v\n", err)
 				os.Exit(9)
@@ -240,7 +247,7 @@ func (t *Transpiler) Transpile() error {
 		}
 
 		// // Just transpile the statement for now
-		// stringP, err := t.TranspileStatement(nodes[i])
+		// stringP, err := t.TranspileStmt(nodes[i])
 		// if err != nil {
 		// 	fmt.Printf("err %+v\n", err)
 		// 	os.Exit(9)
@@ -261,19 +268,23 @@ func (t *Transpiler) Transpile() error {
 
 	// Close the channel and alert the worker that we are done
 	close(t.PackageChan)
-	fmt.Println("1")
+	fmt.Println("Closing PackageChan")
 	close(t.FuncChan)
-	fmt.Println("2")
+	fmt.Println("Closing FuncChan")
 	close(t.TypeChan)
-	fmt.Println("3")
+	fmt.Println("Closing TypeChan")
 	close(t.StructChan)
-	fmt.Println("4")
+	fmt.Println("Closing StructChan")
+	close(t.InterfaceChan)
+	fmt.Println("Closing InterfaceChan")
 
 	// Wait for everything to be transpiled
 	t.Wg1.Wait()
 
 	close(t.ImportChan)
+	fmt.Println("Closing ImportChan")
 	close(t.IncludeChan)
+	fmt.Println("Closing IncludeChan")
 
 	// Wait for everything to be transpiled
 	t.Wg.Wait()
@@ -294,7 +305,7 @@ func (t *Transpiler) typeWorker() {
 	)
 
 	for node := range t.TypeChan {
-		stringP, err = t.TranspileStatement(node)
+		stringP, err = t.TranspileStmt(node)
 		if err != nil {
 			fmt.Printf("err %+v\n", err)
 			os.Exit(9)
@@ -315,7 +326,7 @@ func (t *Transpiler) structWorker() {
 
 	var i int
 	for node := range t.StructChan {
-		stringP, err = t.TranspileStructDeclaration(node)
+		stringP, err = t.TranspileStructDecl(node)
 		if err != nil {
 			fmt.Printf("err %+v\n", err)
 			os.Exit(9)
@@ -330,6 +341,25 @@ func (t *Transpiler) structWorker() {
 	}
 }
 
+func (t *Transpiler) interfaceWorker() {
+	defer t.Wg1.Done()
+
+	var (
+		stringP *string
+		err     error
+	)
+
+	for node := range t.InterfaceChan {
+		stringP, err = t.TranspileInterfaceDecl(node)
+		if err != nil {
+			fmt.Printf("err %+v\n", err)
+			os.Exit(9)
+		}
+
+		t.Interfaces[node.Left.Value.(string)] = *stringP
+	}
+}
+
 func (t *Transpiler) packageWorker() {
 	defer t.Wg1.Done()
 
@@ -340,7 +370,7 @@ func (t *Transpiler) packageWorker() {
 
 	var i int
 	for node := range t.PackageChan {
-		stringP, err = t.TranspileStatement(node)
+		stringP, err = t.TranspileStmt(node)
 		if err != nil {
 			fmt.Printf("err %+v\n", err)
 			os.Exit(9)
@@ -364,7 +394,7 @@ func (t *Transpiler) includeWorker() {
 
 	for node := range t.IncludeChan {
 		// Might want to make this go through the entire pipeline ...
-		includeStringP, ierr = t.TranspileIncludeStatement(node)
+		includeStringP, ierr = t.TranspileIncludeStmt(node)
 		if ierr != nil {
 			log.Printf("Error transpiling include statement: %+v\n", ierr)
 
@@ -391,7 +421,7 @@ func (t *Transpiler) importWorker() {
 
 	for node := range t.ImportChan {
 		// Might want to make this go through the entire pipeline ...
-		importStringP, ierr = t.TranspileImportStatement(node)
+		importStringP, ierr = t.TranspileImportStmt(node)
 		if ierr != nil {
 			log.Printf("Error transpiling import statement: %+v\n", ierr)
 
@@ -500,7 +530,23 @@ func (t *Transpiler) generateTypes() string {
 		structsString += strings.Join(structs, "\n")
 	}
 
-	return typesString + structsString
+	typesString += structsString
+
+	// TODO : scottshotgg : why I did this to just to do
+	// `strings.Join` is mind boggling but just keep it for now
+	var interfaces = make([]string, 0, len(t.Structs))
+	for _, t := range t.Interfaces {
+		interfaces = append(interfaces, t)
+	}
+
+	var interfacesString = "\n\n// Interfaces:\n"
+	if len(interfaces) == len("\n\n// Interfaces:\n") {
+		interfacesString += "// none\n"
+	} else {
+		interfacesString += strings.Join(interfaces, "\n")
+	}
+
+	return typesString + interfacesString
 }
 
 func (t *Transpiler) generateFunctions() string {
@@ -538,7 +584,7 @@ func (t *Transpiler) generateFunctions() string {
 		fmt.Sprintf("\n// Main:\n// generated: %v\n%s", t.GenerateMain, mainFunc)
 }
 
-func (t *Transpiler) TranspileTypeDeclaration(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileTypeDecl(n *builder.Node) (*string, error) {
 	// Format should be:
 	// `type` [ident] `=` [type]
 	// Left is the ident
@@ -571,7 +617,7 @@ func (t *Transpiler) TranspileTypeDeclaration(n *builder.Node) (*string, error) 
 	return &nString, nil
 }
 
-func (t *Transpiler) TranspileObjectStatement(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileObjectStmt(n *builder.Node) (*string, error) {
 	/*
 		This should transpile to:
 		object something = {} : class something {}
@@ -597,7 +643,7 @@ func (t *Transpiler) TranspileObjectStatement(n *builder.Node) (*string, error) 
 	var nString = "class " + *vString
 
 	// Transpile the block for the value
-	vString, err = t.TranspileBlockStatement(n.Right)
+	vString, err = t.TranspileBlockStmt(n.Right)
 	if err != nil {
 		return nil, err
 	}
@@ -607,7 +653,7 @@ func (t *Transpiler) TranspileObjectStatement(n *builder.Node) (*string, error) 
 	return &nString, nil
 }
 
-func (t *Transpiler) TranspileStructDeclaration(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileStructDecl(n *builder.Node) (*string, error) {
 	/*
 		This should transpile to:
 		struct something {} : struct something {}
@@ -630,7 +676,7 @@ func (t *Transpiler) TranspileStructDeclaration(n *builder.Node) (*string, error
 	var nString = n.Type + " " + *vString
 
 	// Transpile the block for the value
-	vString, err = t.TranspileBlockStatement(n.Right)
+	vString, err = t.TranspileBlockStmt(n.Right)
 	if err != nil {
 		return nil, err
 	}
@@ -640,7 +686,60 @@ func (t *Transpiler) TranspileStructDeclaration(n *builder.Node) (*string, error
 	return &nString, nil
 }
 
-func (t *Transpiler) TranspileIncludeStatement(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileInterfaceDecl(n *builder.Node) (*string, error) {
+	/*
+		This should transpile to:
+		TODO: fill this in
+		// intera something {} : struct something {}
+		Type is struct
+		Left is the ident
+		Right is the value
+	*/
+
+	if n.Type != "interface" {
+		return nil, errors.New("Node is not a struct")
+	}
+
+	// Transpile the ident which will become a usable type
+	var vString, err = t.TranspileExpression(n.Left)
+	if err != nil {
+		return nil, err
+	}
+
+	/*
+		TODO: needs to generate a struct like the following:
+
+		typedef struct {
+			void *self;
+			std::string (*const INTERFACE_FUNCTION)(void *self);
+		} INTERFACE_NAME;
+	*/
+
+	// Could just have it add `struct` here but this will show us changes
+	var (
+		nString      = "typedef struct {\nvoid *self;\n"
+		funcParts    = n.Right.Value.([]*builder.Node)
+		funcPartStrs = make([]string, len(funcParts))
+	)
+
+	// <return_type> (*const <func_name>)(void *self, <args>)
+
+	for i, funcPart := range funcParts {
+		fmt.Println("funcPart:", funcPart)
+		funcPartStr, err := t.TranspileInterfaceFuncPartial(funcPart)
+		if err != nil {
+			return nil, err
+		}
+
+		funcPartStrs[i] = *funcPartStr + ";"
+	}
+
+	nString += fmt.Sprintf("%s\n} %s;", strings.Join(funcPartStrs, "\n"), *vString)
+
+	return &nString, nil
+}
+
+func (t *Transpiler) TranspileIncludeStmt(n *builder.Node) (*string, error) {
 	if n.Type != "include" {
 		return nil, errors.New("Node is not an include")
 	}
@@ -665,7 +764,7 @@ func (t *Transpiler) TranspileIncludeStatement(n *builder.Node) (*string, error)
 	return lhs, nil
 }
 
-func (t *Transpiler) TranspileUseStatement(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileUseStmt(n *builder.Node) (*string, error) {
 	if n.Type != "use" {
 		return nil, errors.New("Node is not a use")
 	}
@@ -699,7 +798,7 @@ func (t *Transpiler) TranspileUseStatement(n *builder.Node) (*string, error) {
 
 // TODO: this should transpile the program and take all statements
 // and put them into the file under a namespace that is the package name
-func (t *Transpiler) TranspileImportStatement(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileImportStmt(n *builder.Node) (*string, error) {
 	if n.Type != "import" {
 		return nil, errors.New("Node is not an import")
 	}
@@ -971,7 +1070,7 @@ func (t *Transpiler) TranspilePackageExpression(n *builder.Node) (*string, error
 	return &value, nil
 }
 
-func (t *Transpiler) TranspileMapStatement(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileMapStmt(n *builder.Node) (*string, error) {
 	if n.Type != "map" {
 		return nil, errors.New("Node is not a map")
 	}
@@ -987,7 +1086,7 @@ func (t *Transpiler) TranspileMapStatement(n *builder.Node) (*string, error) {
 	var nString = "std::map<var, var>" + " " + *vString + "= "
 
 	// Transpile the block for the value
-	vString, err = t.TranspileMapBlockStatement(n.Right)
+	vString, err = t.TranspileMapBlockStmt(n.Right)
 	if err != nil {
 		return nil, err
 	}
@@ -1006,7 +1105,7 @@ func (t *Transpiler) TranspileMapStatement(n *builder.Node) (*string, error) {
 	return &nString, nil
 }
 
-func (t *Transpiler) TranspileThreadStatement(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileThreadStmt(n *builder.Node) (*string, error) {
 	if n.Type != "thread" {
 		return nil, errors.New("Node is not a thread node")
 	}
@@ -1018,7 +1117,7 @@ func (t *Transpiler) TranspileThreadStatement(n *builder.Node) (*string, error) 
 	fmt.Println("thread.left:", string(blob))
 
 	// Transpile the ident
-	var vString, err = t.TranspileStatement(n.Left)
+	var vString, err = t.TranspileStmt(n.Left)
 	if err != nil {
 		return nil, err
 	}
@@ -1048,7 +1147,7 @@ func (t *Transpiler) TranspileThreadStatement(n *builder.Node) (*string, error) 
 	return &nString, nil
 }
 
-func (t *Transpiler) TranspileEnumBlockStatement(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileEnumBlockStmt(n *builder.Node) (*string, error) {
 	if n.Type != "block" {
 		return nil, errors.New("Node is not a block")
 	}
@@ -1064,7 +1163,7 @@ func (t *Transpiler) TranspileEnumBlockStatement(n *builder.Node) (*string, erro
 			return nil, errors.Errorf("All statements in an enum have to be assignment or ident: %+v\n", stmt)
 		}
 
-		vString, err = t.TranspileStatement(stmt)
+		vString, err = t.TranspileStmt(stmt)
 		if err != nil {
 			return nil, err
 		}
@@ -1081,12 +1180,12 @@ func (t *Transpiler) TranspileEnumBlockStatement(n *builder.Node) (*string, erro
 	return &nString, nil
 }
 
-func (t *Transpiler) TranspileEnumStatement(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileEnumStmt(n *builder.Node) (*string, error) {
 	if n.Type != "enum" {
 		return nil, errors.New("Node is not a map")
 	}
 
-	var enum, err = t.TranspileEnumBlockStatement(n.Left)
+	var enum, err = t.TranspileEnumBlockStmt(n.Left)
 	if err != nil {
 		return nil, err
 	}
@@ -1096,7 +1195,7 @@ func (t *Transpiler) TranspileEnumStatement(n *builder.Node) (*string, error) {
 	return &nString, err
 }
 
-func (t *Transpiler) TranspileKeyValueStatement(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileKeyValueStmt(n *builder.Node) (*string, error) {
 	var left, err = t.TranspileExpression(n.Left)
 	if err != nil {
 		return nil, err
@@ -1112,8 +1211,8 @@ func (t *Transpiler) TranspileKeyValueStatement(n *builder.Node) (*string, error
 	return &nString, nil
 }
 
-func (t *Transpiler) TranspileDeferStatement(n *builder.Node) (*string, error) {
-	var stmt, err = t.TranspileStatement(n.Left)
+func (t *Transpiler) TranspileDeferStmt(n *builder.Node) (*string, error) {
+	var stmt, err = t.TranspileStmt(n.Left)
 	if err != nil {
 		return nil, err
 	}
@@ -1128,39 +1227,39 @@ func (t *Transpiler) TranspileDeferStatement(n *builder.Node) (*string, error) {
 	return &nString, nil
 }
 
-func (t *Transpiler) TranspileStatement(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileStmt(n *builder.Node) (*string, error) {
 	fmt.Println("wtf3333", n.Type)
 	switch n.Type {
 
 	case "if":
-		return t.TranspileIfStatement(n)
+		return t.TranspileIfStmt(n)
 
 	case "thread":
-		return t.TranspileThreadStatement(n)
+		return t.TranspileThreadStmt(n)
 
 	case "defer":
-		return t.TranspileDeferStatement(n)
+		return t.TranspileDeferStmt(n)
 
 	case "enum":
-		return t.TranspileEnumStatement(n)
+		return t.TranspileEnumStmt(n)
 
 	case "kv":
-		return t.TranspileKeyValueStatement(n)
+		return t.TranspileKeyValueStmt(n)
 
 	case "map":
-		return t.TranspileMapStatement(n)
+		return t.TranspileMapStmt(n)
 
 	case "typedef":
 		// typeChan <- n
-		return t.TranspileTypeDeclaration(n)
+		return t.TranspileTypeDecl(n)
 
 	case "struct":
 		t.StructChan <- n
 		return nil, nil
-		// return t.TranspileStructDeclaration(n)
+		// return t.TranspileStructDecl(n)
 
 	case "object":
-		return t.TranspileObjectStatement(n)
+		return t.TranspileObjectStmt(n)
 
 	// FIXME: Why do we have expressions in here ... ?
 	case "literal":
@@ -1186,22 +1285,22 @@ func (t *Transpiler) TranspileStatement(n *builder.Node) (*string, error) {
 		return t.TranspileIdentExpression(n)
 
 	case "use":
-		return t.TranspileUseStatement(n)
+		return t.TranspileUseStmt(n)
 
 	case "import":
 		// importChan <- n
-		return t.TranspileImportStatement(n)
+		return t.TranspileImportStmt(n)
 
 	case "include":
 		// includeChan <- n
 		return nil, errors.Errorf("Direct C/C++ usage is not implemented yet: include: %+v\n", n)
-		// return t.TranspileIncludeStatement(n)
+		// return t.TranspileIncludeStmt(n)
 
 	case "assignment":
-		return t.TranspileAssignmentStatement(n)
+		return t.TranspileAssignmentStmt(n)
 
 	case "decl":
-		return t.TranspileDeclarationStatement(n)
+		return t.TranspileDeclStmt(n)
 
 	case "function":
 		t.FuncChan <- n
@@ -1209,33 +1308,33 @@ func (t *Transpiler) TranspileStatement(n *builder.Node) (*string, error) {
 		// Later on we can issue new function names for lambdas
 		// var name = n.Kind
 		// return &name, nil
-		// return t.TranspileFunctionStatement(n)
+		// return t.TranspileFunctionStmt(n)
 		return nil, nil
 
 	case "return":
-		return t.TranspileReturnStatement(n)
+		return t.TranspileReturnStmt(n)
 
 	case "block":
-		return t.TranspileBlockStatement(n)
+		return t.TranspileBlockStmt(n)
 
 	case "while":
-		return t.TranspileWhileStatement(n)
+		return t.TranspileWhileStmt(n)
 
 	// case "forof":
-	// 	return t.TranspileForOfStatement(n)
+	// 	return t.TranspileForOfStmt(n)
 
 	case "forin":
-		return t.TranspileForInStatement(n)
+		return t.TranspileForInStmt(n)
 
 	case "forstd":
-		return t.TranspileForStdStatement(n)
+		return t.TranspileForStdStmt(n)
 
 	case "forever":
-		return t.TranspileForEverStatement(n)
+		return t.TranspileForEverStmt(n)
 
 	case "package":
 		// t.PackageChan <- n
-		return t.TranspilePackageStatement(n)
+		return t.TranspilePackageStmt(n)
 
 		// return nil, nil
 
@@ -1262,13 +1361,19 @@ func (t *Transpiler) TranspileStatement(n *builder.Node) (*string, error) {
 		// shared object linking but for now since we
 		// are only doing libc we don't have to specifically
 		// handle anything
+		fmt.Println("Not generating SHARED OBJECT for LINK STATEMENT; NOT IMPLEMENTED")
+
+		return nil, nil
+
+	case "interface":
+		t.InterfaceChan <- n
 		return nil, nil
 	}
 
 	return nil, errors.Errorf("Not implemented statement: %+v", n)
 }
 
-func (t *Transpiler) TranspilePackageStatement(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspilePackageStmt(n *builder.Node) (*string, error) {
 	if n.Type != "package" {
 		return nil, errors.New("Node is not a package statement")
 	}
@@ -1293,7 +1398,7 @@ func (t *Transpiler) TranspilePackageStatement(n *builder.Node) (*string, error)
 
 	fmt.Println("STMTS LEN", len(n.Right.Value.([]*builder.Node)))
 
-	var vString, err = t.TranspileBlockStatement(n.Right)
+	var vString, err = t.TranspileBlockStmt(n.Right)
 	if err != nil {
 		return nil, err
 	}
@@ -1315,7 +1420,7 @@ func (t *Transpiler) TranspilePackageStatement(n *builder.Node) (*string, error)
 	return &nString, nil
 }
 
-func (t *Transpiler) TranspileReturnStatement(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileReturnStmt(n *builder.Node) (*string, error) {
 	if n.Type != "return" {
 		return nil, errors.New("Node is not a return statement")
 	}
@@ -1341,7 +1446,7 @@ func (t *Transpiler) TranspileReturnStatement(n *builder.Node) (*string, error) 
 	return &nString, nil
 }
 
-func (t *Transpiler) TranspileFunctionStatement(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileFunctionStmt(n *builder.Node) (*string, error) {
 	if n.Type != "function" {
 		return nil, errors.New("Node is not an function")
 	}
@@ -1356,6 +1461,10 @@ func (t *Transpiler) TranspileFunctionStatement(n *builder.Node) (*string, error
 		},
 	}
 
+	return t.TranspileFuncPartial(n)
+}
+
+func (t *Transpiler) TranspileFuncPartial(n *builder.Node) (*string, error) {
 	/*
 		A map with keys for `returns` and `args` will be egroups in the Metadata
 		`Kind` is the name of the function
@@ -1363,7 +1472,7 @@ func (t *Transpiler) TranspileFunctionStatement(n *builder.Node) (*string, error
 	*/
 
 	if n.Kind == "" {
-		return nil, errors.New("Somehow we parsed a function without a name ...")
+		return nil, errors.New("somehow we parsed a function without a name")
 	}
 
 	var split = strings.Split(n.Kind, ".")
@@ -1373,6 +1482,9 @@ func (t *Transpiler) TranspileFunctionStatement(n *builder.Node) (*string, error
 
 	// Start out with just the name; we will put the return type later
 	var nString = n.Kind
+
+	var aargsFunc = n.Metadata["args"].(*builder.Node)
+	_ = aargsFunc
 
 	// args is an `sgroup`
 	argsString, err := t.TranspileSGroup(n.Metadata["args"].(*builder.Node))
@@ -1413,14 +1525,99 @@ func (t *Transpiler) TranspileFunctionStatement(n *builder.Node) (*string, error
 	// Prepend the return string with a space
 	nString = *returnsStringP + " " + nString
 
-	blockString, err := t.TranspileBlockStatement(n.Value.(*builder.Node))
+	if n.Value != nil {
+		blockString, err := t.TranspileBlockStmt(n.Value.(*builder.Node))
+		if err != nil {
+			return nil, err
+		}
+
+		addDeferToBlock(blockString)
+
+		nString += *blockString
+	}
+
+	return &nString, nil
+}
+
+func (t *Transpiler) TranspileInterfaceFuncPartial(n *builder.Node) (*string, error) {
+	/*
+		A map with keys for `returns` and `args` will be egroups in the Metadata
+		`Kind` is the name of the function
+		`Value` is the block than needs to be translated
+	*/
+
+	if n.Kind == "" {
+		return nil, errors.New("somehow we parsed a function without a name")
+	}
+
+	var split = strings.Split(n.Kind, ".")
+	if len(split) > 1 {
+		n.Kind = split[len(split)-1]
+	}
+
+	// Start out with just the name; we will put the return type later
+	var nString = "(*const " + n.Kind + ")"
+
+	// args is an `sgroup`
+	argsString, err := t.TranspileSGroup(n.Metadata["args"].(*builder.Node))
 	if err != nil {
 		return nil, err
 	}
 
-	addDeferToBlock(blockString)
+	fmt.Println("argsString:", *argsString)
 
-	nString += *blockString
+	var argSplit = strings.Split(*argsString, "(")
+	var as = "(void* self"
+	if argSplit[1] != ")" {
+		as += ", "
+	}
+
+	as += argSplit[1]
+
+	argsString = &as
+	// Append the args
+	nString += *argsString
+
+	var (
+		returns = n.Metadata["returns"]
+
+		returnsString = "void"
+
+		// Start returns off as void
+		returnsStringP = &returnsString
+	)
+
+	if n.Kind == "main" {
+		returnsString = "int"
+	}
+
+	if returns != nil {
+		// returns is a `type` for now; multiple returns are not supported right now
+		returnsStringP, err = t.TranspileEGroup(returns.(*builder.Node))
+		if err != nil {
+			return nil, err
+		}
+
+		// For now shave off the parens since we are not supporting multiple types here
+		if len(*returnsStringP) > 2 {
+			returnsString = (*returnsStringP)[1 : len(*returnsStringP)-1]
+			returnsStringP = &returnsString
+		}
+	}
+
+	// Prepend the return string with a space
+	nString = *returnsStringP + " " + nString
+
+	if n.Value != nil {
+		blockString, err := t.TranspileBlockStmt(n.Value.(*builder.Node))
+		if err != nil {
+			return nil, err
+		}
+
+		addDeferToBlock(blockString)
+
+		nString += *blockString
+	}
 
 	return &nString, nil
 }
@@ -1593,13 +1790,13 @@ func (t *Transpiler) TranspileArrayExpression(n *builder.Node) (*string, error) 
 	return &nString, nil
 }
 
-func (t *Transpiler) TranspileAssignmentStatement(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileAssignmentStmt(n *builder.Node) (*string, error) {
 	if n.Type != "assignment" {
 		return nil, errors.New("Node is not an assignment")
 	}
 
 	var (
-		nString = ""
+		nString string
 		vString *string
 		err     error
 	)
@@ -1632,15 +1829,20 @@ func (t *Transpiler) TranspileAssignmentStatement(n *builder.Node) (*string, err
 	return &nString, nil
 }
 
-func (t *Transpiler) TranspileDeclarationStatement(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileDeclStmt(n *builder.Node) (*string, error) {
 	if n.Type != "decl" {
 		return nil, errors.New("Node is not an declaration")
 	}
 
+	// var err = t.Builder.ScopeTree.Declare(n)
+	// if err != nil {
+	// 	return nil, err
+	// }
+
 	t.Builder.ScopeTree.Declare(n)
 
 	var (
-		nString = ""
+		nString string
 	)
 
 	// Left should be ident
@@ -1648,19 +1850,15 @@ func (t *Transpiler) TranspileDeclarationStatement(n *builder.Node) (*string, er
 	// This will require some prepping atleast to figure out
 	// if we need any pre-statements
 
-	var tt = ""
+	var tt string
 	var typeOf = &tt
 	var err error
 
 	if n.Left.Type != "deref" {
-		fmt.Println("N LEFTY:", n)
-
 		typeOf, err = t.TranspileExpression(n.Value.(*builder.Node))
 		if err != nil {
 			return nil, err
 		}
-
-		log.Println("TYPE", *typeOf, n.Left)
 	}
 
 	// Don't add the type yet
@@ -1680,6 +1878,8 @@ func (t *Transpiler) TranspileDeclarationStatement(n *builder.Node) (*string, er
 
 	// RHS is allowed to be nil to support declarations without values like `string s`
 	if n.Right == nil {
+		// TODO : scottshotgg : things that cannot be nil need to be marked somewhere
+
 		// If the declaration is a struct, then give it the default init if no expression is provided
 		if n.Value.(*builder.Node).Kind == "struct" {
 			nString += "= {}"
@@ -1700,7 +1900,7 @@ func (t *Transpiler) TranspileDeclarationStatement(n *builder.Node) (*string, er
 	// May have to change this down the line or something
 	switch *typeOf {
 	case "map":
-		vString, err = t.TranspileMapBlockStatement(n.Right)
+		vString, err = t.TranspileMapBlockStmt(n.Right)
 		if err != nil {
 			return nil, err
 		}
@@ -1743,7 +1943,15 @@ func (t *Transpiler) TranspileDeclarationStatement(n *builder.Node) (*string, er
 
 		var md = n.Value.(*builder.Node).Metadata
 		if md != nil && md["kind"] == "struct" {
-			vString, err = t.TranspileStructBlockStatement(n.Right)
+			vString, err = t.TranspileStructBlockStmt(n.Right)
+		} else if md != nil && md["kind"] == "interface" {
+			vString, err = t.TranspileStructBlockStmt(t.convertIfaceAssign(n))
+			// TODO: generate helper function
+			var tt = t.Builder.ScopeTree.Vars[n.Right.Value.(string)]
+			_ = tt
+			// TODO: get type from Husky
+			// TODO: get type of Interface
+			// TODO: make function to implement them
 		} else {
 			vString, err = t.TranspileExpression(n.Right)
 		}
@@ -1770,6 +1978,75 @@ func (t *Transpiler) TranspileDeclarationStatement(n *builder.Node) (*string, er
 	// fmt.Println("nString", nString)
 
 	return &nString, nil
+}
+
+func (t *Transpiler) convertIfaceAssign(n *builder.Node) *builder.Node {
+	/*
+		Value: interface definition
+		Left: lhs ident
+		Right: rhs ident
+
+		Modify RHS to be a struct with assigns inside for self and function calls
+	*/
+
+	var ifaceIdentName = n.Right.Value.(string)
+
+	var selfAssign = builder.Node{
+		Type: "assignment",
+		Left: &builder.Node{
+			Type:  "ident",
+			Value: "self",
+		},
+		Right: &builder.Node{
+			// TODO : scottshotgg : not sure this reference absolutely has to be here
+			Type: "ref",
+			Left: &builder.Node{
+				Type: "ident",
+				// TODO : scottshotgg : get the real value later
+				Value: ifaceIdentName,
+			},
+		},
+	}
+
+	var assigns = []*builder.Node{
+		&selfAssign,
+	}
+
+	var typeName = n.Value.(*builder.Node).Value.(string)
+	fmt.Println("TYPENAME INTERFACE:", typeName)
+	var ifaceType = t.Builder.ScopeTree.GetType(typeName)
+	var structDecl = t.Builder.ScopeTree.Get(ifaceIdentName)
+	var structType = t.Builder.ScopeTree.GetType(structDecl.Value.(*builder.Node).Value.(string))
+
+	for k, v := range structType.Props {
+		var funcVal = *v.Value.(*builder.Node)
+		// TODO: make helper function to wrap method for interface
+		_ = funcVal
+		_ = k
+	}
+
+	for k, v := range ifaceType.Props {
+		var val = v.Value.(*builder.Node)
+
+		assigns = append(assigns, &builder.Node{
+			Type: "assignment",
+			Left: &builder.Node{
+				Type:  "ident",
+				Value: k,
+			},
+			Right: &builder.Node{
+				Type:  "ident",
+				Value: fmt.Sprintf("helper(%s(%s))", val.Kind, ifaceIdentName),
+			},
+		})
+	}
+
+	var rhs = &builder.Node{
+		Type:  "block",
+		Value: assigns,
+	}
+
+	return rhs
 }
 
 func (t *Transpiler) resolveType(n *builder.Node) (*string, error) {
@@ -1898,7 +2175,7 @@ func (t *Transpiler) TranspileBinOpExpression(n *builder.Node) (*string, error) 
 	return &nString, nil
 }
 
-func (t *Transpiler) TranspileStructBlockStatement(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileStructBlockStmt(n *builder.Node) (*string, error) {
 	if n == nil {
 		return nil, nil
 	}
@@ -1927,7 +2204,7 @@ func (t *Transpiler) TranspileStructBlockStatement(n *builder.Node) (*string, er
 	return &nString, nil
 }
 
-func (t *Transpiler) TranspileBlockStatement(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileBlockStmt(n *builder.Node) (*string, error) {
 	if n == nil {
 		var nString = "{}"
 		return &nString, nil
@@ -1944,7 +2221,7 @@ func (t *Transpiler) TranspileBlockStatement(n *builder.Node) (*string, error) {
 	)
 
 	for _, stmt := range n.Value.([]*builder.Node) {
-		vString, err = t.TranspileStatement(stmt)
+		vString, err = t.TranspileStmt(stmt)
 		if err != nil {
 			return nil, err
 		}
@@ -1966,7 +2243,7 @@ func (t *Transpiler) TranspileBlockStatement(n *builder.Node) (*string, error) {
 	return &nString, nil
 }
 
-func (t *Transpiler) TranspileMapBlockStatement(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileMapBlockStmt(n *builder.Node) (*string, error) {
 	if n.Type != "block" {
 		return nil, errors.New("Node is not a block")
 	}
@@ -1982,7 +2259,7 @@ func (t *Transpiler) TranspileMapBlockStatement(n *builder.Node) (*string, error
 			return nil, errors.Errorf("All statements in a map have to be key-value pairs: %+v\n", stmt)
 		}
 
-		vString, err = t.TranspileStatement(stmt)
+		vString, err = t.TranspileStmt(stmt)
 		if err != nil {
 			return nil, err
 		}
@@ -2060,7 +2337,7 @@ func (t *Transpiler) TranspileBlockExpression(n *builder.Node) (*string, error) 
 	// TODO: don't have a type checker so for right now
 	// just type check in here
 	for _, stmt := range n.Value.([]*builder.Node) {
-		vString, err = t.TranspileStatement(stmt)
+		vString, err = t.TranspileStmt(stmt)
 		if err != nil {
 			return nil, err
 		}
@@ -2143,7 +2420,7 @@ func (t *Transpiler) TranspileSGroup(n *builder.Node) (*string, error) {
 	)
 
 	for i, s := range n.Value.([]*builder.Node) {
-		vString, err = t.TranspileStatement(s)
+		vString, err = t.TranspileStmt(s)
 		if err != nil {
 			return nil, err
 		}
@@ -2276,11 +2553,11 @@ var cFuncs = map[string]bool{
 	"now":     true,
 }
 
-func (t *Transpiler) TranspileForInStatement(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileForInStmt(n *builder.Node) (*string, error) {
 	var nString = fmt.Sprintf("for (auto const& %s : %s)", n.Left.Left.Value.(string), n.Right.Value.(string))
 
 	// Translate the block statement
-	vString, err := t.TranspileBlockStatement(n.Value.(*builder.Node))
+	vString, err := t.TranspileBlockStmt(n.Value.(*builder.Node))
 	if err != nil {
 		return nil, err
 	}
@@ -2290,7 +2567,7 @@ func (t *Transpiler) TranspileForInStatement(n *builder.Node) (*string, error) {
 	return &nString, nil
 }
 
-func (t *Transpiler) TranspileForStdStatement(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileForStdStmt(n *builder.Node) (*string, error) {
 	// Change forin to be a block statement containing:
 	//	- declare temp var
 	//	- declare array/iter
@@ -2312,8 +2589,8 @@ func (t *Transpiler) TranspileForStdStatement(n *builder.Node) (*string, error) 
 	)
 
 	// Make and translate the ident into a declaration
-	ds := TransformIdentToDefaultDeclaration(n.Metadata["start"].(*builder.Node))
-	vString, err = t.TranspileDeclarationStatement(ds)
+	ds := TransformIdentToDefaultDecl(n.Metadata["start"].(*builder.Node))
+	vString, err = t.TranspileDeclStmt(ds)
 	if err != nil {
 		return nil, err
 	}
@@ -2321,8 +2598,8 @@ func (t *Transpiler) TranspileForStdStatement(n *builder.Node) (*string, error) 
 	nString += *vString
 
 	// Make and translate the array expression into a declaration
-	dss := TransformExpressionToDeclaration(n.Metadata["end"].(*builder.Node))
-	vString, err = t.TranspileDeclarationStatement(dss)
+	dss := TransformExpressionToDecl(n.Metadata["end"].(*builder.Node))
+	vString, err = t.TranspileDeclStmt(dss)
 	if err != nil {
 		return nil, err
 	}
@@ -2343,7 +2620,7 @@ func (t *Transpiler) TranspileForStdStatement(n *builder.Node) (*string, error) 
 	nString += fmt.Sprintf("while(%s)", *vString)
 
 	// Translate the block statement
-	vString, err = t.TranspileBlockStatement(n.Value.(*builder.Node))
+	vString, err = t.TranspileBlockStmt(n.Value.(*builder.Node))
 	if err != nil {
 		return nil, err
 	}
@@ -2364,7 +2641,7 @@ func (t *Transpiler) TranspileForStdStatement(n *builder.Node) (*string, error) 
 	return &nString, nil
 }
 
-func (t *Transpiler) TranspileForEverStatement(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileForEverStmt(n *builder.Node) (*string, error) {
 	// Change forin to be a block statement containing:
 	//	- declare temp var
 	//	- declare array/iter
@@ -2386,7 +2663,7 @@ func (t *Transpiler) TranspileForEverStatement(n *builder.Node) (*string, error)
 	)
 
 	// Translate the block statement
-	vString, err = t.TranspileBlockStatement(n.Value.(*builder.Node))
+	vString, err = t.TranspileBlockStmt(n.Value.(*builder.Node))
 	if err != nil {
 		return nil, err
 	}
@@ -2396,7 +2673,7 @@ func (t *Transpiler) TranspileForEverStatement(n *builder.Node) (*string, error)
 	return &nString, nil
 }
 
-func (t *Transpiler) TranspileWhileStatement(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileWhileStmt(n *builder.Node) (*string, error) {
 	/*
 		while statements are simple, we already have all the tools:
 		`while` `(` expr `)` block
@@ -2465,7 +2742,7 @@ func (t *Transpiler) TranspileWhileStatement(n *builder.Node) (*string, error) {
 
 		nString += *condition + ")"
 
-		block, err := t.TranspileBlockStatement(n.Value.(*builder.Node))
+		block, err := t.TranspileBlockStmt(n.Value.(*builder.Node))
 		if err != nil {
 			return nil, err
 		}
@@ -2480,7 +2757,7 @@ func (t *Transpiler) TranspileWhileStatement(n *builder.Node) (*string, error) {
 	}
 
 	// Translate the block statement
-	vString, err := t.TranspileBlockStatement(n.Value.(*builder.Node))
+	vString, err := t.TranspileBlockStmt(n.Value.(*builder.Node))
 	if err != nil {
 		return nil, err
 	}
@@ -2490,7 +2767,7 @@ func (t *Transpiler) TranspileWhileStatement(n *builder.Node) (*string, error) {
 	return &nString, nil
 }
 
-func (t *Transpiler) TranspileIfStatement(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileIfStmt(n *builder.Node) (*string, error) {
 	/*
 		Form:
 		`if` [expr] [block] {`else` {epxr} [block]}
@@ -2518,7 +2795,7 @@ func (t *Transpiler) TranspileIfStatement(n *builder.Node) (*string, error) {
 	// Add the condition and the parenthesis
 	nString += *vString + ")"
 
-	vString, err = t.TranspileBlockStatement(n.Left)
+	vString, err = t.TranspileBlockStmt(n.Left)
 	if err != nil {
 		return nil, err
 	}
@@ -2531,13 +2808,13 @@ func (t *Transpiler) TranspileIfStatement(n *builder.Node) (*string, error) {
 		// Check whether it is an elseif of just an else
 		switch n.Right.Type {
 		case "if":
-			vString, err = t.TranspileIfStatement(n.Right)
+			vString, err = t.TranspileIfStmt(n.Right)
 			if err != nil {
 				return nil, err
 			}
 
 		case "block":
-			vString, err = t.TranspileBlockStatement(n.Right)
+			vString, err = t.TranspileBlockStmt(n.Right)
 			if err != nil {
 				return nil, err
 			}
@@ -2573,7 +2850,7 @@ func GenerateLengthCall(n *builder.Node) *builder.Node {
 	}
 }
 
-func TransformExpressionToDeclaration(n *builder.Node) *builder.Node {
+func TransformExpressionToDecl(n *builder.Node) *builder.Node {
 	fmt.Println("n", n)
 
 	// TODO: Type checker would give type here; use auto for now
@@ -2591,7 +2868,7 @@ func TransformExpressionToDeclaration(n *builder.Node) *builder.Node {
 	}
 }
 
-func TransformIdentToDefaultDeclaration(n *builder.Node) *builder.Node {
+func TransformIdentToDefaultDecl(n *builder.Node) *builder.Node {
 	return &builder.Node{
 		Type: "decl",
 		Value: &builder.Node{

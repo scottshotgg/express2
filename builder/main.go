@@ -75,7 +75,7 @@ func (b *Builder) BuildAST() (*Node, error) {
 	b.ScopeTree = NewScopeTree()
 
 	for b.Index < len(b.Tokens)-1 {
-		stmt, err = b.ParseStatement()
+		stmt, err = b.ParseStmt()
 		if err != nil {
 			if err == ErrOutOfTokens {
 				break

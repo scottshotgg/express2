@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/scottshotgg/express-ast"
-	"github.com/scottshotgg/express-lex"
-	"github.com/scottshotgg/express-token"
+	ast "github.com/scottshotgg/express-ast"
+	lex "github.com/scottshotgg/express-lex"
+	token "github.com/scottshotgg/express-token"
 	"github.com/scottshotgg/express2/builder"
 )
 
@@ -63,5 +63,5 @@ func getStatementASTFromString(test string) (*builder.Node, error) {
 		return nil, err
 	}
 
-	return b.ParseStatement()
+	return b.ParseStmt()
 }

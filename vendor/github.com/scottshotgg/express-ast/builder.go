@@ -338,7 +338,7 @@ func (a *ASTBuilder) GetBlock() (*Block, error) {
 
 	a.Index++
 	for a.Tokens[a.Index].Type != token.RBrace {
-		stmt, err := a.GetStatement()
+		stmt, err := a.GetStmt()
 		if err != nil {
 			return nil, err
 		}
@@ -366,7 +366,7 @@ func (a *ASTBuilder) GetBlock() (*Block, error) {
 //   - if/else
 //   - loop
 //   - return
-func (a *ASTBuilder) GetStatement() (Statement, error) {
+func (a *ASTBuilder) GetStmt() (Statement, error) {
 	typeOf := ""
 	currentToken := a.Tokens[a.Index]
 
@@ -374,7 +374,7 @@ func (a *ASTBuilder) GetStatement() (Statement, error) {
 	case token.Separator:
 		// TODO: just skip the separator for now
 		a.Index++
-		return a.GetStatement()
+		return a.GetStmt()
 
 	case token.Type:
 		// Look for an ident as the next thing for now
@@ -421,7 +421,7 @@ func (a *ASTBuilder) GetStatement() (Statement, error) {
 			}
 
 			if typeOf != "" {
-				as.SetDeclaration(true)
+				as.SetDecl(true)
 			}
 
 			// TODO: add statement here later
@@ -462,7 +462,7 @@ func (a *ASTBuilder) GetStatement() (Statement, error) {
 				return nil, err
 			}
 
-			as.SetDeclaration(true)
+			as.SetDecl(true)
 
 			a.Index--
 
@@ -474,7 +474,7 @@ func (a *ASTBuilder) GetStatement() (Statement, error) {
 		// return nil, errors.Errorf("Expected assignment token, got %+v", a.Tokens[a.Index])
 
 	case token.LBrace:
-		// Here we will want to recursively call GetStatement()
+		// Here we will want to recursively call GetStmt()
 		// however, a block should be able to be parsed for an expression as well
 		return a.GetBlock()
 
@@ -557,12 +557,12 @@ func (a *ASTBuilder) GetStatement() (Statement, error) {
 			// For now just keep it like this:
 			// Later we can change it to actually get specific nodes:
 			// like:
-			//	- GetAssignmentStatement()
+			//	- GetAssignmentStmt()
 			//	- GetConditionalExpression()
 			//	- GetArithmeticExpression()
 
 			case token.Assign:
-				stmt, err := a.GetStatement()
+				stmt, err := a.GetStmt()
 				if err != nil {
 					return nil, err
 				}
@@ -679,12 +679,12 @@ func (a *ASTBuilder) BuildAST() (*Program, error) {
 
 	for {
 		// We know that the file can only consist of statements
-		stmt, err := a.GetStatement()
+		stmt, err := a.GetStmt()
 		if err != nil {
 			return nil, err
 		}
 
-		file.AddStatement(stmt)
+		file.AddStmt(stmt)
 
 		a.Index++
 

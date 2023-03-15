@@ -34,6 +34,9 @@ const (
 	// StructType denotes a struct literal type
 	StructType
 
+	// InterfaceType denotes a struct literal type
+	InterfaceType
+
 	// ObjectType denotes an object literal type
 	ObjectType
 
@@ -215,6 +218,29 @@ func NewStructType(lt LiteralType) *Type {
 	}
 
 	return t
+}
+
+// NewInterfaceType is used to take some of the boilerplate code out of defining a struct Type
+func NewInterfaceType(lt LiteralType) *Type {
+	panic("NewInterfaceType not implemented")
+	// var t = &Type{
+	// 	Name:       "interface",
+	// 	Type:       lt,
+	// 	ShadowType: NewStructType(0),
+	// 	UpgradesTo: NewObjectType(),
+	// }
+
+	// if lt != 0 {
+	// 	var ok bool
+	// 	t.ShadowType, ok = idToUserDefinedTypeMap[lt]
+	// 	if !ok {
+	// 		// FIXME: fix this later or something
+	// 		fmt.Printf("Not able to find %d in map during struct inititializer\n", lt)
+	// 		panic("oh shit brah")
+	// 	}
+	// }
+
+	// return t
 }
 
 // NewFunctionType is used to take some of the boilerplate code out of defining a function Type

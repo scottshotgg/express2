@@ -33,7 +33,7 @@ func NewFile(filename string) *File {
 }
 
 // AddStatement appends a statement to the file
-func (f *File) AddStatement(stmt Statement) {
+func (f *File) AddStmt(stmt Statement) {
 	f.Statements = append(f.Statements, stmt)
 }
 

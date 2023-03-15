@@ -38,6 +38,9 @@ type (
 		Type      TypeValueType
 		Kind      string
 		Props     map[string]*TypeValue
+		// FIXME : scottshotgg : 3/27/23 : if Type is FunctionType then this is just a pointer
+		// to the function node itself
+		Value interface{}
 	}
 
 	Builder struct {
@@ -56,6 +59,7 @@ const (
 	PrimitiveValue
 	RepeatedValue
 	StruturedValue
+	FunctionValue
 	ImportedValue
 	CTypeValue
 )

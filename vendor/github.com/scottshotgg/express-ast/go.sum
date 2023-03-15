@@ -2,5 +2,5 @@ github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
 github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
-github.com/scottshotgg/express-token v0.0.0-20230327001242-671093cd73fd h1:ludyZRuhtuP9UG+pxXHMkBdQILqe3wQYETjns3mh148=
-github.com/scottshotgg/express-token v0.0.0-20230327001242-671093cd73fd/go.mod h1:Vg55SoWnFxKPHiV8GkweF8wCxmkH2/eyoKt3zh/3IsM=
+github.com/scottshotgg/express-token v0.0.0-20230327011102-da006d30a2eb h1:1W9oA5QoC9Siic05LKhw83Pcpt2NsA99fjxGLRopFYM=
+github.com/scottshotgg/express-token v0.0.0-20230327011102-da006d30a2eb/go.mod h1:Vg55SoWnFxKPHiV8GkweF8wCxmkH2/eyoKt3zh/3IsM=

@@ -92,17 +92,39 @@ func (b *Builder) extractPropsFromStruct(n *Node) (map[string]*TypeValue, error)
 	)
 
 	for _, prop := range propsRaw {
-		var pv = prop.Value.(*Node)
+		var name string
 
-		// Need to check the type that we extract from here as well
-		// make a function for that
+		if prop.Type != "function" && prop.Value != nil {
+			var pv, ok = prop.Value.(*Node)
+			if !ok {
+				return nil, errors.New("not ok at extracting props")
+			}
 
-		var propType = b.ScopeTree.GetType(pv.Value.(string))
-		if propType == nil {
-			return nil, errors.Errorf("Type not defined: %s, %+v", pv.Value.(string), pv)
+			name, ok = pv.Value.(string)
+			if !ok {
+				return nil, fmt.Errorf("not a string: %T", pv.Value)
+			}
+
+			// Need to check the type that we extract from here as well
+			// make a function for that
+
+			var propType = b.ScopeTree.GetType(name)
+			if propType == nil {
+				return nil, errors.Errorf("Type not defined: %s", name)
+			}
+
+			propMap[prop.Left.Value.(string)] = propType
+		} else if prop.Type == "function" {
+			// var propType = b.ScopeTree.Get(name)
+			// if propType == nil {
+			// 	return nil, errors.Errorf("Type not defined: %s", name)
+			// }
+
+			propMap[prop.Kind] = &TypeValue{
+				Type:  FunctionValue,
+				Value: prop,
+			}
 		}
-
-		propMap[prop.Left.Value.(string)] = propType
 	}
 
 	return propMap, nil

@@ -199,6 +199,30 @@ func (sl *StructLiteral) String() string {
 	return fmt.Sprintf("%+v", sl.Value)
 }
 
+// InterfaceLiteral represents a named object : this produces a type
+// TODO: this might need to be moved to the type.go file
+// FIXME: this might need to be fixed or something
+type InterfaceLiteral struct {
+	Token  token.Token
+	TypeOf *Type
+	Value  map[string]Expression
+}
+
+func (sl *InterfaceLiteral) expressionNode() {}
+
+// TokenLiteral returns the literal value of the token
+func (sl *InterfaceLiteral) TokenLiteral() token.Token { return sl.Token }
+
+// Type implements literal
+func (sl *InterfaceLiteral) Type() *Type { return sl.TypeOf }
+
+func (sl *InterfaceLiteral) Kind() NodeType { return LiteralNode }
+
+func (sl *InterfaceLiteral) String() string {
+	// Might want to use JSON for this
+	return fmt.Sprintf("%+v", sl.Value)
+}
+
 // FunctionLiteral represents a named object : this produces a type
 type FunctionLiteral struct {
 	Token  token.Token
@@ -354,6 +378,18 @@ func NewString(t token.Token, value string) *StringLiteral {
 // NewStruct returns a new struct literal
 func NewStruct(t token.Token, structType LiteralType, value map[string]Expression) *StructLiteral {
 	return &StructLiteral{
+		Token:  t,
+		TypeOf: NewStructType(structType),
+
+		// This is for the properties of the struct, but somehow we probably need to have a
+		// UserDefinedValueMap like we have for the UserDefinedTypeMap
+		Value: value,
+	}
+}
+
+// NewInterface returns a new struct literal
+func NewInterface(t token.Token, structType LiteralType, value map[string]Expression) *InterfaceLiteral {
+	return &InterfaceLiteral{
 		Token:  t,
 		TypeOf: NewStructType(structType),
 

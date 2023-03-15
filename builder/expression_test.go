@@ -97,7 +97,7 @@ func TestParseIncrementExpression(t *testing.T) {
 		t.Errorf(errFormatString, err)
 	}
 
-	// fmt.Println(b.ParseBlockStatement())
+	// fmt.Println(b.ParseBlockStmt())
 
 	nodeJSON, _ = json.Marshal(node)
 	fmt.Printf(jsonFormatString, nodeJSON)
@@ -191,12 +191,12 @@ func TestParseNestedCallExpressionWithExtras(t *testing.T) {
 		t.Errorf(errFormatString, err)
 	}
 
-	node1, err := b.ParseStatement()
+	node1, err := b.ParseStmt()
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
 
-	node2, err := b.ParseStatement()
+	node2, err := b.ParseStmt()
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -217,12 +217,12 @@ func TestParsePackageCallExpression(t *testing.T) {
 		t.Errorf(errFormatString, err)
 	}
 
-	node1, err := b.ParseStatement()
+	node1, err := b.ParseStmt()
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
 
-	node2, err := b.ParseStatement()
+	node2, err := b.ParseStmt()
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -267,9 +267,9 @@ func TestParseSelectionExpression(t *testing.T) {
 
 // func TestParseStructBlockExpression(t *testing.T) {}
 
-// func TestParseAllowStatement(t *testing.T) {}
+// func TestParseAllowStmt(t *testing.T) {}
 
-// func TestParseUsingStatement(t *testing.T) {}
+// func TestParseUsingStmt(t *testing.T) {}
 
 // Not sure if we need this because we have the group of statements thing
 // func TestParseMultipleStatements(t *testing.T) {}

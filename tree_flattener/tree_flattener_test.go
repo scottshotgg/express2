@@ -67,7 +67,7 @@ func getStatementASTFromString(test string) (*builder.Node, error) {
 		return nil, err
 	}
 
-	return b.ParseStatement()
+	return b.ParseStmt()
 }
 
 // func TestFlattenForIn(t *testing.T) {
@@ -121,7 +121,7 @@ func getStatementASTFromString(test string) (*builder.Node, error) {
 // 	// 	t.Fatalf("Could not create transpiler: %+v", err)
 // 	// }
 
-// 	cpp, err := transpiler.Statement(node)
+// 	cpp, err := transpiler.Stmt(node)
 // 	if err != nil {
 // 		t.Fatalf("Could not transpile to C++: %+v", err)
 // 	}

@@ -8,13 +8,13 @@ import (
 	"github.com/scottshotgg/express2/test"
 )
 
-func TestParseBinOpAssignmentStatement(t *testing.T) {
+func TestParseBinOpAssignmentStmt(t *testing.T) {
 	b, err = getBuilderFromString(test.Tests[test.StatementTest]["binop"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
 
-	node, err = b.ParseIdentStatement()
+	node, err = b.ParseIdentStmt()
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -23,13 +23,13 @@ func TestParseBinOpAssignmentStatement(t *testing.T) {
 	fmt.Printf(jsonFormatString, nodeJSON)
 }
 
-func TestParseIsEqualBoolDeclarationStatement(t *testing.T) {
+func TestParseIsEqualBoolDeclarationStmt(t *testing.T) {
 	b, err = getBuilderFromString(test.Tests[test.StatementTest]["isEqualBool"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
 
-	node, err = b.ParseIdentStatement()
+	node, err = b.ParseIdentStmt()
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -38,14 +38,14 @@ func TestParseIsEqualBoolDeclarationStatement(t *testing.T) {
 	fmt.Printf(jsonFormatString, nodeJSON)
 }
 
-// func TestParseDeclarationStatement(t *testing.T) {
+// func TestParseDeclarationStmt(t *testing.T) {
 // 	// TODO: we need the rest of the declaration types and stuff
 // 	b, err = getBuilderFromString(test.Tests[test.StatementTest]["decl"])
 // 	if err != nil {
 // 		t.Errorf(errFormatString, err)
 // 	}
 
-// 	node, err = b.ParseDeclarationStatement(nil)
+// 	node, err = b.ParseDeclarationStmt(nil)
 // 	if err != nil {
 // 		t.Errorf(errFormatString, err)
 // 	}
@@ -62,13 +62,13 @@ func TestParseIsEqualBoolDeclarationStatement(t *testing.T) {
 // 	fmt.Printf(jsonFormatString, nodeJSON)
 // }
 
-func TestParseAssignmentFromIndexStatement(t *testing.T) {
+func TestParseAssignmentFromIndexStmt(t *testing.T) {
 	b, err = getBuilderFromString(test.Tests[test.StatementTest]["assignFromIndex"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
 
-	node, err = b.ParseIdentStatement()
+	node, err = b.ParseIdentStmt()
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -81,13 +81,13 @@ func TestParseAssignmentFromIndexStatement(t *testing.T) {
 	fmt.Printf(jsonFormatString, nodeJSON)
 }
 
-func TestParsePointerDeclarationStatement(t *testing.T) {
+func TestParsePointerDeclarationStmt(t *testing.T) {
 	b, err = getBuilderFromString(test.Tests[test.StatementTest]["pointerDeclaration"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
 
-	node, err = b.ParseStatement()
+	node, err = b.ParseStmt()
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -100,11 +100,11 @@ func TestParsePointerDeclarationStatement(t *testing.T) {
 	fmt.Printf(jsonFormatString, nodeJSON)
 }
 
-// func TestScopeTreeAssignmentStatement(t *testing.T) {
+// func TestScopeTreeAssignmentStmt(t *testing.T) {
 
 // }
 
-func TestParseIdentStatement(t *testing.T) {
+func TestParseIdentStmt(t *testing.T) {
 	// var totalTest = test.Tests[test.StatementTest]["decl"] + " " + test.Tests[test.StatementTest]["simpleAssign"]
 
 	var tests = map[string]error{
@@ -120,7 +120,7 @@ func TestParseIdentStatement(t *testing.T) {
 			t.Errorf(errFormatString, err)
 		}
 
-		node, tests[test] = b.ParseIdentStatement()
+		node, tests[test] = b.ParseIdentStmt()
 
 		nodeJSON, _ = json.Marshal(node)
 		fmt.Printf(jsonFormatString, nodeJSON)
@@ -129,13 +129,13 @@ func TestParseIdentStatement(t *testing.T) {
 	fmt.Println("Report:", tests)
 }
 
-func TestIfElseStatement(t *testing.T) {
+func TestIfElseStmt(t *testing.T) {
 	b, err = getBuilderFromString(test.Tests[test.StatementTest]["ifElse"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
 
-	node, err = b.ParseIfStatement()
+	node, err = b.ParseIfStmt()
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -159,13 +159,13 @@ func TestParseGroupOfStatements(t *testing.T) {
 	fmt.Printf(jsonFormatString, nodeJSON)
 }
 
-func TestParseFunctionStatement(t *testing.T) {
+func TestParseFunctionStmt(t *testing.T) {
 	b, err = getBuilderFromString(test.Tests[test.StatementTest]["funcDef"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
 
-	node, err = b.ParseFunctionStatement()
+	node, err = b.ParseFunctionStmt()
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -194,13 +194,13 @@ func TestTestt(t *testing.T) {
 	fmt.Printf(jsonFormatString, nodeJSON)
 }
 
-func TestParseAnotherFunctionStatement(t *testing.T) {
+func TestParseAnotherFunctionStmt(t *testing.T) {
 	b, err = getBuilderFromString(test.Tests[test.StatementTest]["anotherFuncDef"])
 	if err != nil {
 		t.Fatalf(errFormatString, err)
 	}
 
-	node, err = b.ParseFunctionStatement()
+	node, err = b.ParseFunctionStmt()
 	if err != nil {
 		t.Fatalf(errFormatString, err)
 	}
@@ -209,13 +209,13 @@ func TestParseAnotherFunctionStatement(t *testing.T) {
 	fmt.Printf(jsonFormatString, nodeJSON)
 }
 
-func TestParseCallStatement(t *testing.T) {
+func TestParseCallStmt(t *testing.T) {
 	b, err = getBuilderFromString(test.Tests[test.StatementTest]["callNonAssign"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
 
-	node, err = b.ParseIdentStatement()
+	node, err = b.ParseIdentStmt()
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -224,13 +224,13 @@ func TestParseCallStatement(t *testing.T) {
 	fmt.Printf(jsonFormatString, nodeJSON)
 }
 
-func TestParseCallAssignmentStatement(t *testing.T) {
+func TestParseCallAssignmentStmt(t *testing.T) {
 	b, err = getBuilderFromString(test.Tests[test.StatementTest]["callAssign"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
 
-	node, err = b.ParseIdentStatement()
+	node, err = b.ParseIdentStmt()
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -239,13 +239,13 @@ func TestParseCallAssignmentStatement(t *testing.T) {
 	fmt.Printf(jsonFormatString, nodeJSON)
 }
 
-func TestParseBlockStatement(t *testing.T) {
+func TestParseBlockStmt(t *testing.T) {
 	b, err = getBuilderFromString(test.Tests[test.StatementTest]["block"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
 
-	node, err = b.ParseBlockStatement()
+	node, err = b.ParseBlockStmt()
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -275,7 +275,7 @@ func TestParseStatement_1622331331(t *testing.T) {
 		t.Errorf(errFormatString, err)
 	}
 
-	node, err = b.ParseStatement()
+	node, err = b.ParseStmt()
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -284,13 +284,13 @@ func TestParseStatement_1622331331(t *testing.T) {
 	fmt.Printf(jsonFormatString, nodeJSON)
 }
 
-func TestParseDerefAssignmentStatement(t *testing.T) {
+func TestParseDerefAssignmentStmt(t *testing.T) {
 	b, err = getBuilderFromString(test.Tests[test.StatementTest]["derefAssign"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
 
-	node, err = b.ParseStatement()
+	node, err = b.ParseStmt()
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -299,13 +299,13 @@ func TestParseDerefAssignmentStatement(t *testing.T) {
 	fmt.Printf(jsonFormatString, nodeJSON)
 }
 
-func TestParsePackageStatement(t *testing.T) {
+func TestParsePackageStmt(t *testing.T) {
 	b, err = getBuilderFromString(test.Tests[test.StatementTest]["package"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
 
-	node, err = b.ParsePackageStatement()
+	node, err = b.ParsePackageStmt()
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -314,13 +314,13 @@ func TestParsePackageStatement(t *testing.T) {
 	fmt.Printf(jsonFormatString, nodeJSON)
 }
 
-func TestParseCImportStatement(t *testing.T) {
+func TestParseCImportStmt(t *testing.T) {
 	b, err = getBuilderFromString(test.Tests[test.StatementTest]["cimport"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
 
-	node, err = b.ParseImportStatement()
+	node, err = b.ParseImportStmt()
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -329,13 +329,13 @@ func TestParseCImportStatement(t *testing.T) {
 	fmt.Printf(jsonFormatString, nodeJSON)
 }
 
-func TestParseImportStatement(t *testing.T) {
+func TestParseImportStmt(t *testing.T) {
 	b, err = getBuilderFromString(test.Tests[test.StatementTest]["import"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
 
-	node, err = b.ParseImportStatement()
+	node, err = b.ParseImportStmt()
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -344,13 +344,13 @@ func TestParseImportStatement(t *testing.T) {
 	fmt.Printf(jsonFormatString, nodeJSON)
 }
 
-func TestParseIncludeStatement(t *testing.T) {
+func TestParseIncludeStmt(t *testing.T) {
 	b, err = getBuilderFromString(test.Tests[test.StatementTest]["include"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
 
-	node, err = b.ParseIncludeStatement()
+	node, err = b.ParseIncludeStmt()
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -359,13 +359,13 @@ func TestParseIncludeStatement(t *testing.T) {
 	fmt.Printf(jsonFormatString, nodeJSON)
 }
 
-func TestParseForStatement(t *testing.T) {
+func TestParseForStmt(t *testing.T) {
 	b, err = getBuilderFromString(test.Tests[test.StatementTest]["stdFor"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
 
-	node, err = b.ParseForStatement()
+	node, err = b.ParseForStmt()
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -374,13 +374,13 @@ func TestParseForStatement(t *testing.T) {
 	fmt.Printf(jsonFormatString, nodeJSON)
 }
 
-func TestParseForStdStatement(t *testing.T) {
+func TestParseForStdStmt(t *testing.T) {
 	b, err = getBuilderFromString(test.Tests[test.StatementTest]["stdFor"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
 
-	node, err = b.ParseForStdStatement()
+	node, err = b.ParseForStdStmt()
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -389,13 +389,13 @@ func TestParseForStdStatement(t *testing.T) {
 	fmt.Printf(jsonFormatString, nodeJSON)
 }
 
-// func TestParseArrayDeclaration(t *testing.T) {
+// func TestParseArrayDecl(t *testing.T) {
 // 	b, err = getBuilderFromString(test.Tests[test.StatementTest]["arrayDef"])
 // 	if err != nil {
 // 		t.Errorf(errFormatString, err)
 // 	}
 
-// 	node, err = b.ParseDeclarationStatement(nil)
+// 	node, err = b.ParseDeclarationStmt(nil)
 // 	if err != nil {
 // 		t.Errorf(errFormatString, err)
 // 	}
@@ -404,13 +404,13 @@ func TestParseForStdStatement(t *testing.T) {
 // 	fmt.Printf(jsonFormatString, nodeJSON)
 // }
 
-func TestParseForInStatement(t *testing.T) {
+func TestParseForInStmt(t *testing.T) {
 	b, err = getBuilderFromString(test.Tests[test.StatementTest]["forin"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
 
-	node, err = b.ParseForPrepositionStatement()
+	node, err = b.ParseForPrepositionStmt()
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -419,13 +419,13 @@ func TestParseForInStatement(t *testing.T) {
 	fmt.Printf(jsonFormatString, nodeJSON)
 }
 
-func TestParseForOfStatement(t *testing.T) {
+func TestParseForOfStmt(t *testing.T) {
 	b, err = getBuilderFromString(test.Tests[test.StatementTest]["forin"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
 
-	node, err = b.ParseForPrepositionStatement()
+	node, err = b.ParseForPrepositionStmt()
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -434,13 +434,13 @@ func TestParseForOfStatement(t *testing.T) {
 	fmt.Printf(jsonFormatString, nodeJSON)
 }
 
-func TestParseIndexAssignmentStatement(t *testing.T) {
+func TestParseIndexAssignmentStmt(t *testing.T) {
 	b, err = getBuilderFromString(test.Tests[test.StatementTest]["indexAssign"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
 
-	node, err = b.ParseIdentStatement()
+	node, err = b.ParseIdentStmt()
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -449,13 +449,13 @@ func TestParseIndexAssignmentStatement(t *testing.T) {
 	fmt.Printf(jsonFormatString, nodeJSON)
 }
 
-func TestParseStatement(t *testing.T) {
+func TestParseStmt(t *testing.T) {
 	b, err = getBuilderFromString(test.Tests[test.StatementTest]["funcDef"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
 
-	node, err = b.ParseStatement()
+	node, err = b.ParseStmt()
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -464,13 +464,13 @@ func TestParseStatement(t *testing.T) {
 	fmt.Printf(jsonFormatString, nodeJSON)
 }
 
-func TestParseSelectionAssignmentStatement(t *testing.T) {
+func TestParseSelectionAssignmentStmt(t *testing.T) {
 	b, err = getBuilderFromString(test.Tests[test.StatementTest]["selectionAssign"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
 
-	node, err = b.ParseIdentStatement()
+	node, err = b.ParseIdentStmt()
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -480,13 +480,13 @@ func TestParseSelectionAssignmentStatement(t *testing.T) {
 	fmt.Printf(jsonFormatString, nodeJSON)
 }
 
-func TestParseAssignmentFromSelectionStatement(t *testing.T) {
+func TestParseAssignmentFromSelectionStmt(t *testing.T) {
 	b, err = getBuilderFromString(test.Tests[test.StatementTest]["assignFromSelect"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
 
-	node, err = b.ParseIdentStatement()
+	node, err = b.ParseIdentStmt()
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -496,13 +496,13 @@ func TestParseAssignmentFromSelectionStatement(t *testing.T) {
 	fmt.Printf(jsonFormatString, nodeJSON)
 }
 
-func TestParseTypeDeclarationStatement(t *testing.T) {
+func TestParseTypeDeclarationStmt(t *testing.T) {
 	b, err = getBuilderFromString(test.Tests[test.StatementTest]["typeDef"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
 
-	node, err = b.ParseTypeDeclarationStatement()
+	node, err = b.ParseTypeDeclStmt()
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -512,13 +512,13 @@ func TestParseTypeDeclarationStatement(t *testing.T) {
 	fmt.Printf(jsonFormatString, nodeJSON)
 }
 
-func TestParseReturnStatement(t *testing.T) {
+func TestParseReturnStmt(t *testing.T) {
 	b, err = getBuilderFromString(test.Tests[test.StatementTest]["returnSomething"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
 
-	node, err = b.ParseReturnStatement()
+	node, err = b.ParseReturnStmt()
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -528,13 +528,13 @@ func TestParseReturnStatement(t *testing.T) {
 	fmt.Printf(jsonFormatString, nodeJSON)
 }
 
-func TestParseStructStatement(t *testing.T) {
+func TestParseStructStmt(t *testing.T) {
 	b, err = getBuilderFromString(test.Tests[test.StatementTest]["struct"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
 
-	node, err = b.ParseStructStatement()
+	node, err = b.ParseStructStmt()
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -547,13 +547,13 @@ func TestParseStructStatement(t *testing.T) {
 	fmt.Printf(jsonFormatString, nodeJSON)
 }
 
-func TestParseStructDeclarationStatement(t *testing.T) {
+func TestParseStructDeclarationStmt(t *testing.T) {
 	b, err = getBuilderFromString(test.Tests[test.StatementTest]["struct"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
 
-	node, err = b.ParseStructDeclarationStatement()
+	node, err = b.ParseStructDeclarationStmt()
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -563,13 +563,13 @@ func TestParseStructDeclarationStatement(t *testing.T) {
 	fmt.Printf(jsonFormatString, nodeJSON)
 }
 
-func TestParseLetStatement(t *testing.T) {
+func TestParseLetStmt(t *testing.T) {
 	b, err = getBuilderFromString(test.Tests[test.StatementTest]["simpleLet"])
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
 
-	node, err = b.ParseLetStatement()
+	node, err = b.ParseLetStmt()
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}

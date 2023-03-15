@@ -28,13 +28,13 @@ github.com/pelletier/go-toml/v2/unstable
 # github.com/pkg/errors v0.9.1
 ## explicit
 github.com/pkg/errors
-# github.com/scottshotgg/express-ast v0.0.0-20230327001709-1f388e05b2ac
+# github.com/scottshotgg/express-ast v0.0.0-20230327011200-9ed4e7545c9c
 ## explicit
 github.com/scottshotgg/express-ast
-# github.com/scottshotgg/express-lex v0.0.0-20230327001750-ad7d7286775b
+# github.com/scottshotgg/express-lex v0.0.0-20230327011150-c6a28a8eb8a3
 ## explicit
 github.com/scottshotgg/express-lex
-# github.com/scottshotgg/express-token v0.0.0-20230327001242-671093cd73fd
+# github.com/scottshotgg/express-token v0.0.0-20230327011102-da006d30a2eb
 ## explicit
 github.com/scottshotgg/express-token
 # github.com/spf13/afero v1.9.5

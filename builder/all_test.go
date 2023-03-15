@@ -20,7 +20,7 @@ func TestAllStatements(t *testing.T) {
 			t.Errorf(errFormatString, err)
 		}
 
-		node, err = b.ParseStatement()
+		node, err = b.ParseStmt()
 		if err != nil {
 			t.Errorf(errFormatString, err)
 		}

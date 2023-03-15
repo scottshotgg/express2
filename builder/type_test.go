@@ -114,7 +114,7 @@ func TestAddPrimitive(t *testing.T) {
 		t.Errorf(errFormatString, err)
 	}
 
-	node, err = b.ParseTypeDeclarationStatement()
+	node, err = b.ParseTypeDeclStmt()
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}
@@ -135,7 +135,7 @@ func TestAddStructured(t *testing.T) {
 		t.Errorf(errFormatString, err)
 	}
 
-	node, err = b.ParseStructStatement()
+	node, err = b.ParseStructStmt()
 	if err != nil {
 		t.Errorf(errFormatString, err)
 	}

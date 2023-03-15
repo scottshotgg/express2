@@ -36,6 +36,12 @@ std::string impl_dog_husky_Breed(void *self)
   return Breed((Husky *)self);
 }
 
+// TODO : scottshotgg : interface fulfillment without pointer
+// std::string impl_dog_husky_Breed(void *self)
+// {
+//   return Breed(*(Husky *)self);
+// }
+
 Dog impl_dog_husky(Husky *h)
 {
   return Dog{

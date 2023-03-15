@@ -66,7 +66,7 @@ func (a Assignment) String() string {
 }
 
 // TODO: dont think I wanna do this yet
-// func NewAssignmentStatement() Assignment {
+// func NewAssignmentStmt() Assignment {
 // 	return &Assignment{
 
 // 	}
@@ -111,7 +111,7 @@ func NewAssignment(t token.Token, i *Ident, e Expression) (*Assignment, error) {
 }
 
 // SetDeclaration changes the assignment type to a declaration
-func (a *Assignment) SetDeclaration(declaration bool) {
+func (a *Assignment) SetDecl(declaration bool) {
 	a.Declaration = declaration
 }
 
