@@ -1,0 +1,15 @@
+package main
+
+interface Vehicle {
+  Drive()
+}
+
+// Abstract method
+method [Vehicle] Drive() { ... }
+
+#[impl Vehicle, derive Vehicle]
+struct Car {
+  ...
+}
+
+method [Car] Drive() { ... }

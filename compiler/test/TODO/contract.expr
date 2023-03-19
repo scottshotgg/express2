@@ -1,0 +1,16 @@
+package main
+
+contract Database {
+  Select()
+  Update()
+  Delete()
+}
+
+#[impl Database]
+struct SQL {
+  ...
+}
+
+method [SQL] Select() {
+  ...
+}
