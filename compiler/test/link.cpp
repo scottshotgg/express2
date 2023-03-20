@@ -50,18 +50,18 @@ int Now() {
 // Structs:
 
 // Prototypes:
-int Atoi(std::string s);
 int convert(std::string s);
+int Atoi(std::string s);
 
 // Functions:
-int Atoi(std::string s) {
-  defer onReturn, onExit;
-  return atoi(s.c_str());
-}
-
 int convert(std::string s) {
   defer onReturn, onExit;
   return Atoi(s);
+}
+
+int Atoi(std::string s) {
+  defer onReturn, onExit;
+  return atoi(s.c_str());
 }
 
 // Main:

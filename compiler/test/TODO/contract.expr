@@ -6,11 +6,10 @@ contract Database {
   Delete()
 }
 
-#[impl Database]
 struct SQL {
   ...
 }
 
-method [SQL] Select() {
+func [SQL] Select() {
   ...
 }

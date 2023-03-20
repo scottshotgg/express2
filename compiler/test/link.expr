@@ -1,6 +1,6 @@
 package main
 
-import "compiler/test/time.expr"
+import "test/time.expr"
 
 func Atoi(string s) int
 
@@ -12,6 +12,8 @@ func main() {
   // TODO: anonymous strings need to have a constructor
   // applied to them
   //printf("6".c_str())
+  
+  var i = 7
 
   launch {
     for {

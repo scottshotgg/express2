@@ -5,11 +5,25 @@ struct Person {
   int age
 }
 
+struct Dog {
+  string name
+  Breed breed
+  int age
+}
+
+enum Breed {
+  GoldenRetriever
+  Chiuauau
+  RotWeiler
+}
+
 // TODO: decide between method and func
-func [Person] Speak() { ... }
+func [Person p, Dog d] Speak() string {
+  return this.name
+}
 
 // C: good but a little too implicit
-method Speak(Person p) { ... }
+func Speak(Person p) { ... }
 
 // C++: maybe, not big on :: since we haven't used it anywhere else
 func Person::Speak() { ... }
