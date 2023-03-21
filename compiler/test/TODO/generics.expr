@@ -12,7 +12,7 @@ func [Point] Add() T {
 }
 
 # Type contraint
-type T {
+type Number {
   int | float
 }
 
@@ -21,6 +21,17 @@ enum Result {
   int
   error
 }
+
+func [REST] Get() Result { ...}
+
+Result res = r.Get()
+
+switch res {
+  case int:
+  case error:
+}
+
+
 
 # Generic optional
 enum Result {

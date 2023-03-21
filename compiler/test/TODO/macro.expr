@@ -17,6 +17,5 @@ func Another(int a, int b) int {
 }
 
 func main() {
-
   println(smth)
 }

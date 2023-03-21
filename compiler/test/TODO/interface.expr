@@ -16,12 +16,37 @@ func [Vehicle] Drive() { ... }
 
 #[impl Vehicle, derive Vehicle]
 struct Car {
-  ...
+  int speed
+  int num_of_doors
 }
 
 func [Car] Drive() { ... }
 
+// TODO: maybe find a different way to specify these
 #[impl Vehicle, impl GPS]
-struct Tesla {
-  ...
+struct Truck {
+  int speed
+  int load_cap
+}
+
+// TODO: type sprawl?
+func [Car, Truck] Speed() string {
+  self.speed
+}
+
+func [Flatbed] Speed() string {
+  self.velocity
+}
+
+func [Vehicle] New(typeOf) {
+  match {
+    case Car.New(typeOf)
+  }
+}
+
+
+
+func main() {
+  // TODO: maybe do a constructor pattern here
+  Vehicle v = New()
 }

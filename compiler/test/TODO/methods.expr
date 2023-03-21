@@ -18,8 +18,9 @@ enum Breed {
 }
 
 // TODO: decide between method and func
-func [Person p, Dog d] Speak() string {
-  return this.name
+
+func [Person p] Speak() string {
+  return p.name
 }
 
 // C: good but a little too implicit
