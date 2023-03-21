@@ -865,13 +865,13 @@ func (b *Builder) ParseStructStatement() (*Node, error) {
 		return nil, err
 	}
 
-	// Check for the equals token
-	if b.Tokens[b.Index].Type != token.Assign {
-		return nil, b.AppendTokenToError("No equals found after ident in struct def")
-	}
+	// // Check for the equals token
+	// if b.Tokens[b.Index].Type != token.Assign {
+	// 	return nil, b.AppendTokenToError("No equals found after ident in struct def")
+	// }
 
-	// Increment over the equals
-	b.Index++
+	// // Increment over the equals
+	// b.Index++
 
 	// Parse the right hand side
 	body, err := b.ParseBlockStatement()
@@ -1064,6 +1064,8 @@ func (b *Builder) ParseIdentStatement() (*Node, error) {
 	// 		Value: value,
 	// 	})
 	// }
+
+	fmt.Println(b.Tokens[b.Index])
 
 	// Parse the first ident; this COULD be a type
 	identOrType, err := b.ParseExpression()
@@ -1519,6 +1521,25 @@ func (b *Builder) ParseFunctionStatement() (*Node, error) {
 			Metadata: map[string]interface{}{},
 		}
 	)
+
+	// TODO: check for the square brackets here
+
+	// Check if it is a method; func [Type Ident] ...
+	if b.Tokens[b.Index].Type == token.LBracket {
+		// Step over the left bracket
+		b.Index++
+
+		reciever, err := b.ParseIdentStatement()
+		if err != nil {
+			return nil, err
+		}
+
+		_ = reciever
+
+		if b.Tokens[b.Index].Type == token.RBracket {
+			b.Index++
+		}
+	}
 
 	// Named function
 	if b.Tokens[b.Index].Type != token.Ident {

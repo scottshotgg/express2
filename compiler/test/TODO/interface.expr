@@ -22,8 +22,6 @@ struct Car {
 func [Car] Drive() { ... }
 
 #[impl Vehicle, impl GPS]
-
-#[derive Vehicle, derive GPS]
 struct Tesla {
   ...
 }

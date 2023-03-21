@@ -315,7 +315,7 @@ func (t *Transpiler) structWorker() {
 
 	var i int
 	for node := range t.StructChan {
-		stringP, err = t.TranspileStatement(node)
+		stringP, err = t.TranspileStructDeclaration(node)
 		if err != nil {
 			fmt.Printf("err %+v\n", err)
 			os.Exit(9)
@@ -610,7 +610,7 @@ func (t *Transpiler) TranspileObjectStatement(n *builder.Node) (*string, error) 
 func (t *Transpiler) TranspileStructDeclaration(n *builder.Node) (*string, error) {
 	/*
 		This should transpile to:
-		struct something = {} : struct something {}
+		struct something {} : struct something {}
 		Type is struct
 		Left is the ident
 		Right is the value
@@ -1104,8 +1104,9 @@ func (t *Transpiler) TranspileStatement(n *builder.Node) (*string, error) {
 		return t.TranspileTypeDeclaration(n)
 
 	case "struct":
-		// structChan <- n
-		return t.TranspileStructDeclaration(n)
+		t.StructChan <- n
+		return nil, nil
+		// return t.TranspileStructDeclaration(n)
 
 	case "object":
 		return t.TranspileObjectStatement(n)
@@ -1560,6 +1561,8 @@ func (t *Transpiler) TranspileAssignmentStatement(n *builder.Node) (*string, err
 
 	nString = *vString + " = "
 
+	fmt.Println("NODE.LEFT:", n.Left)
+
 	// Translate the ident expression (lhs)
 	vString, err = t.TranspileExpression(n.Right)
 	if err != nil {
@@ -1594,6 +1597,8 @@ func (t *Transpiler) TranspileDeclarationStatement(n *builder.Node) (*string, er
 	var err error
 
 	if n.Left.Type != "deref" {
+		fmt.Println("N LEFTY:", n)
+
 		typeOf, err = t.TranspileExpression(n.Value.(*builder.Node))
 		if err != nil {
 			return nil, err
@@ -1679,7 +1684,13 @@ func (t *Transpiler) TranspileDeclarationStatement(n *builder.Node) (*string, er
 
 	default:
 		nString = *typeOf + " " + nString
-		vString, err = t.TranspileExpression(n.Right)
+
+		var md = n.Value.(*builder.Node).Metadata
+		if md != nil && md["kind"] == "struct" {
+			vString, err = t.TranspileStructBlockStatement(n.Right)
+		} else {
+			vString, err = t.TranspileExpression(n.Right)
+		}
 	}
 
 	if err != nil {
@@ -1687,11 +1698,18 @@ func (t *Transpiler) TranspileDeclarationStatement(n *builder.Node) (*string, er
 	}
 
 	if n.Left.Type == "deref" && n.Left.Kind == "type" {
-		nString += *vString
+		if vString != nil {
+			nString += *vString
+		}
+
 		return &nString, nil
 	}
 
-	nString += " = " + *vString + ";"
+	if vString != nil {
+		nString += " = " + *vString
+	}
+
+	nString += ";"
 
 	// fmt.Println("nString", nString)
 
@@ -1820,6 +1838,35 @@ func (t *Transpiler) TranspileBinOpExpression(n *builder.Node) (*string, error) 
 	}
 
 	nString += *vString
+
+	return &nString, nil
+}
+
+func (t *Transpiler) TranspileStructBlockStatement(n *builder.Node) (*string, error) {
+	if n == nil {
+		return nil, nil
+	}
+
+	if n.Type != "block" {
+		return nil, errors.New("Node is not a block")
+	}
+
+	var (
+		nString string
+	)
+
+	for _, stmt := range n.Value.([]*builder.Node) {
+		fmt.Println("STMT FIELD:", stmt)
+
+		ex, err := t.TranspileExpression(stmt.Right)
+		if err != nil {
+			return nil, err
+		}
+
+		nString += fmt.Sprintf(".%s = %s,", stmt.Left.Value.(string), *ex)
+	}
+
+	nString = fmt.Sprintf("{%s}", nString)
 
 	return &nString, nil
 }

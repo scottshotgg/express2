@@ -319,10 +319,19 @@ func (b *Builder) ParseFactor() (*Node, error) {
 			}
 		}
 
-		return &Node{
+		var nn = &Node{
 			Type:  typeOf,
 			Value: value,
-		}, nil
+		}
+
+		if n != nil {
+			// nn.Kind = n.Kind
+			nn.Metadata = map[string]interface{}{
+				"kind": n.Kind,
+			}
+		}
+
+		return nn, nil
 
 	// Deref operator
 	case token.PriOp:

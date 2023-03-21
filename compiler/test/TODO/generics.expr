@@ -23,7 +23,15 @@ enum Result {
 }
 
 # Generic optional
-enum Result<T> {
-  T
-  error
+enum Result {
+  <T>
+  Error
+}
+
+func [Result] Ok() T {
+  return this.value
+}
+
+func [Result] Err() Error {
+  return this.err
 }

@@ -60,20 +60,3 @@ func main() {
 func convert(string s) int {
   return Atoi(s)
 }
-
-struct s = {
-  name: "scott"
-  age: 29
-  
-  Name() => name
-  Age() => age
-}
-
-s.Name = func() string {
-  return s.name
-}
-
-s.Age = func() int {
-  return s.age
-}
-
