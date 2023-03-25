@@ -809,6 +809,56 @@ func (t *Transpiler) TranspileSelectExpression(n *builder.Node) (*string, error)
 		return nil, errors.New("Node is not an index")
 	}
 
+	var (
+		left   = t.Builder.ScopeTree.Get(n.Left.Value.(string))
+		lv, ok = left.Value.(*builder.Node)
+	)
+
+	if ok {
+		// We have a method call
+		if lv.Type == "type" && lv.Metadata["kind"].(string) == "struct" {
+			var lookupVar string
+			if n.Right.Type == "call" {
+				lookupVar = lv.Value.(string) + "." + n.Right.Value.(*builder.Node).Value.(string)
+			} else if n.Right.Type == "function" {
+				lookupVar = lv.Value.(string) + "." + n.Right.Value.(string)
+			} else {
+				lookupVar = n.Right.Value.(string)
+			}
+
+			var right = t.Builder.ScopeTree.Get(lookupVar)
+
+			/*
+				FIXME: scottshotgg: there is some transient error related to the functionWorker
+				not having processed the function yet ... probably will get worse in the future
+				but hopefully then we have a better architecture. For now just try again
+			*/
+			if right == nil {
+				right = t.Builder.ScopeTree.Get(lookupVar)
+			}
+
+			if right.Type == "function" {
+				/*
+					scottshotgg: I made this but then didn't need it. If you track an error to here
+					related to methods and/or functions then this could be the solution
+				*/
+
+				// var split = strings.Split(right.Kind, ".")
+				// n.Right.Kind = split[len(split)-1]
+
+				var (
+					argNode = n.Right.Metadata["args"].(*builder.Node)
+					args    = argNode.Value.([]*builder.Node)
+				)
+
+				argNode.Value = append([]*builder.Node{n.Left}, args...)
+				n.Right.Metadata["args"] = argNode
+
+				return t.TranspileCallExpression(n.Right)
+			}
+		}
+	}
+
 	lhs, err := t.TranspileExpression(n.Left)
 	if err != nil {
 		return nil, err
@@ -1313,6 +1363,11 @@ func (t *Transpiler) TranspileFunctionStatement(n *builder.Node) (*string, error
 
 	if n.Kind == "" {
 		return nil, errors.New("Somehow we parsed a function without a name ...")
+	}
+
+	var split = strings.Split(n.Kind, ".")
+	if len(split) > 1 {
+		n.Kind = split[len(split)-1]
 	}
 
 	// Start out with just the name; we will put the return type later

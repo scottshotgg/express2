@@ -1517,24 +1517,26 @@ func (b *Builder) ParseFunctionStatement() (*Node, error) {
 	var (
 		err  error
 		node = Node{
-			Type:     "function",
-			Metadata: map[string]interface{}{},
+			Type: "function",
+			Metadata: map[string]interface{}{
+				"args": []*Node{},
+			},
 		}
 	)
 
 	// TODO: check for the square brackets here
+
+	var rcvr *Node
 
 	// Check if it is a method; func [Type Ident] ...
 	if b.Tokens[b.Index].Type == token.LBracket {
 		// Step over the left bracket
 		b.Index++
 
-		reciever, err := b.ParseIdentStatement()
+		rcvr, err = b.ParseIdentStatement()
 		if err != nil {
 			return nil, err
 		}
-
-		_ = reciever
 
 		if b.Tokens[b.Index].Type == token.RBracket {
 			b.Index++
@@ -1548,6 +1550,13 @@ func (b *Builder) ParseFunctionStatement() (*Node, error) {
 
 	// Set the name of the function
 	node.Kind = b.Tokens[b.Index].Value.String
+
+	if rcvr != nil {
+		node.Kind = fmt.Sprintf("%s.%s",
+			rcvr.Value.(*Node).Value.(string),
+			node.Kind,
+		)
+	}
 
 	// Create a new child scope for the function
 	b.ScopeTree, err = b.ScopeTree.NewChildScope(node.Kind)
@@ -1568,6 +1577,11 @@ func (b *Builder) ParseFunctionStatement() (*Node, error) {
 	}
 
 	if args != nil {
+		if rcvr != nil {
+			var argsValue = args.Value.([]*Node)
+			args.Value = append([]*Node{rcvr}, argsValue...)
+		}
+
 		node.Metadata["args"] = args
 	}
 
