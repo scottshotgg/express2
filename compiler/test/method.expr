@@ -9,6 +9,10 @@ func [Person p] Name() string {
   return p.name
 }
 
+func Name() string {
+  return "blah"
+}
+
 func main() {
   Person p = {
     name: "scott"
