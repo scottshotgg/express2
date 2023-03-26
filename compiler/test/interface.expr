@@ -1,0 +1,16 @@
+package main
+
+interface Dog {
+	Breed() string
+}
+
+struct Bulldog {}
+struct Husky {}
+
+func [Bulldog b] Breed() string {
+	return "bulldog"
+}
+
+func [Husky h] Breed() string {
+	return "husky"
+}
