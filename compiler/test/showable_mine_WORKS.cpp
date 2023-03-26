@@ -23,17 +23,27 @@ typedef struct
 } Person;
 
 // Researcher implementation
-char *name_fn_researcher(void *self)
+char *name_fn_researcher(Researcher *r)
 {
-  Researcher *r = (Researcher *)self;
   return r->name;
 }
 
 // Student implementation
-char *name_fn_student(void *self)
+char *name_fn_student(Student *s)
 {
-  Student *s = (Student *)self;
   return s->name;
+}
+
+// Wrapper function for interface usage
+char *wrap_name_fn_researcher(void *self)
+{
+  return name_fn_researcher((Researcher *)self);
+}
+
+// Wrapper function for interface usage
+char *wrap_name_fn_student(void *self)
+{
+  return name_fn_student((Student *)self);
 }
 
 int main()
@@ -45,7 +55,7 @@ int main()
   Person p = {
       // Assign self as well as the function pointer
       .self = &s,
-      .name_fn = name_fn_researcher,
+      .name_fn = wrap_name_fn_researcher,
   };
 
   printf("%s", p.name_fn(p.self));
