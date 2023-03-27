@@ -1,6 +1,6 @@
 package main
 
-interface Dog {
+contract Dog {
 	Breed() string
 }
 

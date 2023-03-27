@@ -26,6 +26,14 @@ var KeywordMap = map[string]Token{
 		},
 	},
 
+	"interface": {
+		Type: Struct,
+		Value: Value{
+			Type:   "keyword",
+			String: "interface",
+		},
+	},
+
 	"object": {
 		Type: Object,
 		Value: Value{
@@ -42,7 +50,6 @@ var KeywordMap = map[string]Token{
 		},
 	},
 
-	// TODO: why is this taken out?
 	// "c": {
 	// 	Type: C,
 	// 	Value: Value{
@@ -83,6 +90,14 @@ var KeywordMap = map[string]Token{
 		},
 	},
 
+	"link": {
+		Type: Link,
+		Value: Value{
+			Type:   "keyword",
+			String: "link",
+		},
+	},
+
 	"enum": {
 		Type: Enum,
 		Value: Value{
@@ -106,15 +121,6 @@ var KeywordMap = map[string]Token{
 		Value: Value{
 			Type:   "loop", // TODO: what to put here?
 			String: "for",
-		},
-	},
-
-	"link": {
-		ID:   9,
-		Type: "LINK",
-		Value: Value{
-			Type:   "link", // TODO: what to put here?
-			String: "link",
 		},
 	},
 

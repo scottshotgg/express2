@@ -39,7 +39,7 @@ func main() {
   // as `std::string`
   // string[] i = ["7", 6, 8]
 
-  struct Expiry = {
+  struct Expiry {
     int seconds = 9
     int nanos
   }

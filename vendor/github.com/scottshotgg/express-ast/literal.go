@@ -3,7 +3,6 @@ package ast
 import (
 	"fmt"
 	"os"
-	"runtime/debug"
 	"strconv"
 	"strings"
 
@@ -254,10 +253,7 @@ func TypeFromString(t string) *Type {
 		return NewObjectType()
 	}
 
-	fmt.Printf("TYPE WAS NOT DEFINED IN TypeFromString() \"%+v\"\n", t)
-
-	debug.PrintStack()
-
+	fmt.Printf("TYPE WAS NOT DEFINED IN TypeFromString() %+v\n", t)
 	os.Exit(9)
 	return nil
 }

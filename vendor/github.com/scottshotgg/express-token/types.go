@@ -84,6 +84,13 @@ var TypeMap = map[string]Token{
 	// 		String: StructType,
 	// 	},
 	// },
+	// InterfaceType: {
+	// 	Type: Type,
+	// 	Value: Value{
+	// 		Type:   InterfaceType,
+	// 		String: InterfaceType,
+	// 	},
+	// },
 	ArrayType: {
 		Type: Type,
 		Value: Value{

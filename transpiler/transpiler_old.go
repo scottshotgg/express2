@@ -815,6 +815,7 @@ func (t *Transpiler) TranspileSelectExpression(n *builder.Node) (*string, error)
 	)
 
 	if ok {
+		// TODO : scottshotgg : linking is messing this up - fix it
 		// We have a method call
 		if lv.Type == "type" && lv.Metadata["kind"].(string) == "struct" {
 			var lookupVar string
