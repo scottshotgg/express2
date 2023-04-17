@@ -1,0 +1,17 @@
+package main
+
+Dog interface {
+  Breed() string
+}
+
+struct Poodle {}
+
+func [p Poodle] Breed() string {
+  return "poodle"
+}
+
+func main() {
+  Poodle p
+  Dog d
+  Dog[] dogs = [ p, d, Poodle{}, Dog{} ]
+}
