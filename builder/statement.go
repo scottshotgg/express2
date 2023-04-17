@@ -467,7 +467,7 @@ func (b *Builder) ParseBlockStmt() (*Node, error) {
 	}, nil
 }
 
-func (b *Builder) ParseInterfaceBlock() (*Node, error) {
+func (b *Builder) ParseInterfaceBlock(rcvrName string) (*Node, error) {
 	// Check ourselves ...
 	if b.Tokens[b.Index].Type != token.LBrace {
 		return nil, b.AppendTokenToError("Could not get left brace of block")
@@ -485,7 +485,7 @@ func (b *Builder) ParseInterfaceBlock() (*Node, error) {
 
 	for b.Index < len(b.Tokens) &&
 		b.Tokens[b.Index].Type != token.RBrace {
-		stmt, err = b.ParseFunctionPartialDecl()
+		stmt, err = b.ParseFunctionPartialDecl(rcvrName)
 		if err != nil {
 			return nil, err
 		}
@@ -995,8 +995,20 @@ func (b *Builder) ParseInterfaceStmt() (*Node, error) {
 	// // Increment over the equals
 	// b.Index++
 
+	var v = &TypeValue{
+		Composite: true,
+		Type:      StruturedValue,
+		Kind:      "interface",
+		Props:     map[string]*TypeValue{},
+	}
+
+	err = b.ScopeTree.NewType(ident.Value.(string), v)
+	if err != nil {
+		return nil, err
+	}
+
 	// Parse the right hand side
-	body, err := b.ParseInterfaceBlock()
+	body, err := b.ParseInterfaceBlock(ident.Value.(string))
 	if err != nil {
 		return nil, err
 	}
@@ -1008,12 +1020,6 @@ func (b *Builder) ParseInterfaceStmt() (*Node, error) {
 	// 	return nil, err
 	// }
 
-	var v = &TypeValue{
-		Composite: true,
-		Type:      StruturedValue,
-		Kind:      body.Kind,
-	}
-
 	v.Props, err = b.extractPropsFromComposite(body)
 	if err != nil {
 		return nil, err
@@ -1022,16 +1028,11 @@ func (b *Builder) ParseInterfaceStmt() (*Node, error) {
 	// // Increment over the first part of the expression
 	// b.Index++
 
-	// Assign our scope back to the current one
-	b.ScopeTree, err = b.ScopeTree.Leave()
-	if err != nil {
-		return nil, err
-	}
-
-	err = b.ScopeTree.NewType(ident.Value.(string), v)
-	if err != nil {
-		return nil, err
-	}
+	// // Assign our scope back to the current one
+	// b.ScopeTree, err = b.ScopeTree.Leave()
+	// if err != nil {
+	// 	return nil, err
+	// }
 
 	var n = Node{
 		Type:  "interface",
@@ -1284,11 +1285,13 @@ func (b *Builder) ParseIdentStmt() (*Node, error) {
 		// TODO : scottshotgg : need to have d = h here as well; without a type
 		if node.Value != nil {
 			var nv = node.Value.(*Node)
-			if nv.Type == "type" && nv.Metadata["kind"].(string) == "interface" {
+			var kind = nv.Metadata["kind"]
+			if nv.Type == "type" && kind != nil && kind.(string) == "interface" {
 				// TODO: we have an interface assignment
 				node.Metadata = map[string]interface{}{
 					"isIfaceAssign": "true",
 				}
+
 			}
 		}
 
@@ -1650,10 +1653,10 @@ func (b *Builder) ParseFunctionStmt() (*Node, error) {
 	// Step over the function token
 	b.Index++
 
-	return b.ParseFunctionPartialDecl()
+	return b.ParseFunctionPartialDecl("")
 }
 
-func (b *Builder) ParseFunctionPartialDecl() (*Node, error) {
+func (b *Builder) ParseFunctionPartialDecl(rcvrType string) (*Node, error) {
 	var (
 		err  error
 		node = Node{
@@ -1668,9 +1671,19 @@ func (b *Builder) ParseFunctionPartialDecl() (*Node, error) {
 
 	var rcvr *Node
 	var isMethod bool
+	var typeName = rcvrType
+
+	// TODO: scottshogg : 04/16/23 : we do need to make an `isInterfaceMethod` ...
+	if rcvrType != "" {
+		isMethod = true
+	}
 
 	// Check if it is a method; func [Type Ident] ...
 	if b.Tokens[b.Index].Type == token.LBracket {
+		if rcvrType != "" {
+			panic("WE HAVE AN ISSUE 12345")
+		}
+
 		// Step over the left bracket
 		b.Index++
 
@@ -1681,6 +1694,16 @@ func (b *Builder) ParseFunctionPartialDecl() (*Node, error) {
 
 		if b.Tokens[b.Index].Type == token.RBracket {
 			b.Index++
+		}
+
+		var rcvrVal = rcvr.Value.(*Node)
+
+		if rcvrVal.Type == "deref" {
+			typeName = rcvrVal.Left.Value.(string)
+			rcvrType = "*" + typeName
+		} else {
+			typeName = rcvr.Value.(*Node).Value.(string)
+			rcvrType = typeName
 		}
 
 		isMethod = true
@@ -1695,9 +1718,9 @@ func (b *Builder) ParseFunctionPartialDecl() (*Node, error) {
 	var kind = b.Tokens[b.Index].Value.String
 	node.Kind = kind
 
-	if rcvr != nil {
+	if rcvrType != "" {
 		node.Kind = fmt.Sprintf("%s.%s",
-			rcvr.Value.(*Node).Value.(string),
+			rcvrType,
 			kind,
 		)
 	}
@@ -1805,11 +1828,18 @@ func (b *Builder) ParseFunctionPartialDecl() (*Node, error) {
 
 	// scottshotgg : 3/27/23 : if it's a method then declare it on the struct
 	if isMethod {
-		var n = b.ScopeTree.GetType(rcvr.Value.(*Node).Value.(string))
+		var n = b.ScopeTree.GetType(typeName)
 		n.Props[kind] = &TypeValue{
 			Type:  FunctionValue,
 			Value: &node,
 		}
+
+		/*
+			NOTE: scottshotgg : 04/16/23 :
+				map is going to be a pointer so we don't need to do
+				any re-assignment here
+		*/
+		// b.ScopeTree.Types[typeName] = n
 	}
 
 	// Declare the type in the upper scope after leaving

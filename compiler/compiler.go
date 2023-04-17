@@ -351,6 +351,7 @@ func (c *Compiler) compileFile(filename string) error {
 	if err != nil {
 		return err
 	}
+
 	// TODO: fix this ... :*(
 	// c.OutputData["cpp"] = []byte(cpp)
 

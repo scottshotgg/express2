@@ -22,6 +22,9 @@ type WithPriority struct {
 }
 
 type Transpiler struct {
+	tempCountLock sync.RWMutex
+	tempCount     int
+
 	LibBase       string
 	Name          string
 	Builder       *builder.Builder
@@ -258,7 +261,7 @@ func (t *Transpiler) Transpile() error {
 	}
 
 	// Just a fucking dirty ass hackerino
-	time.Sleep(1 * time.Second)
+	time.Sleep(2 * time.Second)
 
 	t.ChildTranspilers.Wait()
 
@@ -711,7 +714,7 @@ func (t *Transpiler) TranspileInterfaceDecl(n *builder.Node) (*string, error) {
 
 		typedef struct {
 			void *self;
-			std::string (*const INTERFACE_FUNCTION)(void *self);
+			std::string (*INTERFACE_FUNCTION)(void *self);
 		} INTERFACE_NAME;
 	*/
 
@@ -722,7 +725,7 @@ func (t *Transpiler) TranspileInterfaceDecl(n *builder.Node) (*string, error) {
 		funcPartStrs = make([]string, len(funcParts))
 	)
 
-	// <return_type> (*const <func_name>)(void *self, <args>)
+	// <return_type> (*<func_name>)(void *self, <args>)
 
 	for i, funcPart := range funcParts {
 		fmt.Println("funcPart:", funcPart)
@@ -911,12 +914,14 @@ func (t *Transpiler) TranspileSelectExpression(n *builder.Node) (*string, error)
 	var (
 		left   = t.Builder.ScopeTree.Get(n.Left.Value.(string))
 		lv, ok = left.Value.(*builder.Node)
+		rhs    *string
 	)
 
 	if ok {
 		// TODO : scottshotgg : linking is messing this up - fix it
 		// We have a method call
-		if lv.Type == "type" && lv.Metadata["kind"].(string) == "struct" {
+		var lvKind = lv.Metadata["kind"]
+		if lv.Type == "type" && (lvKind == "struct" || lvKind == "interface") {
 			var lookupVar string
 			if n.Right.Type == "call" {
 				lookupVar = lv.Value.(string) + "." + n.Right.Value.(*builder.Node).Value.(string)
@@ -933,6 +938,8 @@ func (t *Transpiler) TranspileSelectExpression(n *builder.Node) (*string, error)
 				not having processed the function yet ... probably will get worse in the future
 				but hopefully then we have a better architecture. For now just try again
 			*/
+			time.Sleep(10 * time.Millisecond)
+
 			if right == nil {
 				right = t.Builder.ScopeTree.Get(lookupVar)
 			}
@@ -951,10 +958,26 @@ func (t *Transpiler) TranspileSelectExpression(n *builder.Node) (*string, error)
 					args    = argNode.Value.([]*builder.Node)
 				)
 
-				argNode.Value = append([]*builder.Node{n.Left}, args...)
-				n.Right.Metadata["args"] = argNode
+				if lvKind == "struct" {
+					argNode.Value = append([]*builder.Node{n.Left}, args...)
+					n.Right.Metadata["args"] = argNode
 
-				return t.TranspileCallExpression(n.Right)
+					return t.TranspileCallExpression(n.Right)
+				} else if lvKind == "interface" {
+					argNode.Value = append([]*builder.Node{
+						{
+							Type:  "ident",
+							Value: n.Left.Value.(string) + ".self",
+						},
+					}, args...)
+					n.Right.Metadata["args"] = argNode
+
+					var err error
+					rhs, err = t.TranspileCallExpression(n.Right)
+					if err != nil {
+						return nil, err
+					}
+				}
 			}
 		}
 	}
@@ -964,14 +987,23 @@ func (t *Transpiler) TranspileSelectExpression(n *builder.Node) (*string, error)
 		return nil, err
 	}
 
-	rhs, err := t.TranspileExpression(n.Right)
-	if err != nil {
-		return nil, err
+	if rhs == nil {
+		rhs, err = t.TranspileExpression(n.Right)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	var selector = "."
 	if n.Left.Type == "package" {
 		selector = "::"
+	} else if left.Type == "decl" {
+		switch left.Value.(type) {
+		case *builder.Node:
+			if left.Value.(*builder.Node).Type == "deref" {
+				selector = "->"
+			}
+		}
 	}
 
 	var nString = *lhs + selector + *rhs
@@ -1556,7 +1588,7 @@ func (t *Transpiler) TranspileInterfaceFuncPartial(n *builder.Node) (*string, er
 	}
 
 	// Start out with just the name; we will put the return type later
-	var nString = "(*const " + n.Kind + ")"
+	var nString = "(*" + n.Kind + ")"
 
 	// args is an `sgroup`
 	argsString, err := t.TranspileSGroup(n.Metadata["args"].(*builder.Node))
@@ -1816,8 +1848,30 @@ func (t *Transpiler) TranspileAssignmentStmt(n *builder.Node) (*string, error) {
 
 	fmt.Println("NODE.LEFT:", n.Left)
 
-	// Translate the ident expression (lhs)
-	vString, err = t.TranspileExpression(n.Right)
+	if n.Left.Value != nil {
+		var lv = t.Builder.ScopeTree.Get(n.Left.Value.(string))
+		var lvType = t.Builder.ScopeTree.GetType(lv.Value.(*builder.Node).Value.(string))
+		if lvType.Kind == "interface" {
+			extra, conv, err := t.convertIfaceAssign(n)
+			if err != nil {
+				return nil, err
+			}
+
+			if extra != nil {
+				nString = *extra + nString
+			}
+
+			vString, err = t.TranspileStructBlockStmt(conv)
+		} else {
+			// TODO: figure out a better way for this shit
+			// Translate the ident expression (lhs)
+			vString, err = t.TranspileExpression(n.Right)
+		}
+	} else {
+		// Translate the ident expression (lhs)
+		vString, err = t.TranspileExpression(n.Right)
+	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -1941,14 +1995,53 @@ func (t *Transpiler) TranspileDeclStmt(n *builder.Node) (*string, error) {
 	default:
 		nString = *typeOf + " " + nString
 
-		var md = n.Value.(*builder.Node).Metadata
+		var nn = n.Value.(*builder.Node)
+		var md = nn.Metadata
 		if md != nil && md["kind"] == "struct" {
 			vString, err = t.TranspileStructBlockStmt(n.Right)
 		} else if md != nil && md["kind"] == "interface" {
-			vString, err = t.TranspileStructBlockStmt(t.convertIfaceAssign(n))
-			// TODO: generate helper function
-			var tt = t.Builder.ScopeTree.Vars[n.Right.Value.(string)]
-			_ = tt
+			extra, conv, err := t.convertIfaceAssign(n)
+			if err != nil {
+				return nil, err
+			}
+
+			if extra != nil {
+				nString = *extra + nString
+			}
+
+			vString, err = t.TranspileStructBlockStmt(conv)
+			// // TODO: generate helper function
+			// var tt = t.Builder.ScopeTree.Vars[n.Right.Value.(string)]
+			// _ = tt
+
+			// var typeName string
+			// var typeNode = tt.Value.(*builder.Node)
+			// if typeNode.Type == "deref" {
+			// 	typeName = typeNode.Left.Value.(string)
+			// } else {
+			// 	typeName = typeNode.Value.(string)
+			// }
+			// var typeValue = t.Builder.ScopeTree.GetType(typeName)
+
+			// for _, prop := range typeValue.Props {
+			// 	/*
+			// 		TODO: scottshotgg : 04/16/23 :
+			// 			- need to ensure that methods implement interface
+			// 				just _trust_ the programmer for now
+			// 	*/
+
+			// 	if prop.Kind != "" && prop.Value == nil {
+			// 		continue
+			// 	}
+
+			// 	helper, err := t.GenHelper(nn.Value.(string), typeName, prop)
+			// 	if err != nil {
+			// 		return nil, err
+			// 	}
+
+			// 	t.Functions[*helper] = *helper
+			// }
+
 			// TODO: get type from Husky
 			// TODO: get type of Interface
 			// TODO: make function to implement them
@@ -1980,7 +2073,72 @@ func (t *Transpiler) TranspileDeclStmt(n *builder.Node) (*string, error) {
 	return &nString, nil
 }
 
-func (t *Transpiler) convertIfaceAssign(n *builder.Node) *builder.Node {
+func (t *Transpiler) GenHelper(interfaceName, structName string, prop *builder.TypeValue) (*string, *string, error) {
+	/*
+		- take function from prop
+		- create new function: impl_<interface>_<struct>_<func>
+		- add `void* self` as first arg
+	*/
+
+	var fn = prop.Value.(*builder.Node)
+	var fnName = fmt.Sprintf("impl_%s_%s_%s", interfaceName, structName, fn.Kind)
+	_ = t.Functions
+	var args = fn.Metadata["args"].(*builder.Node)
+
+	// // args is an `sgroup`
+	// argsString, err := t.TranspileSGroup(fn.Metadata["args"].(*builder.Node))
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	var argsStr = "void* self"
+	var ptrStr string
+
+	var argNodes = args.Value.([]*builder.Node)
+	if argNodes[0].Value.(*builder.Node).Type != "deref" {
+		ptrStr = "*"
+	}
+
+	if len(argNodes) > 1 {
+		for _, arg := range argNodes {
+			argsStrP, err := t.TranspileDeclStmt(arg)
+			if err != nil {
+				panic("wtf args string")
+			}
+
+			argsStr += *argsStrP + ","
+		}
+	}
+
+	var (
+		returns = fn.Metadata["returns"]
+
+		returnsString = "void"
+
+		// Start returns off as void
+		returnsStringP = &returnsString
+	)
+
+	if returns != nil {
+		// returns is a `type` for now; multiple returns are not supported right now
+		returnsStringP, err := t.TranspileEGroup(returns.(*builder.Node))
+		if err != nil {
+			return nil, nil, err
+		}
+
+		// For now shave off the parens since we are not supporting multiple types here
+		if len(*returnsStringP) > 2 {
+			returnsString = (*returnsStringP)[1 : len(*returnsStringP)-1]
+			returnsStringP = &returnsString
+		}
+	}
+
+	var header = fmt.Sprintf("%s %s(%s) { return %s(%s(%s *)self); }", *returnsStringP, fnName, argsStr, fn.Kind, ptrStr, structName)
+
+	return &fnName, &header, nil
+}
+
+func (t *Transpiler) convertIfaceAssign(n *builder.Node) (*string, *builder.Node, error) {
 	/*
 		Value: interface definition
 		Left: lhs ident
@@ -1989,7 +2147,7 @@ func (t *Transpiler) convertIfaceAssign(n *builder.Node) *builder.Node {
 		Modify RHS to be a struct with assigns inside for self and function calls
 	*/
 
-	var ifaceIdentName = n.Right.Value.(string)
+	var structIdentName = n.Right.Value.(string)
 
 	var selfAssign = builder.Node{
 		Type: "assignment",
@@ -2003,7 +2161,7 @@ func (t *Transpiler) convertIfaceAssign(n *builder.Node) *builder.Node {
 			Left: &builder.Node{
 				Type: "ident",
 				// TODO : scottshotgg : get the real value later
-				Value: ifaceIdentName,
+				Value: structIdentName,
 			},
 		},
 	}
@@ -2012,21 +2170,102 @@ func (t *Transpiler) convertIfaceAssign(n *builder.Node) *builder.Node {
 		&selfAssign,
 	}
 
-	var typeName = n.Value.(*builder.Node).Value.(string)
-	fmt.Println("TYPENAME INTERFACE:", typeName)
-	var ifaceType = t.Builder.ScopeTree.GetType(typeName)
-	var structDecl = t.Builder.ScopeTree.Get(ifaceIdentName)
-	var structType = t.Builder.ScopeTree.GetType(structDecl.Value.(*builder.Node).Value.(string))
+	var typeName string
 
-	for k, v := range structType.Props {
-		var funcVal = *v.Value.(*builder.Node)
-		// TODO: make helper function to wrap method for interface
-		_ = funcVal
-		_ = k
+	// declaration stmt and we already have a type
+	if n.Value != nil {
+		typeName = n.Value.(*builder.Node).Value.(string)
+	} else {
+		// assignment stmt so we need to resolve the type
+		var rv = t.Builder.ScopeTree.Get(n.Left.Value.(string))
+		if rv == nil {
+			panic("rv was nil")
+		}
+
+		if rv.Value == nil {
+			panic("rv.Value was nil")
+		}
+
+		typeName = rv.Value.(*builder.Node).Value.(string)
 	}
 
-	for k, v := range ifaceType.Props {
-		var val = v.Value.(*builder.Node)
+	fmt.Println("TYPENAME INTERFACE:", typeName)
+	var ifaceType = t.Builder.ScopeTree.GetType(typeName)
+	// If we have a struct-literal then we need then the ident is *actually* a type and we need to correspondingly
+	// resolve that type in the typemap instead of in the declared variables
+	var structTypeValue *builder.TypeValue
+	var structTypeStr string
+	var extra string
+	if n.Right.Kind == "struct" && n.Right.Type == "literal" {
+		t.tempCountLock.Lock()
+		var tempVarName = fmt.Sprintf("__temp_%d_%s", t.tempCount, structIdentName)
+		t.tempCount++
+		t.tempCountLock.Unlock()
+
+		assigns[0].Right.Left.Value = tempVarName
+
+		nr, err := t.TranspileBlockExpression(n.Right.Right)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		// Declare extra variable with extra
+		extra = fmt.Sprintf("%s %s = %s;", structIdentName, tempVarName, *nr)
+
+		structTypeValue = t.Builder.ScopeTree.GetType(structIdentName)
+		structTypeStr = structIdentName
+	} else {
+		var structDecl = t.Builder.ScopeTree.Get(structIdentName)
+
+		if structDecl == nil {
+			time.Sleep(10 * time.Millisecond)
+			structDecl = t.Builder.ScopeTree.Get(structIdentName)
+		}
+
+		var structDeclVal = structDecl.Value.(*builder.Node)
+		var structDeclValVal interface{}
+		if structDeclVal.Type == "deref" {
+			structDeclValVal = structDeclVal.Left.Value
+		} else {
+			structDeclValVal = structDeclVal.Value
+		}
+
+		switch structDeclValVal.(type) {
+		case *builder.Node:
+			// structTypeStr = structDeclValVal.(*builder.Node)
+			// if structTypeStr.Type == ""
+
+		case string:
+			structTypeStr = structDeclValVal.(string)
+		}
+
+		structTypeValue = t.Builder.ScopeTree.GetType(structTypeStr)
+	}
+
+	for k := range ifaceType.Props {
+		if strings.Contains(k, ".") {
+			var split = strings.Split(k, ".")
+			k = split[1]
+		}
+
+		var prop, ok = structTypeValue.Props[k]
+		if !ok {
+			// scottshotgg : 04/16/23 :
+			// oh wow this is sortof an implicit check that the struct
+			// implements the interface ... interesting
+			panic(fmt.Sprintf("%s does not implement %s", structTypeStr, typeName))
+		}
+
+		if prop.Kind != "" && prop.Value == nil {
+			continue
+		}
+
+		fnName, helper, err := t.GenHelper(typeName, structTypeStr, prop)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		t.Functions[*helper] = *helper
 
 		assigns = append(assigns, &builder.Node{
 			Type: "assignment",
@@ -2036,17 +2275,17 @@ func (t *Transpiler) convertIfaceAssign(n *builder.Node) *builder.Node {
 			},
 			Right: &builder.Node{
 				Type:  "ident",
-				Value: fmt.Sprintf("helper(%s(%s))", val.Kind, ifaceIdentName),
+				Value: *fnName,
 			},
 		})
 	}
 
-	var rhs = &builder.Node{
-		Type:  "block",
-		Value: assigns,
-	}
-
-	return rhs
+	return &extra,
+		&builder.Node{
+			Type:  "block",
+			Value: assigns,
+		},
+		nil
 }
 
 func (t *Transpiler) resolveType(n *builder.Node) (*string, error) {
@@ -2457,6 +2696,7 @@ func (t *Transpiler) TranspileSGroup(n *builder.Node) (*string, error) {
 }
 
 func (t *Transpiler) TranspileCallExpression(n *builder.Node) (*string, error) {
+	// func (t *Transpiler) TranspileCallExpression(n *builder.Node, isInterface bool) (*string, error) {
 	if n.Type != "call" {
 		return nil, errors.New("Node is not a call")
 	}
@@ -2528,10 +2768,13 @@ func (t *Transpiler) TranspileCallExpression(n *builder.Node) (*string, error) {
 		}
 	}
 
+	// if
+
 	vString, err = t.TranspileEGroup(args.(*builder.Node))
 	if err != nil {
 		return nil, err
 	}
+
 	blob, _ = json.Marshal(vString)
 	fmt.Println("egroup vstring:", string(blob))
 

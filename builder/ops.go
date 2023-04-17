@@ -183,7 +183,7 @@ func (b *Builder) ParseIndexExpression(n *Node) (*Node, error) {
 		return nil, b.AppendTokenToError("Could not get left bracket")
 	}
 
-	b.Index++
+	// b.Index++
 
 	expr, err := b.ParseExpression()
 	if err != nil {

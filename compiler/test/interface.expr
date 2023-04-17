@@ -4,34 +4,46 @@ interface Dog {
 	Breed() string
 }
 
-// TODO : scottshotgg : for some reason I had to add this
-// as in order to get Bulldog here. It's not catching the first
-// struct
-struct Blah {}
-struct Bulldog {}
-struct Husky {}
+// No specific fields; method returns static string
+struct Poodle {}
 
-func [Bulldog b] Breed() string {
-	return "bulldog"
+// Specific field; method returns that value
+struct Bulldog {
+	string breed = "bulldog"
 }
 
-func [Husky h] Breed() string {
-	return "husky"
+// Specific field; method returns that value
+struct Husky {
+	string breed = "husky"
+}
+
+// Reciever passed by value; method returns static string
+func [Poodle p] Breed() string {
+	return "poodle"
+}
+
+// Reciever passed by value; method returns assigned field
+func [Bulldog b] Breed() string {
+	return b.breed
+}
+
+// Reciever passed by reference; method returns assigned field
+func [*Husky h] Breed() string {
+	return h.breed
 }
 
 func main() {
-	Husky h = {}
+	Dog d = Poodle{}
+	Println("I should be a Poodle:", d.Breed())
 
-	/*
-		When interface assignment is parsed:
-		- Create the helper funcs 
-		- Assignment ultimately changes from:
-			- ident
-			to
-			- { .self = ident, funcs=helper_calls }
-	*/
+	d = Husky{}
+	Println("I should be a Husky:", d.Breed())
 
-	Dog d = h
+	d = Bulldog{}
+	Println("I should be a Bulldog:", d.Breed())
 
-	Println(d.Breed())
+	d = Bulldog{
+		breed = "bulldog_2"
+	}
+	Println("I should be a SECOND Bulldog:", d.Breed())
 }

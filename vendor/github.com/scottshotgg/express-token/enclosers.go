@@ -48,7 +48,7 @@ var EncloserMap = map[string]Token{
 		WSNotRequired: true,
 		Type:          "R_BRACKET",
 		Value: Value{
-			Type:   "lthan",
+			Type:   "op_3",
 			String: "]",
 		},
 	},
