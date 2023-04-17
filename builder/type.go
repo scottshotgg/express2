@@ -162,17 +162,18 @@ func buildStructureFromTypeValue(t *TypeValue) (*Node, error) {
 
 // FIXME: rewrite me ffs
 func (b *Builder) ParseType(typeHint *TypeValue) (*Node, error) {
-	// Check ourselves ...
-	if b.Tokens[b.Index].Type != token.Type {
-		return nil, b.AppendTokenToError("Could not get type")
-	}
+	// // Check ourselves ...
+	// if b.Tokens[b.Index].Type != token.Type {
+	// 	return nil, b.AppendTokenToError("Could not get type")
+	// }
 
 	var (
-		injectedType = ""
+		injectedType string
 		t            *TypeValue
-		typeOf       = b.Tokens[b.Index].Value.Type
-		typeName     = b.Tokens[b.Index].Value.String
-		metadata     = map[string]interface{}{}
+
+		typeOf   = b.Tokens[b.Index].Value.Type
+		typeName = b.Tokens[b.Index].Value.String
+		metadata = map[string]interface{}{}
 	)
 
 	// If typeHint is nothing then we are default looking for primitives

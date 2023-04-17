@@ -286,6 +286,8 @@ func (b *Builder) ParseFactor() (*Node, error) {
 		// Check the scope map for the variable, if we already have a variable declared then use that
 		var n = b.ScopeTree.GetType(value)
 		if n != nil {
+			// var tt, err = b.ParseType(nil)
+			// fmt.Println("ParseType", tt, err)
 			typeOf = "type"
 
 			var next = b.Tokens[b.Index+1]

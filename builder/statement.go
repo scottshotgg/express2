@@ -981,11 +981,11 @@ func (b *Builder) ParseInterfaceStmt() (*Node, error) {
 	// Increment over the ident token
 	b.Index++
 
-	// Create a new child scope for the function
-	b.ScopeTree, err = b.ScopeTree.NewChildScope(ident.Value.(string))
-	if err != nil {
-		return nil, err
-	}
+	// // Create a new child scope for the function
+	// b.ScopeTree, err = b.ScopeTree.NewChildScope(ident.Value.(string))
+	// if err != nil {
+	// 	return nil, err
+	// }
 
 	// // Check for the equals token
 	// if b.Tokens[b.Index].Type != token.Assign {
@@ -1908,11 +1908,82 @@ func (b *Builder) ParseDerefStmt() (*Node, error) {
 	}, nil
 }
 
+func (b *Builder) ParseArrayDeclStmt() (*Node, error) {
+	// Check ourselves ...
+	if b.Index < len(b.Tokens)-1 &&
+		b.Tokens[b.Index].Type != token.LBracket {
+		return nil, b.AppendTokenToError("Could not get type declaration statement")
+	}
+
+	// Create the ident
+	arrDef, err := b.ParseArrayExpression()
+	if err != nil {
+		return nil, err
+	}
+
+	// Increment over the R_BRACKET
+	b.Index++
+
+	// Create the ident
+	typeOf, err := b.ParseExpression()
+	if err != nil {
+		return nil, err
+	}
+
+	// Increment over the type
+	b.Index++
+
+	// Create the ident
+	ident, err := b.ParseExpression()
+	if err != nil {
+		return nil, err
+	}
+
+	// Increment over the ident
+	b.Index++
+
+	// Check for the equals token
+	if b.Tokens[b.Index].Type != token.Assign {
+		return nil, b.AppendTokenToError("No equals found after ident in array decl; required for now")
+	}
+
+	// Increment over the equals
+	b.Index++
+
+	// Create the ident
+	arrExp, err := b.ParseArrayExpression()
+	if err != nil {
+		return nil, err
+	}
+
+	// Increment over the R_BRACKET
+	b.Index++
+
+	_ = arrDef
+	_ = typeOf
+	_ = ident
+	_ = arrExp
+
+	return &Node{
+		Type: "array_decl",
+		// Kind: // TODO: kind should be the ground-state of the array
+		Left:  typeOf,
+		Right: ident,
+		Value: arrExp,
+		Metadata: map[string]interface{}{
+			"def": arrDef,
+		},
+	}, nil
+}
+
 // TODO: what if types were expressions ...
 
 // ParseStatement ** does ** not look ahead
 func (b *Builder) ParseStmt() (*Node, error) {
 	switch b.Tokens[b.Index].Type {
+
+	case token.LBracket:
+		return b.ParseArrayDeclStmt()
 
 	case token.Thread:
 		return b.ParseThreadStmt()

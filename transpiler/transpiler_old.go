@@ -72,28 +72,27 @@ func (t *Transpiler) appendWorker() {
 func (t *Transpiler) functionWorker() {
 	defer t.Wg1.Done()
 
-	var (
-		function     *string
-		err          error
-		functionName string
-	)
-
 	for f := range t.FuncChan {
-		functionName = f.Kind
+		t.ChildTranspilers.Add(1)
+		func() {
+			defer t.ChildTranspilers.Done()
 
-		if t.Functions[functionName] != "" {
-			// FIXME: this is an error
-			log.Printf("Function already declared: %+v\n", f)
-			os.Exit(9)
-		}
+			var functionName = f.Kind
 
-		function, err = t.TranspileFunctionStmt(f)
-		if err != nil {
-			log.Printf("Function error: %+v %+v\n", f, err)
-			os.Exit(9)
-		}
+			if t.Functions[functionName] != "" {
+				// FIXME: this is an error
+				log.Printf("Function already declared: %+v\n", f)
+				os.Exit(9)
+			}
 
-		t.Functions[functionName] = *function
+			var function, err = t.TranspileFunctionStmt(f)
+			if err != nil {
+				log.Printf("Function error: %+v %+v\n", f, err)
+				os.Exit(9)
+			}
+
+			t.Functions[functionName] = *function
+		}()
 	}
 }
 
@@ -161,10 +160,10 @@ func (t *Transpiler) Transpile() error {
 	go t.structWorker()
 
 	t.Wg1.Add(1)
-	go t.interfaceWorker()
+	go t.packageWorker()
 
 	t.Wg1.Add(1)
-	go t.packageWorker()
+	go t.interfaceWorker()
 
 	t.Wg.Add(1)
 	go t.includeWorker()
@@ -269,21 +268,6 @@ func (t *Transpiler) Transpile() error {
 	// chans were here in the first place was to capture all of the stuff to put it at the top
 	// but tbh this should be a semantic parser step before it even gets to the AST
 
-	// Close the channel and alert the worker that we are done
-	close(t.PackageChan)
-	fmt.Println("Closing PackageChan")
-	close(t.FuncChan)
-	fmt.Println("Closing FuncChan")
-	close(t.TypeChan)
-	fmt.Println("Closing TypeChan")
-	close(t.StructChan)
-	fmt.Println("Closing StructChan")
-	close(t.InterfaceChan)
-	fmt.Println("Closing InterfaceChan")
-
-	// Wait for everything to be transpiled
-	t.Wg1.Wait()
-
 	close(t.ImportChan)
 	fmt.Println("Closing ImportChan")
 	close(t.IncludeChan)
@@ -291,6 +275,21 @@ func (t *Transpiler) Transpile() error {
 
 	// Wait for everything to be transpiled
 	t.Wg.Wait()
+
+	// Close the channel and alert the worker that we are done
+	close(t.PackageChan)
+	fmt.Println("Closing PackageChan")
+	close(t.InterfaceChan)
+	fmt.Println("Closing InterfaceChan")
+	close(t.FuncChan)
+	fmt.Println("Closing FuncChan")
+	close(t.TypeChan)
+	fmt.Println("Closing TypeChan")
+	close(t.StructChan)
+	fmt.Println("Closing StructChan")
+
+	// Wait for everything to be transpiled
+	t.Wg1.Wait()
 
 	if t.Functions["main"] == "" {
 		// return errors.New("No main function declared")
@@ -1260,6 +1259,9 @@ func (t *Transpiler) TranspileDeferStmt(n *builder.Node) (*string, error) {
 }
 
 func (t *Transpiler) TranspileStmt(n *builder.Node) (*string, error) {
+	t.ChildTranspilers.Add(1)
+	defer t.ChildTranspilers.Done()
+
 	fmt.Println("wtf3333", n.Type)
 	switch n.Type {
 
@@ -1400,9 +1402,38 @@ func (t *Transpiler) TranspileStmt(n *builder.Node) (*string, error) {
 	case "interface":
 		t.InterfaceChan <- n
 		return nil, nil
+
+		// case "array_decl":
+		// 	return t.TranspileArrayDeclStmt(n)
 	}
 
 	return nil, errors.Errorf("Not implemented statement: %+v", n)
+}
+
+func (t *Transpiler) TranspileArrayDeclStmt(n *builder.Node) (*string, error) {
+	if n.Type != "array_decl" {
+		return nil, errors.New("Node is not a package statement")
+	}
+
+	typeOf, err := t.TranspileType(n.Left)
+	if err != nil {
+		return nil, err
+	}
+
+	ident, err := t.TranspileIdentExpression(n.Right)
+	if err != nil {
+		return nil, err
+	}
+
+	arrExp, err := t.TranspileArrayExpression(n.Value.(*builder.Node))
+	if err != nil {
+		return nil, err
+	}
+
+	var nString = fmt.Sprintf("std::vector<%s> %s = %s;", *typeOf, *ident, *arrExp)
+	fmt.Println("NSTRING ARrAY:", nString)
+
+	return &nString, nil
 }
 
 func (t *Transpiler) TranspilePackageStmt(n *builder.Node) (*string, error) {
@@ -1797,27 +1828,21 @@ func (t *Transpiler) TranspileArrayExpression(n *builder.Node) (*string, error) 
 		return nil, errors.New("Node is not an array")
 	}
 
-	var (
-		nString = "{ "
-		vString *string
-		err     error
-	)
+	var vStrings []string
 
 	value := n.Value.([]*builder.Node)
 	for _, v := range value {
 		fmt.Println("v:", *v)
-		vString, err = t.TranspileExpression(v)
+		vString, err := t.TranspileExpression(v)
 		if err != nil {
 			return nil, err
 		}
 
-		fmt.Println("vString:", vString)
-
-		nString += *vString + ", "
+		vStrings = append(vStrings, *vString)
 	}
 
 	// Cut off the last comma and space
-	nString = nString[:len(nString)-2] + " }"
+	var nString = fmt.Sprintf("{ %s }", strings.Join(vStrings, ","))
 
 	return &nString, nil
 }
