@@ -1,0 +1,71 @@
+package main
+
+/*
+  - multi dimensions?
+  - array and vector
+
+  - int
+  - string
+  - bool
+  - float
+  - struct
+
+  - interface
+  - map
+*/
+
+/*
+  TODO:
+    - string does not generate as `std::string`
+    - struct does not generate the length in the array properly
+    - builtin types are generating as vectors?
+    - arrays are still generating as vectors
+    - map does not generate correctly
+    - prefix brackets
+    - values are not type checked; ignore for now
+*/
+
+struct poodle {
+  string name
+}
+
+func main() {
+  // ints
+  int[3] int_array = [6, 7, 8]
+  int[] int_vector = [6, 7, 8]
+
+
+  // strings
+  //string[3] string_array = ["hey", "its", "me"]
+  //string[] string_vector = ["hey", "its", "me"]
+
+  // bools
+  bool[3] bool_array = [true, false, true]
+  bool[] bool_vector = [true, false, true]
+
+  // floats
+  float[3] float_array = [ 6.6, 7.77, 8.888 ]
+  float[] float_vector = [ 6.6, 7.77, 8.888 ]
+
+/*
+  // structs
+  person[3] struct_array = [
+    person {
+      name = "scott"
+    }
+  ]
+  person[] struct_vector = [6, 7, 8]
+
+  map m = {
+    6: "six"
+  }
+
+  // maps
+  map[3] map_array = [
+    {
+      6: "six"
+    }
+  ]
+  //map[] map_vector = [6, 7, 8]
+*/
+}

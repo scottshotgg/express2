@@ -25,7 +25,7 @@ func init() {
 }
 
 func TestRun(t *testing.T) {
-	err = c.RunFile("test/interface.expr")
+	err = c.RunFile("test/arrays.expr")
 	if err != nil {
 		t.Fatalf("err %+v", err)
 	}
