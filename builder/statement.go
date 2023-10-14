@@ -1201,8 +1201,14 @@ func (b *Builder) ParseIdentStmt() (*Node, error) {
 	// Increment over the ident token
 	b.Index++
 
-	if identOrType.Type == "call" {
+	switch identOrType.Type {
+	case "call":
 		return identOrType, nil
+
+	case "selection":
+		if b.Tokens[b.Index].Type != token.Assign && b.Tokens[b.Index].Type != token.Set {
+			return identOrType, nil
+		}
 	}
 
 	if b.Index > len(b.Tokens)-1 {

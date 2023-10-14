@@ -42,10 +42,13 @@ type Transpiler struct {
 	Structs      map[string]WithPriority
 	Interfaces   map[string]string
 	GenerateMain bool
-	Wg           *sync.WaitGroup
-	Wg1          *sync.WaitGroup
-	Wg2          *sync.WaitGroup
-	AppendChan   chan string
+
+	// TODO: scottshotgg : 10.14.23 : if this doesn't work then just pull the ScopeTree
+	// into the transpiler
+	Wg         *sync.WaitGroup
+	Wg1        *sync.WaitGroup
+	Wg2        *sync.WaitGroup
+	AppendChan chan string
 }
 
 func (t *Transpiler) emit(line string) {

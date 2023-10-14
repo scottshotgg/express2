@@ -4,10 +4,6 @@ interface Dog {
 	Kind() string
 }
 
-func [Dog d] Testerino() {
-	Println("testerino")
-}
-
 // No specific fields; method returns static string
 struct Poodle {}
 
@@ -48,9 +44,6 @@ func [Husky h] Kind() string {
 func main() {
 	Dog d = Poodle{}
 	Println("I should be a Poodle:", d.Kind())
-
-	// TODO: for some reason can't do this:
-	// d.Testerino()
 
 	d = Husky{}
 	Println("I should be a Husky:", d.Kind())

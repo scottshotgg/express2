@@ -35,7 +35,6 @@ func New(tokens []token.Token) *Builder {
 		// Tier 1 operators
 		0: {
 			token.Increment: b.ParseIncrement,
-			token.Accessor:  b.ParseSelection,
 			token.LBracket:  b.ParseIndexExpression,
 			// token.LBrace:    b.ParseBlockExpression,
 			token.LParen:    b.ParseCall,
@@ -49,7 +48,8 @@ func New(tokens []token.Token) *Builder {
 
 		// Tier 2 operators
 		1: {
-			token.SecOp: b.ParseBinOp,
+			token.Accessor: b.ParseSelection,
+			token.SecOp:    b.ParseBinOp,
 			// token.Set:   b.ParseSet,
 		},
 

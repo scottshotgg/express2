@@ -28,30 +28,17 @@ typedef struct {
 } Dog;
 
 // Prototypes:
-std::string Kind(Husky h);
-std::string impl_Dog_Poodle_Kind(void *self);
 std::string impl_Dog_Husky_Kind(void *self);
 std::string impl_Dog_Bulldog_Kind(void *self);
-void Testerino(Dog d);
 std::string Kind(Poodle p);
 std::string Kind(Bulldog b);
+std::string Kind(Husky h);
+std::string impl_Dog_Poodle_Kind(void *self);
 
 // Functions:
-std::string Kind(Husky h) {
-  defer onReturn, onExit;
-  return h.kind;
-}
-
-std::string impl_Dog_Poodle_Kind(void *self) { return Kind(*(Poodle *)self); }
-
 std::string impl_Dog_Husky_Kind(void *self) { return Kind(*(Husky *)self); }
 
 std::string impl_Dog_Bulldog_Kind(void *self) { return Kind(*(Bulldog *)self); }
-
-void Testerino(Dog d) {
-  defer onReturn, onExit;
-  std::cout << "testerino" << std::endl;
-}
 
 std::string Kind(Poodle p) {
   defer onReturn, onExit;
@@ -62,6 +49,13 @@ std::string Kind(Bulldog b) {
   defer onReturn, onExit;
   return b.kind;
 }
+
+std::string Kind(Husky h) {
+  defer onReturn, onExit;
+  return h.kind;
+}
+
+std::string impl_Dog_Poodle_Kind(void *self) { return Kind(*(Poodle *)self); }
 
 // Main:
 // generated: false

@@ -213,6 +213,8 @@ func (b *Builder) ParseTerm1() (*Node, error) {
 		// Step over the factor
 		b.Index++
 
+		fmt.Println("factor before:", factor)
+
 		factor, err = opFunc(factor)
 		if err != nil {
 			// if err == ErrOutOfTokens {
@@ -223,6 +225,10 @@ func (b *Builder) ParseTerm1() (*Node, error) {
 		}
 
 		fmt.Println("factor1:", factor)
+
+		// if factor.Kind == "call" {
+		// 	factor.
+		// }
 	}
 
 	return factor, nil
