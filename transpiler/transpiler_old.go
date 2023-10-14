@@ -883,6 +883,10 @@ func (t *Transpiler) TranspileSelectExpression(n *builder.Node) (*string, error)
 		switch left.Value.(type) {
 		case *builder.Node:
 			if left.Value.(*builder.Node).Type == "deref" {
+				// if n.Right.Value.(*builder.Node).Type == "call" {
+				// 	return
+				// }
+
 				selector = "->"
 			}
 		}
@@ -2160,16 +2164,24 @@ func (t *Transpiler) convertIfaceAssign(n *builder.Node) (*string, *builder.Node
 	}
 
 	for k := range ifaceType.Props {
-		if strings.Contains(k, ".") {
-			var split = strings.Split(k, ".")
-			k = split[1]
+		// scottshotgg : 13.10.23 : this used to be opposite logic with nested
+		// if things start getting fucked up then fix this
+		if !strings.Contains(k, typeName) {
+			continue
 		}
+
+		var split = strings.Split(k, ".")
+
+		fmt.Println("split:", split)
+
+		k = split[1]
 
 		var prop, ok = structTypeValue.Props[k]
 		if !ok {
 			// scottshotgg : 04/16/23 :
 			// oh wow this is sortof an implicit check that the struct
 			// implements the interface ... interesting
+			// scottshotgg : 13.10.23 : this does not actually check the signature
 			panic(fmt.Sprintf("%s does not implement %s", structTypeStr, typeName))
 		}
 

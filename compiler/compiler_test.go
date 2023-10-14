@@ -25,7 +25,7 @@ func init() {
 }
 
 func TestRun(t *testing.T) {
-	err = c.RunFile("test/link.expr")
+	err = c.RunFile("test/interface.expr")
 	if err != nil {
 		t.Fatalf("err %+v", err)
 	}

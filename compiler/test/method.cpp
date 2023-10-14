@@ -18,19 +18,21 @@ struct Person {
   int age;
 };
 
+// Interfaces:
+
 // Prototypes:
-std::string Name();
 std::string Name(Person p);
+std::string Name();
 
 // Functions:
-std::string Name() {
-  defer onReturn, onExit;
-  return "blah";
-}
-
 std::string Name(Person p) {
   defer onReturn, onExit;
   return p.name;
+}
+
+std::string Name() {
+  defer onReturn, onExit;
+  return "blah";
 }
 
 // Main:

@@ -4,22 +4,21 @@ interface Dog {
 	Kind() string
 }
 
+func [Dog d] Testerino() {
+	Println("testerino")
+}
+
 // No specific fields; method returns static string
 struct Poodle {}
-
-// Specific field; method returns that value
-struct Bulldog {
-	string kind = "bulldog"
-}
-
-// Specific field; method returns that value
-struct Husky {
-	string kind = "husky"
-}
 
 // Reciever passed by value; method returns static string
 func [Poodle p] Kind() string {
 	return "poodle"
+}
+
+// Specific field; method returns that value
+struct Bulldog {
+	string kind = "bulldog"
 }
 
 // Reciever passed by value; method returns assigned field
@@ -27,14 +26,31 @@ func [Bulldog b] Kind() string {
 	return b.kind
 }
 
+// Specific field; method returns that value
+struct Husky {
+	string kind = "husky"
+	
+	// TODO: cannot return interface right now
+	// Dog dog
+}
+
 // Reciever passed by reference; method returns assigned field
 func [Husky h] Kind() string {
 	return h.kind
 }
 
+// TODO: cannot return interface right now, can't make function with same name as type
+//// Reciever passed by reference; method returns assigned field
+//func [*Husky h] Dogg() Dog {
+//	return h.dog
+//}
+
 func main() {
 	Dog d = Poodle{}
 	Println("I should be a Poodle:", d.Kind())
+
+	// TODO: for some reason can't do this:
+	// d.Testerino()
 
 	d = Husky{}
 	Println("I should be a Husky:", d.Kind())
@@ -42,17 +58,30 @@ func main() {
 	d = Bulldog{}
 	Println("I should be a Bulldog:", d.Kind())
 
-	Bulldog b = {
+	d = Bulldog{
 		kind = "bulldog_2"
 	}
 
-	d = b
-
 	Println("I should be a SECOND Bulldog:", d.Kind())
 
-	d = Bulldog {
-		kind = "bulldog_3"
+	Dog dd = Husky {
+		kind = "special_husky"
 	}
 
-	Println("I should be a THIRD Bulldog:", d.Kind())
+	Println("I should be a special Husky:", dd.Kind())
+	
+	Dog ddd
+	Husky h = {
+		kind: "husky 2"
+	}
+	ddd = h
+
+	Bulldog b = {
+		kind = "poodle?"
+	}
+
+	Println(h.Kind())
+	Println(b.Kind())
+
+	Println("I should be another Husky:", ddd.Kind())
 }
