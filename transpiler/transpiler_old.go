@@ -22,35 +22,30 @@ type WithPriority struct {
 }
 
 type Transpiler struct {
+	structPriorityLock sync.RWMutex
+	structPriority     int
+
 	tempCountLock sync.RWMutex
 	tempCount     int
 
-	LibBase       string
-	Name          string
-	Builder       *builder.Builder
-	AST           *builder.Node
-	ASTCloneJSON  []byte
-	Extra         []string
-	Functions     map[string]string
-	Imports       map[string]string
-	Includes      map[string]string
-	Packages      map[string]string
-	Types         map[string]string
-	Structs       map[string]WithPriority
-	Interfaces    map[string]string
-	GenerateMain  bool
-	Wg            *sync.WaitGroup
-	Wg1           *sync.WaitGroup
-	FuncChan      chan *builder.Node
-	TypeChan      chan *builder.Node
-	StructChan    chan *builder.Node
-	InterfaceChan chan *builder.Node
-	IncludeChan   chan *builder.Node
-	PackageChan   chan *builder.Node
-	ImportChan    chan *builder.Node
-	AppendChan    chan string
-
-	ChildTranspilers *sync.WaitGroup
+	LibBase      string
+	Name         string
+	Builder      *builder.Builder
+	AST          *builder.Node
+	ASTCloneJSON []byte
+	Extra        []string
+	Functions    map[string]string
+	Imports      map[string]string
+	Includes     map[string]string
+	Packages     map[string]string
+	Types        map[string]string
+	Structs      map[string]WithPriority
+	Interfaces   map[string]string
+	GenerateMain bool
+	Wg           *sync.WaitGroup
+	Wg1          *sync.WaitGroup
+	Wg2          *sync.WaitGroup
+	AppendChan   chan string
 }
 
 func (t *Transpiler) emit(line string) {
@@ -69,58 +64,41 @@ func (t *Transpiler) appendWorker() {
 	fmt.Println("totalFile", totalFile)
 }
 
-func (t *Transpiler) functionWorker() {
-	defer t.Wg1.Done()
+func (t *Transpiler) functionWorker(node *builder.Node) {
+	var functionName = node.Kind
 
-	for f := range t.FuncChan {
-		t.ChildTranspilers.Add(1)
-		func() {
-			defer t.ChildTranspilers.Done()
-
-			var functionName = f.Kind
-
-			if t.Functions[functionName] != "" {
-				// FIXME: this is an error
-				log.Printf("Function already declared: %+v\n", f)
-				os.Exit(9)
-			}
-
-			var function, err = t.TranspileFunctionStmt(f)
-			if err != nil {
-				log.Printf("Function error: %+v %+v\n", f, err)
-				os.Exit(9)
-			}
-
-			t.Functions[functionName] = *function
-		}()
+	if t.Functions[functionName] != "" {
+		// FIXME: this is an error
+		log.Printf("Function already declared: %+v\n", node)
+		os.Exit(9)
 	}
+
+	var function, err = t.TranspileFunctionStmt(node)
+	if err != nil {
+		log.Printf("Function error: %+v %+v\n", node, err)
+		os.Exit(9)
+	}
+
+	t.Functions[functionName] = *function
 }
 
 func New(ast *builder.Node, b *builder.Builder, name, libBase string) *Transpiler {
 	var t = Transpiler{
-		LibBase:       libBase,
-		Name:          name,
-		AST:           ast,
-		Builder:       b,
-		Functions:     map[string]string{},
-		Imports:       map[string]string{},
-		Packages:      map[string]string{},
-		Includes:      map[string]string{},
-		Interfaces:    map[string]string{},
-		Structs:       map[string]WithPriority{},
-		Types:         map[string]string{},
-		FuncChan:      make(chan *builder.Node, 100),
-		TypeChan:      make(chan *builder.Node, 100),
-		StructChan:    make(chan *builder.Node, 100),
-		InterfaceChan: make(chan *builder.Node, 100),
-		IncludeChan:   make(chan *builder.Node, 100),
-		PackageChan:   make(chan *builder.Node, 100),
-		ImportChan:    make(chan *builder.Node, 100),
-		AppendChan:    make(chan string, 5),
-		Wg:            &sync.WaitGroup{},
-		Wg1:           &sync.WaitGroup{},
-
-		ChildTranspilers: &sync.WaitGroup{},
+		LibBase:    libBase,
+		Name:       name,
+		AST:        ast,
+		Builder:    b,
+		Functions:  map[string]string{},
+		Imports:    map[string]string{},
+		Packages:   map[string]string{},
+		Includes:   map[string]string{},
+		Interfaces: map[string]string{},
+		Structs:    map[string]WithPriority{},
+		Types:      map[string]string{},
+		AppendChan: make(chan string, 5),
+		Wg:         &sync.WaitGroup{},
+		Wg1:        &sync.WaitGroup{},
+		Wg2:        &sync.WaitGroup{},
 	}
 
 	// go appendWorker(&wg)
@@ -150,27 +128,6 @@ func (t *Transpiler) Transpile() error {
 
 	// Spin off workers for each type of statement
 
-	t.Wg1.Add(1)
-	go t.functionWorker()
-
-	t.Wg1.Add(1)
-	go t.typeWorker()
-
-	t.Wg1.Add(1)
-	go t.structWorker()
-
-	t.Wg1.Add(1)
-	go t.packageWorker()
-
-	t.Wg1.Add(1)
-	go t.interfaceWorker()
-
-	t.Wg.Add(1)
-	go t.includeWorker()
-
-	t.Wg.Add(1)
-	go t.importWorker()
-
 	// Flatten the tree
 	includes, err := tree_flattener.New().Flatten(t.AST)
 	if err != nil {
@@ -178,7 +135,7 @@ func (t *Transpiler) Transpile() error {
 	}
 
 	for i := range includes {
-		t.IncludeChan <- includes[i]
+		t.includeWorker(includes[i])
 	}
 
 	for i := range nodes {
@@ -191,19 +148,26 @@ func (t *Transpiler) Transpile() error {
 
 		switch nodes[i].Type {
 		case "function":
-			t.FuncChan <- nodes[i]
+			t.functionWorker(nodes[i])
 
 		case "struct":
-			t.StructChan <- nodes[i]
+			t.structWorker(nodes[i])
 
 		case "typedef":
-			t.TypeChan <- nodes[i]
+			var stringP, err = t.TranspileStmt(nodes[i])
+			if err != nil {
+				fmt.Printf("err %+v\n", err)
+				os.Exit(9)
+				// return "", err
+			}
+
+			t.Types[nodes[i].Left.Value.(string)] = *stringP
 
 		case "import":
-			t.ImportChan <- nodes[i]
+			t.importWorker(nodes[i])
 
 		case "include":
-			t.IncludeChan <- nodes[i]
+			t.includeWorker(nodes[i])
 
 		case "decl":
 			// Just transpile the statement for now
@@ -239,7 +203,7 @@ func (t *Transpiler) Transpile() error {
 			t.Extra = append(t.Extra, *stringP)
 
 		case "package":
-			t.PackageChan <- nodes[i]
+			t.packageWorker(nodes[i])
 
 		case "link":
 			continue
@@ -262,34 +226,36 @@ func (t *Transpiler) Transpile() error {
 	// Just a fucking dirty ass hackerino
 	time.Sleep(2 * time.Second)
 
-	t.ChildTranspilers.Wait()
-
 	// These are over used. Really the only reason that the function, struct, and type
 	// chans were here in the first place was to capture all of the stuff to put it at the top
 	// but tbh this should be a semantic parser step before it even gets to the AST
 
-	close(t.ImportChan)
-	fmt.Println("Closing ImportChan")
-	close(t.IncludeChan)
-	fmt.Println("Closing IncludeChan")
+	// close(t.PackageChan)
+	// fmt.Println("Closing PackageChan")
 
-	// Wait for everything to be transpiled
-	t.Wg.Wait()
+	// // Wait for everything to be transpiled
+	// t.Wg.Wait()
 
-	// Close the channel and alert the worker that we are done
-	close(t.PackageChan)
-	fmt.Println("Closing PackageChan")
-	close(t.InterfaceChan)
-	fmt.Println("Closing InterfaceChan")
-	close(t.FuncChan)
-	fmt.Println("Closing FuncChan")
-	close(t.TypeChan)
-	fmt.Println("Closing TypeChan")
-	close(t.StructChan)
-	fmt.Println("Closing StructChan")
+	// close(t.ImportChan)
+	// fmt.Println("Closing ImportChan")
+	// close(t.IncludeChan)
+	// fmt.Println("Closing IncludeChan")
 
-	// Wait for everything to be transpiled
-	t.Wg1.Wait()
+	// // Wait for everything to be transpiled
+	// t.Wg1.Wait()
+
+	// // Close the channel and alert the worker that we are done
+	// close(t.InterfaceChan)
+	// fmt.Println("Closing InterfaceChan")
+	// close(t.FuncChan)
+	// fmt.Println("Closing FuncChan")
+	// close(t.TypeChan)
+	// fmt.Println("Closing TypeChan")
+	// close(t.StructChan)
+	// fmt.Println("Closing StructChan")
+
+	// // Wait for everything to be transpiled
+	// t.Wg2.Wait()
 
 	if t.Functions["main"] == "" {
 		// return errors.New("No main function declared")
@@ -298,148 +264,68 @@ func (t *Transpiler) Transpile() error {
 	return nil
 }
 
-func (t *Transpiler) typeWorker() {
-	defer t.Wg1.Done()
-
-	var (
-		stringP *string
-		err     error
-	)
-
-	for node := range t.TypeChan {
-		stringP, err = t.TranspileStmt(node)
-		if err != nil {
-			fmt.Printf("err %+v\n", err)
-			os.Exit(9)
-			// return "", err
-		}
-
-		t.Types[node.Left.Value.(string)] = *stringP
+func (t *Transpiler) structWorker(node *builder.Node) {
+	var stringP, err = t.TranspileStructDecl(node)
+	if err != nil {
+		fmt.Printf("err %+v\n", err)
+		os.Exit(9)
 	}
+
+	t.Structs[node.Left.Value.(string)] = WithPriority{
+		Priority: t.structPriority,
+		Value:    *stringP,
+	}
+
+	t.structPriorityLock.Lock()
+	defer t.structPriorityLock.Unlock()
+
+	t.structPriority++
 }
 
-func (t *Transpiler) structWorker() {
-	defer t.Wg1.Done()
-
-	var (
-		stringP *string
-		err     error
-	)
-
-	var i int
-	for node := range t.StructChan {
-		stringP, err = t.TranspileStructDecl(node)
-		if err != nil {
-			fmt.Printf("err %+v\n", err)
-			os.Exit(9)
-		}
-
-		t.Structs[node.Left.Value.(string)] = WithPriority{
-			Priority: i,
-			Value:    *stringP,
-		}
-
-		i++
+func (t *Transpiler) packageWorker(node *builder.Node) {
+	var stringP, err = t.TranspileStmt(node)
+	if err != nil {
+		fmt.Printf("err %+v\n", err)
+		os.Exit(9)
 	}
+
+	t.Packages[node.Left.Value.(string)] = *stringP
 }
 
-func (t *Transpiler) interfaceWorker() {
-	defer t.Wg1.Done()
+func (t *Transpiler) includeWorker(node *builder.Node) {
+	// Might want to make this go through the entire pipeline ...
+	var includeStringP, ierr = t.TranspileIncludeStmt(node)
+	if ierr != nil {
+		log.Printf("Error transpiling include statement: %+v\n", ierr)
 
-	var (
-		stringP *string
-		err     error
-	)
-
-	for node := range t.InterfaceChan {
-		stringP, err = t.TranspileInterfaceDecl(node)
-		if err != nil {
-			fmt.Printf("err %+v\n", err)
-			os.Exit(9)
-		}
-
-		t.Interfaces[node.Left.Value.(string)] = *stringP
+		// Exit if there is a problem transpiling the import statement
+		// and we'll deal with it later
+		os.Exit(9)
 	}
+
+	// TODO: should really check the deref on all of these, but the usage/running
+	// is pretty predictable right now
+	t.Includes[node.Left.Value.(string)] = *includeStringP
 }
 
-func (t *Transpiler) packageWorker() {
-	defer t.Wg1.Done()
+func (t *Transpiler) importWorker(node *builder.Node) {
+	// Might want to make this go through the entire pipeline ...
+	var importStringP, ierr = t.TranspileImportStmt(node)
+	if ierr != nil {
+		log.Printf("Error transpiling import statement: %+v\n", ierr)
 
-	var (
-		stringP *string
-		err     error
-	)
-
-	var i int
-	for node := range t.PackageChan {
-		stringP, err = t.TranspileStmt(node)
-		if err != nil {
-			fmt.Printf("err %+v\n", err)
-			os.Exit(9)
-		}
-
-		t.Packages[node.Left.Value.(string)] = *stringP
-
-		i++
+		// Exit if there is a problem transpiling the import statement
+		// and we'll deal with it later
+		os.Exit(9)
 	}
-}
 
-func (t *Transpiler) includeWorker() {
-	defer t.Wg.Done()
+	// if importStringP == nil {
+	// 	continue
+	// }
 
-	var (
-		includeStringP *string
-		// Why does this shadow ...
-		// Is the gofunc "capturing" variables that aren't passed?
-		ierr error
-	)
-
-	for node := range t.IncludeChan {
-		// Might want to make this go through the entire pipeline ...
-		includeStringP, ierr = t.TranspileIncludeStmt(node)
-		if ierr != nil {
-			log.Printf("Error transpiling include statement: %+v\n", ierr)
-
-			// Exit if there is a problem transpiling the import statement
-			// and we'll deal with it later
-			os.Exit(9)
-		}
-
-		// TODO: should really check the deref on all of these, but the usage/running
-		// is pretty predictable right now
-		t.Includes[node.Left.Value.(string)] = *includeStringP
-	}
-}
-
-func (t *Transpiler) importWorker() {
-	defer t.Wg.Done()
-
-	var (
-		importStringP *string
-		// Why does this shadow ...
-		// Is the gofunc "capturing" variables that aren't passed?
-		ierr error
-	)
-
-	for node := range t.ImportChan {
-		// Might want to make this go through the entire pipeline ...
-		importStringP, ierr = t.TranspileImportStmt(node)
-		if ierr != nil {
-			log.Printf("Error transpiling import statement: %+v\n", ierr)
-
-			// Exit if there is a problem transpiling the import statement
-			// and we'll deal with it later
-			os.Exit(9)
-		}
-
-		if importStringP == nil {
-			continue
-		}
-
-		// TODO: should really check the deref on all of these, but the usage/running
-		// is pretty predictable right now
-		t.Imports[node.Left.Value.(string)] = *importStringP
-	}
+	// TODO: should really check the deref on all of these, but the usage/running
+	// is pretty predictable right now
+	t.Imports[node.Left.Value.(string)] = *importStringP
 }
 
 func (t *Transpiler) ToCpp() string {
@@ -521,8 +407,8 @@ func (t *Transpiler) generateTypes() string {
 	}
 
 	var structs = make([]string, len(t.Structs))
-	for _, t := range t.Structs {
-		structs[t.Priority] = t.Value
+	for _, st := range t.Structs {
+		structs[st.Priority] = st.Value
 	}
 
 	var structsString = "\n\n// Structs:\n"
@@ -827,9 +713,6 @@ func (t *Transpiler) TranspileImportStmt(n *builder.Node) (*string, error) {
 		// fmt.Println("cpp, err", cpp, err)
 	}
 
-	t.ChildTranspilers.Add(1)
-	defer t.ChildTranspilers.Done()
-
 	var tt = New(n.Right, t.Builder, n.Left.Value.(string), t.LibBase)
 
 	err := tt.Transpile()
@@ -1123,13 +1006,13 @@ func (t *Transpiler) TranspileMapStmt(n *builder.Node) (*string, error) {
 	}
 
 	// Include std::map from C++
-	t.IncludeChan <- &builder.Node{
+	t.includeWorker(&builder.Node{
 		Type: "include",
 		Left: &builder.Node{
 			Type:  "literal",
 			Value: "map",
 		},
-	}
+	})
 
 	nString += *vString + ";"
 
@@ -1154,14 +1037,14 @@ func (t *Transpiler) TranspileThreadStmt(n *builder.Node) (*string, error) {
 	}
 
 	// Include libmill for coroutines
-	t.IncludeChan <- &builder.Node{
+	t.includeWorker(&builder.Node{
 		Type: "include",
 		Kind: "path",
 		Left: &builder.Node{
 			Type:  "literal",
 			Value: t.LibBase + "libmill/libmill.h",
 		},
-	}
+	})
 
 	// includeChan <- &builder.Node{
 	// 	Type: "include",
@@ -1259,9 +1142,6 @@ func (t *Transpiler) TranspileDeferStmt(n *builder.Node) (*string, error) {
 }
 
 func (t *Transpiler) TranspileStmt(n *builder.Node) (*string, error) {
-	t.ChildTranspilers.Add(1)
-	defer t.ChildTranspilers.Done()
-
 	fmt.Println("wtf3333", n.Type)
 	switch n.Type {
 
@@ -1288,7 +1168,7 @@ func (t *Transpiler) TranspileStmt(n *builder.Node) (*string, error) {
 		return t.TranspileTypeDecl(n)
 
 	case "struct":
-		t.StructChan <- n
+		t.structWorker(n)
 		return nil, nil
 		// return t.TranspileStructDecl(n)
 
@@ -1337,7 +1217,7 @@ func (t *Transpiler) TranspileStmt(n *builder.Node) (*string, error) {
 		return t.TranspileDeclStmt(n)
 
 	case "function":
-		t.FuncChan <- n
+		t.functionWorker(n)
 		// Right now just grab the name from the string
 		// Later on we can issue new function names for lambdas
 		// var name = n.Kind
@@ -1400,11 +1280,17 @@ func (t *Transpiler) TranspileStmt(n *builder.Node) (*string, error) {
 		return nil, nil
 
 	case "interface":
-		t.InterfaceChan <- n
+		var stringP, err = t.TranspileInterfaceDecl(n)
+		if err != nil {
+			fmt.Printf("err %+v\n", err)
+			os.Exit(9)
+		}
+
+		t.Interfaces[n.Left.Value.(string)] = *stringP
 		return nil, nil
 
-		// case "array_decl":
-		// 	return t.TranspileArrayDeclStmt(n)
+	case "array_decl":
+		return t.TranspileArrayDeclStmt(n)
 	}
 
 	return nil, errors.Errorf("Not implemented statement: %+v", n)
@@ -1428,6 +1314,12 @@ func (t *Transpiler) TranspileArrayDeclStmt(n *builder.Node) (*string, error) {
 	arrExp, err := t.TranspileArrayExpression(n.Value.(*builder.Node))
 	if err != nil {
 		return nil, err
+	}
+
+	// TODO: make a function that will take a node and produce a c type for it
+	// Not sure how type checking works there ... but w/e for now
+	if n.Left.Type == "map" {
+		fmt.Println("n.Left.Type")
 	}
 
 	var nString = fmt.Sprintf("std::vector<%s> %s = %s;", *typeOf, *ident, *arrExp)
@@ -1515,14 +1407,14 @@ func (t *Transpiler) TranspileFunctionStmt(n *builder.Node) (*string, error) {
 	}
 
 	// Include std::map from C++
-	t.IncludeChan <- &builder.Node{
+	t.includeWorker(&builder.Node{
 		Type: "include",
 		Kind: "path",
 		Left: &builder.Node{
 			Type:  "literal",
 			Value: t.LibBase + "defer.cpp",
 		},
-	}
+	})
 
 	return t.TranspileFuncPartial(n)
 }
@@ -1729,43 +1621,43 @@ func (t *Transpiler) TranspileType(n *builder.Node) (*string, error) {
 		nString = "std::" + nString
 
 		// TODO: switch this to just use a damn string later
-		t.IncludeChan <- &builder.Node{
+		t.includeWorker(&builder.Node{
 			Type: "include",
 			Left: &builder.Node{
 				Type:  "literal",
 				Value: "string",
 			},
-		}
+		})
 
 	case "map":
-		nString = "map"
+		nString = "std::map<%s, %s>"
 
-		t.IncludeChan <- &builder.Node{
+		t.includeWorker(&builder.Node{
 			Type: "include",
 			Left: &builder.Node{
 				Type:  "literal",
 				Value: "map",
 			},
-		}
+		})
 
-		t.IncludeChan <- &builder.Node{
+		t.includeWorker(&builder.Node{
 			Type: "include",
 			Kind: "path",
 			Left: &builder.Node{
 				Type:  "literal",
 				Value: t.LibBase + "var.cpp",
 			},
-		}
+		})
 
 	// TODO(scottshotgg): for now every array will just be a list
 	case "array":
-		t.IncludeChan <- &builder.Node{
+		t.includeWorker(&builder.Node{
 			Type: "include",
 			Left: &builder.Node{
 				Type:  "literal",
 				Value: "vector",
 			},
-		}
+		})
 
 		nString = "std::vector<" + n.Kind + ">"
 
@@ -1934,7 +1826,7 @@ func (t *Transpiler) TranspileDeclStmt(n *builder.Node) (*string, error) {
 	var err error
 
 	if n.Left.Type != "deref" {
-		typeOf, err = t.TranspileExpression(n.Value.(*builder.Node))
+		typeOf, err = t.TranspileType(n.Value.(*builder.Node))
 		if err != nil {
 			return nil, err
 		}
@@ -2202,16 +2094,16 @@ func (t *Transpiler) convertIfaceAssign(n *builder.Node) (*string, *builder.Node
 		typeName = n.Value.(*builder.Node).Value.(string)
 	} else {
 		// assignment stmt so we need to resolve the type
-		var rv = t.Builder.ScopeTree.Get(n.Left.Value.(string))
-		if rv == nil {
-			panic("rv was nil")
+		var lv = t.Builder.ScopeTree.Get(n.Left.Value.(string))
+		if lv == nil {
+			panic("lv was nil")
 		}
 
-		if rv.Value == nil {
-			panic("rv.Value was nil")
+		if lv.Value == nil {
+			panic("lv.Value was nil")
 		}
 
-		typeName = rv.Value.(*builder.Node).Value.(string)
+		typeName = lv.Value.(*builder.Node).Value.(string)
 	}
 
 	fmt.Println("TYPENAME INTERFACE:", typeName)
@@ -2229,7 +2121,7 @@ func (t *Transpiler) convertIfaceAssign(n *builder.Node) (*string, *builder.Node
 
 		assigns[0].Right.Left.Value = tempVarName
 
-		nr, err := t.TranspileBlockExpression(n.Right.Right)
+		nr, err := t.TranspileStructBlockStmt(n.Right.Right)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -2593,7 +2485,7 @@ func (t *Transpiler) TranspileBlockExpression(n *builder.Node) (*string, error) 
 	}
 
 	var (
-		nString = ""
+		nString string
 		vString *string
 		err     error
 	)
@@ -2611,10 +2503,13 @@ func (t *Transpiler) TranspileBlockExpression(n *builder.Node) (*string, error) 
 		// 	return nil, errors.Errorf("Structs can only contain assignment statements; %+v", stmt)
 		// }
 
-		*vString = (*vString)[:len(*vString)-1]
+		// TODO: I took this out for maps of maps
+		// *vString = (*vString)[:len(*vString)-1]
 
+		// TODO: i removed the dot for map values
 		// Add a dot in front
-		nString += "." + *vString + ","
+		// nString += "." + *vString + ","
+		nString += *vString + ","
 	}
 
 	nString = "{" + nString + "}"
@@ -2758,13 +2653,13 @@ func (t *Transpiler) TranspileCallExpression(n *builder.Node) (*string, error) {
 	funcName, ok := n.Value.(*builder.Node).Value.(string)
 	if ok {
 		if cFuncs[n.Value.(*builder.Node).Value.(string)] {
-			t.IncludeChan <- &builder.Node{
+			t.includeWorker(&builder.Node{
 				Type: "include",
 				Left: &builder.Node{
 					Type:  "literal",
 					Value: "stdio.h",
 				},
-			}
+			})
 		}
 
 		if funcName == "Println" {
@@ -2783,13 +2678,13 @@ func (t *Transpiler) TranspileCallExpression(n *builder.Node) (*string, error) {
 
 			return &nString, nil
 		} else if funcName == "sleep" {
-			t.IncludeChan <- &builder.Node{
+			t.includeWorker(&builder.Node{
 				Type: "include",
 				Left: &builder.Node{
 					Type:  "literal",
 					Value: "unistd.h",
 				},
-			}
+			})
 		}
 	}
 

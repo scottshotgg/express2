@@ -7,7 +7,6 @@
 #include <iostream>
 #include <map>
 #include <string>
-#include <vector>
 
 // Namespaces:
 
@@ -15,8 +14,7 @@
 // none
 
 // Structs:
-struct person
-{
+struct poodle {
   std::string name;
 };
 
@@ -28,22 +26,10 @@ struct person
 // Functions:// none
 // Main:
 // generated: false
-int main()
-{
+int main() {
   defer onReturn, onExit;
-  std::vector<int> int_array = {6, 7, 8};
-  std::vector<int> int_vector = {6, 7, 8};
-  std::vector<bool> bool_array = {true, false, true};
-  std::vector<bool> bool_vector = {true, false, true};
-  std::vector<float> float_array = {6.6, 7.77, 8.888};
-  std::vector<float> float_vector = {6.6, 7.77, 8.888};
-  map<var, var> m = {
-      {6, "six"},
-  };
-  std::vector<map<var, var>> map_array = {
-      {{
-          6,
-          "six",
-      }},
-  };
-}
+  std::vector < std::map <%
+    s, % s >> map_array = {{
+           {6, "six"},
+       }};
+  }

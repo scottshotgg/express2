@@ -25,29 +25,18 @@ package main
     - values are not type checked; ignore for now
 */
 
-struct poodle {
-  string name
-}
-
 func main() {
+  map mappy = {
+    6: {
+      7: {
+        "eight": {
+          "nine": 9
+        }
+      }
+    }
+  }
+
 /*
-  // ints
-  int[3] int_array = [6, 7, 8]
-  int[] int_vector = [6, 7, 8]
-
-
-  // strings
-  //string[3] string_array = ["hey", "its", "me"]
-  //string[] string_vector = ["hey", "its", "me"]
-
-  // bools
-  bool[3] bool_array = [true, false, true]
-  bool[] bool_vector = [true, false, true]
-
-  // floats
-  float[3] float_array = [ 6.6, 7.77, 8.888 ]
-  float[] float_vector = [ 6.6, 7.77, 8.888 ]
-
   // structs
   person[3] struct_array = [
     person {
@@ -59,13 +48,13 @@ func main() {
   map m = {
     6: "six"
   }
-*/
 
   // maps
-  []map map_array = [
+  map[3] map_array = [
     {
       6: "six"
     }
   ]
   //map[] map_vector = [6, 7, 8]
+*/
 }

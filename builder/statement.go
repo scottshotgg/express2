@@ -1915,7 +1915,7 @@ func (b *Builder) ParseArrayDeclStmt() (*Node, error) {
 		return nil, b.AppendTokenToError("Could not get type declaration statement")
 	}
 
-	// Create the ident
+	// Parse the initial array expression declaration
 	arrDef, err := b.ParseArrayExpression()
 	if err != nil {
 		return nil, err
@@ -1924,7 +1924,7 @@ func (b *Builder) ParseArrayDeclStmt() (*Node, error) {
 	// Increment over the R_BRACKET
 	b.Index++
 
-	// Create the ident
+	// Parse the non-repeated type
 	typeOf, err := b.ParseExpression()
 	if err != nil {
 		return nil, err
@@ -1933,7 +1933,7 @@ func (b *Builder) ParseArrayDeclStmt() (*Node, error) {
 	// Increment over the type
 	b.Index++
 
-	// Create the ident
+	// Parse the ident
 	ident, err := b.ParseExpression()
 	if err != nil {
 		return nil, err
@@ -1950,19 +1950,17 @@ func (b *Builder) ParseArrayDeclStmt() (*Node, error) {
 	// Increment over the equals
 	b.Index++
 
-	// Create the ident
+	// Parse the actual array expression
 	arrExp, err := b.ParseArrayExpression()
 	if err != nil {
 		return nil, err
 	}
 
+	var specificType = deriveTypeFromArray(arrExp)
+	_ = specificType
+
 	// Increment over the R_BRACKET
 	b.Index++
-
-	_ = arrDef
-	_ = typeOf
-	_ = ident
-	_ = arrExp
 
 	return &Node{
 		Type: "array_decl",
@@ -1971,9 +1969,62 @@ func (b *Builder) ParseArrayDeclStmt() (*Node, error) {
 		Right: ident,
 		Value: arrExp,
 		Metadata: map[string]interface{}{
-			"def": arrDef,
+			"def":           arrDef,
+			"specific_type": "",
 		},
 	}, nil
+}
+
+type SpecificType struct {
+	Type string
+	Kind []SpecificType
+}
+
+/*
+{
+	"type": "array",
+	"kind": [
+		{
+			"type": "int"
+		},
+		{
+			"type": "int"
+		}
+		]
+}
+*/
+
+func deriveTypeFromArray(n *Node) *SpecificType {
+	if n.Type != "array" {
+		return nil
+	}
+
+	if n.Value == nil {
+		return nil
+	}
+
+	var nodes, ok = n.Value.([]*Node)
+	if !ok {
+		panic("wtf not an array")
+	}
+
+	var st SpecificType
+
+	for _, node := range nodes {
+		switch node.Type {
+		// We have a map
+		case "block":
+			for _, node1 := range node.Value.([]*Node) {
+				fmt.Println("node1:", node1)
+				if node1.Type != "kv" {
+					panic("node type is not a key-value pair for map")
+				}
+
+			}
+		}
+	}
+
+	return &st
 }
 
 // TODO: what if types were expressions ...

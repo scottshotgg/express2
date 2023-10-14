@@ -15,49 +15,47 @@
 // Structs:
 struct Poodle {};
 struct Bulldog {
-  std::string breed = "bulldog";
+  std::string kind = "bulldog";
 };
 struct Husky {
-  std::string breed = "husky";
+  std::string kind = "husky";
 };
 
 // Interfaces:
 typedef struct {
   void *self;
-  std::string (*Breed)(void *self);
+  std::string (*Kind)(void *self);
 } Dog;
 
 // Prototypes:
-std::string Breed(Poodle p);
-std::string Breed(Bulldog b);
-std::string Breed(Husky *h);
-std::string impl_Dog_Poodle_Breed(void *self);
-std::string impl_Dog_Husky_Breed(void *self);
-std::string impl_Dog_Bulldog_Breed(void *self);
+std::string Kind(Poodle p);
+std::string Kind(Bulldog b);
+std::string Kind(Husky h);
+std::string impl_Dog_Poodle_Kind(void *self);
+std::string impl_Dog_Husky_Kind(void *self);
+std::string impl_Dog_Bulldog_Kind(void *self);
 
 // Functions:
-std::string Breed(Poodle p) {
+std::string Kind(Poodle p) {
   defer onReturn, onExit;
   return "poodle";
 }
 
-std::string Breed(Bulldog b) {
+std::string Kind(Bulldog b) {
   defer onReturn, onExit;
-  return b.breed;
+  return b.kind;
 }
 
-std::string Breed(Husky *h) {
+std::string Kind(Husky h) {
   defer onReturn, onExit;
-  return h->breed;
+  return h.kind;
 }
 
-std::string impl_Dog_Poodle_Breed(void *self) { return Breed(*(Poodle *)self); }
+std::string impl_Dog_Poodle_Kind(void *self) { return Kind(*(Poodle *)self); }
 
-std::string impl_Dog_Husky_Breed(void *self) { return Breed((Husky *)self); }
+std::string impl_Dog_Husky_Kind(void *self) { return Kind(*(Husky *)self); }
 
-std::string impl_Dog_Bulldog_Breed(void *self) {
-  return Breed(*(Bulldog *)self);
-}
+std::string impl_Dog_Bulldog_Kind(void *self) { return Kind(*(Bulldog *)self); }
 
 // Main:
 // generated: false
@@ -66,31 +64,46 @@ int main() {
   Poodle __temp_0_Poodle = {};
   Dog d = {
       .self = &__temp_0_Poodle,
-      .Breed = impl_Dog_Poodle_Breed,
+      .Kind = impl_Dog_Poodle_Kind,
   };
   std::cout << "I should be a Poodle:"
-            << " " << d.Breed(d.self) << std::endl;
+            << " " << d.Kind(d.self) << std::endl;
   Husky __temp_1_Husky = {};
   d = {
       .self = &__temp_1_Husky,
-      .Breed = impl_Dog_Husky_Breed,
+      .Kind = impl_Dog_Husky_Kind,
   };
   std::cout << "I should be a Husky:"
-            << " " << d.Breed(d.self) << std::endl;
+            << " " << d.Kind(d.self) << std::endl;
   Bulldog __temp_2_Bulldog = {};
   d = {
       .self = &__temp_2_Bulldog,
-      .Breed = impl_Dog_Bulldog_Breed,
+      .Kind = impl_Dog_Bulldog_Kind,
   };
   std::cout << "I should be a Bulldog:"
-            << " " << d.Breed(d.self) << std::endl;
+            << " " << d.Kind(d.self) << std::endl;
+  Bulldog b = {
+      .kind = "bulldog_2",
+  };
+  d = {
+      .self = &b,
+      .Kind = impl_Dog_Bulldog_Kind,
+  };
+  std::cout << "I should be a SECOND Bulldog:"
+            << " " << d.Kind(d.self) << std::endl;
   Bulldog __temp_3_Bulldog = {
-      .breed = "bulldog_2",
+      .kind = "bulldog_3",
   };
   d = {
       .self = &__temp_3_Bulldog,
-      .Breed = impl_Dog_Bulldog_Breed,
+      .Kind = impl_Dog_Bulldog_Kind,
   };
-  std::cout << "I should be a SECOND Bulldog:"
-            << " " << d.Breed(d.self) << std::endl;
+  std::cout << "I should be a THIRD Bulldog:"
+            << " " << d.Kind(d.self) << std::endl;
+  d = {
+      .self = &b,
+      .Kind = impl_Dog_Bulldog_Kind,
+  };
+  std::cout << "I should be a THIRD Bulldog:"
+            << " " << d.Kind(d.self) << std::endl;
 }

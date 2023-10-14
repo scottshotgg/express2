@@ -5,52 +5,40 @@
 #include "/home/scottshotgg/Development/go/src/github.com/scottshotgg/express2/lib/defer.cpp"
 #include <iostream>
 #include <stdio.h>
+#include <string>
 
 // Namespaces:
-namespace __time {
-// Includes:
-// none
-
-// Imports:
-// none
-
-// Namespaces:
-namespace time {}
 
 // Types:
 // none
 
 // Structs:
 
+// Interfaces:
+
 // Prototypes:
-void Sleep(int i);
-int Now();
+int Atoi(std::string s);
+int convert(std::string s);
 
 // Functions:
-void Sleep(int i) {
+int Atoi(std::string s)
+{
   defer onReturn, onExit;
-  msleep(Now() + i);
+  return atoi(s.c_str());
 }
 
-int Now() {
+int convert(std::string s)
+{
   defer onReturn, onExit;
-  return now();
+  return Atoi(s);
 }
 
 // Main:
 // generated: false
-
-} // namespace __time
-
-// Types:
-// none
-
-// Structs:
-
-// Prototypes:
-// none
-
-// Functions:// none
-// Main:
-// generated: false
-int main() { defer onReturn, onExit; }
+int main()
+{
+  defer onReturn, onExit;
+  onReturn.deferStack.push([=](...)
+                           { printf("hey its me\n"); });
+  printf("Atoi: %d\n", convert("97"));
+}
