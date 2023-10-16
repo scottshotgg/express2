@@ -176,7 +176,7 @@ func (b *Builder) ParseType(typeHint *TypeValue) (*Node, error) {
 		metadata = map[string]interface{}{}
 	)
 
-	// If typeHint is nothing then we are default looking for primitives
+	// If typeHint is nothing then we start looking for a primitive
 	if typeHint == nil {
 		typeHint = &TypeValue{
 			Type: PrimitiveValue,
@@ -202,8 +202,19 @@ func (b *Builder) ParseType(typeHint *TypeValue) (*Node, error) {
 	case PrimitiveValue:
 		fmt.Println("B TOKENS", b.Tokens[b.Index].Value.Type)
 		t = b.ScopeTree.GetType(b.Tokens[b.Index].Value.Type)
+
+		if t == nil {
+			t = b.ScopeTree.GetType(b.Tokens[b.Index].Value.String)
+		}
+
 		fmt.Println("t from scope on primitive", t, b.Tokens[b.Index].Value.Type)
 		injectedType = t.Kind
+
+		if t.Kind == "struct" || t.Kind == "interface" {
+			typeOf = typeName
+			// nn.Kind = n.Kind
+			metadata["kind"] = t.Kind
+		}
 
 	case ImportedValue:
 		var typeName = b.Tokens[b.Index+1].Value.Type

@@ -1,6 +1,7 @@
 package transpiler
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -15,6 +16,8 @@ import (
 	"github.com/scottshotgg/express2/builder"
 	"github.com/scottshotgg/express2/tree_flattener"
 )
+
+type CtxIsStruct string
 
 type WithPriority struct {
 	Priority int
@@ -67,7 +70,7 @@ func (t *Transpiler) appendWorker() {
 	fmt.Println("totalFile", totalFile)
 }
 
-func (t *Transpiler) functionWorker(node *builder.Node) {
+func (t *Transpiler) functionWorker(ctx context.Context, node *builder.Node) {
 	var functionName = node.Kind
 
 	if t.Functions[functionName] != "" {
@@ -76,7 +79,7 @@ func (t *Transpiler) functionWorker(node *builder.Node) {
 		os.Exit(9)
 	}
 
-	var function, err = t.TranspileFunctionStmt(node)
+	var function, err = t.TranspileFunctionStmt(ctx, node)
 	if err != nil {
 		log.Printf("Function error: %+v %+v\n", node, err)
 		os.Exit(9)
@@ -118,7 +121,7 @@ func New(ast *builder.Node, b *builder.Builder, name, libBase string) *Transpile
 */
 
 // TODO: rewrite this
-func (t *Transpiler) Transpile() error {
+func (t *Transpiler) Transpile(ctx context.Context) error {
 	// Extract the nodes
 	var (
 		// flattenedImports []*builder.Node
@@ -138,7 +141,7 @@ func (t *Transpiler) Transpile() error {
 	}
 
 	for i := range includes {
-		t.includeWorker(includes[i])
+		t.includeWorker(ctx, includes[i])
 	}
 
 	for i := range nodes {
@@ -151,13 +154,13 @@ func (t *Transpiler) Transpile() error {
 
 		switch nodes[i].Type {
 		case "function":
-			t.functionWorker(nodes[i])
+			t.functionWorker(ctx, nodes[i])
 
 		case "struct":
-			t.structWorker(nodes[i])
+			t.structWorker(ctx, nodes[i])
 
 		case "typedef":
-			var stringP, err = t.TranspileStmt(nodes[i])
+			var stringP, err = t.TranspileStmt(ctx, nodes[i])
 			if err != nil {
 				fmt.Printf("err %+v\n", err)
 				os.Exit(9)
@@ -167,14 +170,14 @@ func (t *Transpiler) Transpile() error {
 			t.Types[nodes[i].Left.Value.(string)] = *stringP
 
 		case "import":
-			t.importWorker(nodes[i])
+			t.importWorker(ctx, nodes[i])
 
 		case "include":
-			t.includeWorker(nodes[i])
+			t.includeWorker(ctx, nodes[i])
 
 		case "decl":
 			// Just transpile the statement for now
-			stringP, err := t.TranspileStmt(nodes[i])
+			stringP, err := t.TranspileStmt(ctx, nodes[i])
 			if err != nil {
 				fmt.Printf("err %+v\n", err)
 				os.Exit(9)
@@ -185,7 +188,7 @@ func (t *Transpiler) Transpile() error {
 
 		case "use":
 			// Just transpile the statement for now
-			stringP, err := t.TranspileStmt(nodes[i])
+			stringP, err := t.TranspileStmt(ctx, nodes[i])
 			if err != nil {
 				fmt.Printf("err %+v\n", err)
 				os.Exit(9)
@@ -196,7 +199,7 @@ func (t *Transpiler) Transpile() error {
 
 		case "map":
 			// Just transpile the statement for now
-			stringP, err := t.TranspileStmt(nodes[i])
+			stringP, err := t.TranspileStmt(ctx, nodes[i])
 			if err != nil {
 				fmt.Printf("err %+v\n", err)
 				os.Exit(9)
@@ -206,7 +209,7 @@ func (t *Transpiler) Transpile() error {
 			t.Extra = append(t.Extra, *stringP)
 
 		case "package":
-			t.packageWorker(nodes[i])
+			t.packageWorker(ctx, nodes[i])
 
 		case "link":
 			continue
@@ -267,8 +270,8 @@ func (t *Transpiler) Transpile() error {
 	return nil
 }
 
-func (t *Transpiler) structWorker(node *builder.Node) {
-	var stringP, err = t.TranspileStructDecl(node)
+func (t *Transpiler) structWorker(ctx context.Context, node *builder.Node) {
+	var stringP, err = t.TranspileStructDecl(ctx, node)
 	if err != nil {
 		fmt.Printf("err %+v\n", err)
 		os.Exit(9)
@@ -285,8 +288,8 @@ func (t *Transpiler) structWorker(node *builder.Node) {
 	t.structPriority++
 }
 
-func (t *Transpiler) packageWorker(node *builder.Node) {
-	var stringP, err = t.TranspileStmt(node)
+func (t *Transpiler) packageWorker(ctx context.Context, node *builder.Node) {
+	var stringP, err = t.TranspileStmt(ctx, node)
 	if err != nil {
 		fmt.Printf("err %+v\n", err)
 		os.Exit(9)
@@ -295,9 +298,9 @@ func (t *Transpiler) packageWorker(node *builder.Node) {
 	t.Packages[node.Left.Value.(string)] = *stringP
 }
 
-func (t *Transpiler) includeWorker(node *builder.Node) {
+func (t *Transpiler) includeWorker(ctx context.Context, node *builder.Node) {
 	// Might want to make this go through the entire pipeline ...
-	var includeStringP, ierr = t.TranspileIncludeStmt(node)
+	var includeStringP, ierr = t.TranspileIncludeStmt(ctx, node)
 	if ierr != nil {
 		log.Printf("Error transpiling include statement: %+v\n", ierr)
 
@@ -311,9 +314,9 @@ func (t *Transpiler) includeWorker(node *builder.Node) {
 	t.Includes[node.Left.Value.(string)] = *includeStringP
 }
 
-func (t *Transpiler) importWorker(node *builder.Node) {
+func (t *Transpiler) importWorker(ctx context.Context, node *builder.Node) {
 	// Might want to make this go through the entire pipeline ...
-	var importStringP, ierr = t.TranspileImportStmt(node)
+	var importStringP, ierr = t.TranspileImportStmt(ctx, node)
 	if ierr != nil {
 		log.Printf("Error transpiling import statement: %+v\n", ierr)
 
@@ -475,7 +478,7 @@ func (t *Transpiler) generateFunctions() string {
 		fmt.Sprintf("\n// Main:\n// generated: %v\n%s", t.GenerateMain, mainFunc)
 }
 
-func (t *Transpiler) TranspileTypeDecl(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileTypeDecl(ctx context.Context, n *builder.Node) (*string, error) {
 	// Format should be:
 	// `type` [ident] `=` [type]
 	// Left is the ident
@@ -489,7 +492,7 @@ func (t *Transpiler) TranspileTypeDecl(n *builder.Node) (*string, error) {
 
 	var nString = "typedef "
 
-	var cpp, err = t.TranspileType(n.Right)
+	var cpp, err = t.TranspileType(ctx, n.Right)
 	if err != nil {
 		return nil, err
 	}
@@ -498,7 +501,7 @@ func (t *Transpiler) TranspileTypeDecl(n *builder.Node) (*string, error) {
 
 	// This will allow technically allow idents to be made from general expressions; not sure if we should keep this or not
 	// Might have to change it to TranspileIdent
-	cpp, err = t.TranspileExpression(n.Left)
+	cpp, err = t.TranspileExpression(ctx, n.Left)
 	if err != nil {
 		return nil, err
 	}
@@ -508,7 +511,7 @@ func (t *Transpiler) TranspileTypeDecl(n *builder.Node) (*string, error) {
 	return &nString, nil
 }
 
-func (t *Transpiler) TranspileObjectStmt(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileObjectStmt(ctx context.Context, n *builder.Node) (*string, error) {
 	/*
 		This should transpile to:
 		object something = {} : class something {}
@@ -525,7 +528,7 @@ func (t *Transpiler) TranspileObjectStmt(n *builder.Node) (*string, error) {
 	}
 
 	// Transpile the ident which will become a usable type
-	var vString, err = t.TranspileExpression(n.Left)
+	var vString, err = t.TranspileExpression(ctx, n.Left)
 	if err != nil {
 		return nil, err
 	}
@@ -534,7 +537,7 @@ func (t *Transpiler) TranspileObjectStmt(n *builder.Node) (*string, error) {
 	var nString = "class " + *vString
 
 	// Transpile the block for the value
-	vString, err = t.TranspileBlockStmt(n.Right)
+	vString, err = t.TranspileBlockStmt(ctx, n.Right)
 	if err != nil {
 		return nil, err
 	}
@@ -544,7 +547,7 @@ func (t *Transpiler) TranspileObjectStmt(n *builder.Node) (*string, error) {
 	return &nString, nil
 }
 
-func (t *Transpiler) TranspileStructDecl(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileStructDecl(ctx context.Context, n *builder.Node) (*string, error) {
 	/*
 		This should transpile to:
 		struct something {} : struct something {}
@@ -558,7 +561,7 @@ func (t *Transpiler) TranspileStructDecl(n *builder.Node) (*string, error) {
 	}
 
 	// Transpile the ident which will become a usable type
-	var vString, err = t.TranspileExpression(n.Left)
+	var vString, err = t.TranspileExpression(ctx, n.Left)
 	if err != nil {
 		return nil, err
 	}
@@ -567,7 +570,7 @@ func (t *Transpiler) TranspileStructDecl(n *builder.Node) (*string, error) {
 	var nString = n.Type + " " + *vString
 
 	// Transpile the block for the value
-	vString, err = t.TranspileBlockStmt(n.Right)
+	vString, err = t.TranspileBlockStmt(ctx, n.Right)
 	if err != nil {
 		return nil, err
 	}
@@ -577,7 +580,7 @@ func (t *Transpiler) TranspileStructDecl(n *builder.Node) (*string, error) {
 	return &nString, nil
 }
 
-func (t *Transpiler) TranspileInterfaceDecl(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileInterfaceDecl(ctx context.Context, n *builder.Node) (*string, error) {
 	/*
 		This should transpile to:
 		TODO: fill this in
@@ -592,7 +595,7 @@ func (t *Transpiler) TranspileInterfaceDecl(n *builder.Node) (*string, error) {
 	}
 
 	// Transpile the ident which will become a usable type
-	var vString, err = t.TranspileExpression(n.Left)
+	var vString, err = t.TranspileExpression(ctx, n.Left)
 	if err != nil {
 		return nil, err
 	}
@@ -617,7 +620,7 @@ func (t *Transpiler) TranspileInterfaceDecl(n *builder.Node) (*string, error) {
 
 	for i, funcPart := range funcParts {
 		fmt.Println("funcPart:", funcPart)
-		funcPartStr, err := t.TranspileInterfaceFuncPartial(funcPart)
+		funcPartStr, err := t.TranspileInterfaceFuncPartial(ctx, funcPart)
 		if err != nil {
 			return nil, err
 		}
@@ -630,12 +633,12 @@ func (t *Transpiler) TranspileInterfaceDecl(n *builder.Node) (*string, error) {
 	return &nString, nil
 }
 
-func (t *Transpiler) TranspileIncludeStmt(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileIncludeStmt(ctx context.Context, n *builder.Node) (*string, error) {
 	if n.Type != "include" {
 		return nil, errors.New("Node is not an include")
 	}
 
-	lhs, err := t.TranspileExpression(n.Left)
+	lhs, err := t.TranspileExpression(ctx, n.Left)
 	if err != nil {
 		return nil, err
 	}
@@ -655,7 +658,7 @@ func (t *Transpiler) TranspileIncludeStmt(n *builder.Node) (*string, error) {
 	return lhs, nil
 }
 
-func (t *Transpiler) TranspileUseStmt(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileUseStmt(ctx context.Context, n *builder.Node) (*string, error) {
 	if n.Type != "use" {
 		return nil, errors.New("Node is not a use")
 	}
@@ -665,12 +668,12 @@ func (t *Transpiler) TranspileUseStmt(n *builder.Node) (*string, error) {
 		Right is the new ident
 	*/
 
-	lhs, err := t.TranspileExpression(n.Left)
+	lhs, err := t.TranspileExpression(ctx, n.Left)
 	if err != nil {
 		return nil, err
 	}
 
-	rhs, err := t.TranspileExpression(n.Right)
+	rhs, err := t.TranspileExpression(ctx, n.Right)
 	if err != nil {
 		return nil, err
 	}
@@ -689,7 +692,7 @@ func (t *Transpiler) TranspileUseStmt(n *builder.Node) (*string, error) {
 
 // TODO: this should transpile the program and take all statements
 // and put them into the file under a namespace that is the package name
-func (t *Transpiler) TranspileImportStmt(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileImportStmt(ctx context.Context, n *builder.Node) (*string, error) {
 	if n.Type != "import" {
 		return nil, errors.New("Node is not an import")
 	}
@@ -718,7 +721,7 @@ func (t *Transpiler) TranspileImportStmt(n *builder.Node) (*string, error) {
 
 	var tt = New(n.Right, t.Builder, n.Left.Value.(string), t.LibBase)
 
-	err := tt.Transpile()
+	err := tt.Transpile(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -744,12 +747,12 @@ func (t *Transpiler) TranspileImportStmt(n *builder.Node) (*string, error) {
 
 var empty = ""
 
-func (t *Transpiler) TranspileIncrementExpression(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileIncrementExpression(ctx context.Context, n *builder.Node) (*string, error) {
 	if n.Type != "inc" {
 		return nil, errors.New("Node is not an inc")
 	}
 
-	lhs, err := t.TranspileExpression(n.Left)
+	lhs, err := t.TranspileExpression(ctx, n.Left)
 	if err != nil {
 		return nil, err
 	}
@@ -760,7 +763,7 @@ func (t *Transpiler) TranspileIncrementExpression(n *builder.Node) (*string, err
 	return lhs, nil
 }
 
-func (t *Transpiler) TranspileIndexExpression(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileIndexExpression(ctx context.Context, n *builder.Node) (*string, error) {
 	/*
 		Left is an expression
 		Right is an expression
@@ -770,12 +773,12 @@ func (t *Transpiler) TranspileIndexExpression(n *builder.Node) (*string, error) 
 		return nil, errors.New("Node is not an index")
 	}
 
-	lhs, err := t.TranspileExpression(n.Left)
+	lhs, err := t.TranspileExpression(ctx, n.Left)
 	if err != nil {
 		return nil, err
 	}
 
-	rhs, err := t.TranspileExpression(n.Right)
+	rhs, err := t.TranspileExpression(ctx, n.Right)
 	if err != nil {
 		return nil, err
 	}
@@ -786,7 +789,7 @@ func (t *Transpiler) TranspileIndexExpression(n *builder.Node) (*string, error) 
 }
 
 // The type checker should produce arrow function ones as well
-func (t *Transpiler) TranspileSelectExpression(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileSelectExpression(ctx context.Context, n *builder.Node) (*string, error) {
 	/*
 		Left is an expression
 		Right is an expression
@@ -797,19 +800,47 @@ func (t *Transpiler) TranspileSelectExpression(n *builder.Node) (*string, error)
 	}
 
 	var (
-		left   = t.Builder.ScopeTree.Get(n.Left.Value.(string))
+		left = t.Builder.ScopeTree.Get(n.Left.Value.(string))
+	)
+
+	if left == nil {
+		return nil, errors.Errorf("undeclared variable: %s", n.Left.Value.(string))
+	}
+
+	var (
 		lv, ok = left.Value.(*builder.Node)
 		rhs    *string
 	)
 
+	/*
+
+		if lvKind == "struct" || lvKind == "interface" {
+			// if lv.Type == "type" {}
+			lv.Type == "deref" && lv.Left.Type == "type"
+
+	*/
+
+	var deref bool
+
 	if ok {
+		switch {
+		case lv.Type == "type":
+
+		case lv.Kind == "pointer":
+			lv = lv.Left
+			deref = true
+		}
+
 		// TODO : scottshotgg : linking is messing this up - fix it
 		// We have a method call
 		var lvKind = lv.Metadata["kind"]
-		if lv.Type == "type" && (lvKind == "struct" || lvKind == "interface") {
+		if (lv.Type == "type") && (lvKind == "struct" || lvKind == "interface") {
 			var lookupVar string
 			if n.Right.Type == "call" {
 				lookupVar = lv.Value.(string) + "." + n.Right.Value.(*builder.Node).Value.(string)
+				if deref {
+					lookupVar = "*" + lookupVar
+				}
 			} else if n.Right.Type == "function" {
 				lookupVar = lv.Value.(string) + "." + n.Right.Value.(string)
 			} else {
@@ -844,10 +875,19 @@ func (t *Transpiler) TranspileSelectExpression(n *builder.Node) (*string, error)
 				)
 
 				if lvKind == "struct" {
-					argNode.Value = append([]*builder.Node{n.Left}, args...)
+					var self = n.Left
+					if deref {
+						self = &builder.Node{
+							Type: "ref",
+							Kind: "type",
+							Left: n.Left,
+						}
+					}
+
+					argNode.Value = append([]*builder.Node{self}, args...)
 					n.Right.Metadata["args"] = argNode
 
-					return t.TranspileCallExpression(n.Right)
+					return t.TranspileCallExpression(ctx, n.Right)
 				} else if lvKind == "interface" {
 					argNode.Value = append([]*builder.Node{
 						{
@@ -858,7 +898,7 @@ func (t *Transpiler) TranspileSelectExpression(n *builder.Node) (*string, error)
 					n.Right.Metadata["args"] = argNode
 
 					var err error
-					rhs, err = t.TranspileCallExpression(n.Right)
+					rhs, err = t.TranspileCallExpression(ctx, n.Right)
 					if err != nil {
 						return nil, err
 					}
@@ -867,13 +907,13 @@ func (t *Transpiler) TranspileSelectExpression(n *builder.Node) (*string, error)
 		}
 	}
 
-	lhs, err := t.TranspileExpression(n.Left)
+	lhs, err := t.TranspileExpression(ctx, n.Left)
 	if err != nil {
 		return nil, err
 	}
 
 	if rhs == nil {
-		rhs, err = t.TranspileExpression(n.Right)
+		rhs, err = t.TranspileExpression(ctx, n.Right)
 		if err != nil {
 			return nil, err
 		}
@@ -885,7 +925,16 @@ func (t *Transpiler) TranspileSelectExpression(n *builder.Node) (*string, error)
 	} else if left.Type == "decl" {
 		switch left.Value.(type) {
 		case *builder.Node:
-			if left.Value.(*builder.Node).Type == "deref" {
+			if left.Value.(*builder.Node).Kind == "pointer" {
+				// if n.Right.Value.(*builder.Node).Type == "call" {
+				// 	return
+				// }
+
+				selector = "->"
+			}
+
+		case builder.Node:
+			if left.Value.(builder.Node).Kind == "pointer" {
 				// if n.Right.Value.(*builder.Node).Type == "call" {
 				// 	return
 				// }
@@ -901,7 +950,7 @@ func (t *Transpiler) TranspileSelectExpression(n *builder.Node) (*string, error)
 }
 
 // The type checker should produce arrow function ones as well
-func (t *Transpiler) TranspileDerefExpression(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileDerefExpression(ctx context.Context, n *builder.Node) (*string, error) {
 	if n.Type != "deref" {
 		return nil, errors.New("Node is not an deref")
 	}
@@ -909,7 +958,7 @@ func (t *Transpiler) TranspileDerefExpression(n *builder.Node) (*string, error) 
 	var nString = "*"
 
 	// Left is the ident; right is nothing
-	lhs, err := t.TranspileExpression(n.Left)
+	lhs, err := t.TranspileExpression(ctx, n.Left)
 	if err != nil {
 		return nil, err
 	}
@@ -924,13 +973,13 @@ func (t *Transpiler) TranspileDerefExpression(n *builder.Node) (*string, error) 
 }
 
 // The type checker should produce arrow function ones as well
-func (t *Transpiler) TranspileRefExpression(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileRefExpression(ctx context.Context, n *builder.Node) (*string, error) {
 	if n.Type != "ref" {
 		return nil, errors.New("Node is not an ref")
 	}
 
 	// Left is the ident; right is nothing
-	lhs, err := t.TranspileExpression(n.Left)
+	lhs, err := t.TranspileExpression(ctx, n.Left)
 	if err != nil {
 		return nil, err
 	}
@@ -940,44 +989,57 @@ func (t *Transpiler) TranspileRefExpression(n *builder.Node) (*string, error) {
 	return &nString, nil
 }
 
-func (t *Transpiler) TranspileExpression(n *builder.Node) (*string, error) {
+func isStruct(ctx context.Context) bool {
+	var v, ok = ctx.Value(CtxIsStruct("is_struct")).(bool)
+	if !ok {
+		return false
+	}
+
+	return v
+}
+
+func (t *Transpiler) TranspileExpression(ctx context.Context, n *builder.Node) (*string, error) {
 	switch n.Type {
 
 	case "literal":
-		return t.TranspileLiteralExpression(n)
+		return t.TranspileLiteralExpression(ctx, n)
 
 	case "ident":
 		return t.TranspileIdentExpression(n)
 
 	case "comp":
-		return t.TranspileConditionExpression(n)
+		return t.TranspileConditionExpression(ctx, n)
 
 	case "binop":
-		return t.TranspileBinOpExpression(n)
+		return t.TranspileBinOpExpression(ctx, n)
 
 	case "array":
-		return t.TranspileArrayExpression(n)
+		return t.TranspileArrayExpression(ctx, n)
 
 	case "call":
-		return t.TranspileCallExpression(n)
+		return t.TranspileCallExpression(ctx, n)
 
 	case "index":
-		return t.TranspileIndexExpression(n)
+		return t.TranspileIndexExpression(ctx, n)
 
 	case "block":
-		return t.TranspileBlockExpression(n)
+		if isStruct(ctx) {
+			return t.TranspileStructBlockStmt(ctx, n)
+		}
+
+		return t.TranspileBlockExpression(ctx, n)
 
 	case "selection":
-		return t.TranspileSelectExpression(n)
+		return t.TranspileSelectExpression(ctx, n)
 
 	case "deref":
-		return t.TranspileDerefExpression(n)
+		return t.TranspileDerefExpression(ctx, n)
 
 	case "ref":
-		return t.TranspileRefExpression(n)
+		return t.TranspileRefExpression(ctx, n)
 
 	case "type":
-		return t.TranspileType(n)
+		return t.TranspileType(ctx, n)
 
 	case "package":
 		return t.TranspilePackageExpression(n)
@@ -991,13 +1053,13 @@ func (t *Transpiler) TranspilePackageExpression(n *builder.Node) (*string, error
 	return &value, nil
 }
 
-func (t *Transpiler) TranspileMapStmt(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileMapStmt(ctx context.Context, n *builder.Node) (*string, error) {
 	if n.Type != "map" {
 		return nil, errors.New("Node is not a map")
 	}
 
 	// Transpile the ident
-	vString, err := t.TranspileExpression(n.Left)
+	vString, err := t.TranspileExpression(ctx, n.Left)
 	if err != nil {
 		return nil, err
 	}
@@ -1007,13 +1069,13 @@ func (t *Transpiler) TranspileMapStmt(n *builder.Node) (*string, error) {
 	var nString = "std::map<var, var>" + " " + *vString + "= "
 
 	// Transpile the block for the value
-	vString, err = t.TranspileMapBlockStmt(n.Right)
+	vString, err = t.TranspileMapBlockStmt(ctx, n.Right)
 	if err != nil {
 		return nil, err
 	}
 
 	// Include std::map from C++
-	t.includeWorker(&builder.Node{
+	t.includeWorker(ctx, &builder.Node{
 		Type: "include",
 		Left: &builder.Node{
 			Type:  "literal",
@@ -1026,7 +1088,7 @@ func (t *Transpiler) TranspileMapStmt(n *builder.Node) (*string, error) {
 	return &nString, nil
 }
 
-func (t *Transpiler) TranspileThreadStmt(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileThreadStmt(ctx context.Context, n *builder.Node) (*string, error) {
 	if n.Type != "thread" {
 		return nil, errors.New("Node is not a thread node")
 	}
@@ -1038,13 +1100,13 @@ func (t *Transpiler) TranspileThreadStmt(n *builder.Node) (*string, error) {
 	fmt.Println("thread.left:", string(blob))
 
 	// Transpile the ident
-	var vString, err = t.TranspileStmt(n.Left)
+	var vString, err = t.TranspileStmt(ctx, n.Left)
 	if err != nil {
 		return nil, err
 	}
 
 	// Include libmill for coroutines
-	t.includeWorker(&builder.Node{
+	t.includeWorker(ctx, &builder.Node{
 		Type: "include",
 		Kind: "path",
 		Left: &builder.Node{
@@ -1068,7 +1130,7 @@ func (t *Transpiler) TranspileThreadStmt(n *builder.Node) (*string, error) {
 	return &nString, nil
 }
 
-func (t *Transpiler) TranspileEnumBlockStmt(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileEnumBlockStmt(ctx context.Context, n *builder.Node) (*string, error) {
 	if n.Type != "block" {
 		return nil, errors.New("Node is not a block")
 	}
@@ -1084,7 +1146,7 @@ func (t *Transpiler) TranspileEnumBlockStmt(n *builder.Node) (*string, error) {
 			return nil, errors.Errorf("All statements in an enum have to be assignment or ident: %+v\n", stmt)
 		}
 
-		vString, err = t.TranspileStmt(stmt)
+		vString, err = t.TranspileStmt(ctx, stmt)
 		if err != nil {
 			return nil, err
 		}
@@ -1101,12 +1163,12 @@ func (t *Transpiler) TranspileEnumBlockStmt(n *builder.Node) (*string, error) {
 	return &nString, nil
 }
 
-func (t *Transpiler) TranspileEnumStmt(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileEnumStmt(ctx context.Context, n *builder.Node) (*string, error) {
 	if n.Type != "enum" {
 		return nil, errors.New("Node is not a map")
 	}
 
-	var enum, err = t.TranspileEnumBlockStmt(n.Left)
+	var enum, err = t.TranspileEnumBlockStmt(ctx, n.Left)
 	if err != nil {
 		return nil, err
 	}
@@ -1116,13 +1178,13 @@ func (t *Transpiler) TranspileEnumStmt(n *builder.Node) (*string, error) {
 	return &nString, err
 }
 
-func (t *Transpiler) TranspileKeyValueStmt(n *builder.Node) (*string, error) {
-	var left, err = t.TranspileExpression(n.Left)
+func (t *Transpiler) TranspileKeyValueStmt(ctx context.Context, n *builder.Node) (*string, error) {
+	var left, err = t.TranspileExpression(ctx, n.Left)
 	if err != nil {
 		return nil, err
 	}
 
-	right, err := t.TranspileExpression(n.Right)
+	right, err := t.TranspileExpression(ctx, n.Right)
 	if err != nil {
 		return nil, err
 	}
@@ -1132,8 +1194,8 @@ func (t *Transpiler) TranspileKeyValueStmt(n *builder.Node) (*string, error) {
 	return &nString, nil
 }
 
-func (t *Transpiler) TranspileDeferStmt(n *builder.Node) (*string, error) {
-	var stmt, err = t.TranspileStmt(n.Left)
+func (t *Transpiler) TranspileDeferStmt(ctx context.Context, n *builder.Node) (*string, error) {
+	var stmt, err = t.TranspileStmt(ctx, n.Left)
 	if err != nil {
 		return nil, err
 	}
@@ -1148,46 +1210,46 @@ func (t *Transpiler) TranspileDeferStmt(n *builder.Node) (*string, error) {
 	return &nString, nil
 }
 
-func (t *Transpiler) TranspileStmt(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileStmt(ctx context.Context, n *builder.Node) (*string, error) {
 	fmt.Println("wtf3333", n.Type)
 	switch n.Type {
 
 	case "if":
-		return t.TranspileIfStmt(n)
+		return t.TranspileIfStmt(ctx, n)
 
 	case "thread":
-		return t.TranspileThreadStmt(n)
+		return t.TranspileThreadStmt(ctx, n)
 
 	case "defer":
-		return t.TranspileDeferStmt(n)
+		return t.TranspileDeferStmt(ctx, n)
 
 	case "enum":
-		return t.TranspileEnumStmt(n)
+		return t.TranspileEnumStmt(ctx, n)
 
 	case "kv":
-		return t.TranspileKeyValueStmt(n)
+		return t.TranspileKeyValueStmt(ctx, n)
 
 	case "map":
-		return t.TranspileMapStmt(n)
+		return t.TranspileMapStmt(ctx, n)
 
 	case "typedef":
 		// typeChan <- n
-		return t.TranspileTypeDecl(n)
+		return t.TranspileTypeDecl(ctx, n)
 
 	case "struct":
-		t.structWorker(n)
+		t.structWorker(ctx, n)
 		return nil, nil
 		// return t.TranspileStructDecl(n)
 
 	case "object":
-		return t.TranspileObjectStmt(n)
+		return t.TranspileObjectStmt(ctx, n)
 
 	// FIXME: Why do we have expressions in here ... ?
 	case "literal":
-		return t.TranspileLiteralExpression(n)
+		return t.TranspileLiteralExpression(ctx, n)
 
 	case "inc":
-		var cppString, err = t.TranspileIncrementExpression(n)
+		var cppString, err = t.TranspileIncrementExpression(ctx, n)
 		if err == nil {
 			*cppString += ";"
 		}
@@ -1195,7 +1257,7 @@ func (t *Transpiler) TranspileStmt(n *builder.Node) (*string, error) {
 		return cppString, err
 
 	case "call":
-		var cppString, err = t.TranspileCallExpression(n)
+		var cppString, err = t.TranspileCallExpression(ctx, n)
 		if err == nil {
 			*cppString += ";"
 		}
@@ -1206,11 +1268,11 @@ func (t *Transpiler) TranspileStmt(n *builder.Node) (*string, error) {
 		return t.TranspileIdentExpression(n)
 
 	case "use":
-		return t.TranspileUseStmt(n)
+		return t.TranspileUseStmt(ctx, n)
 
 	case "import":
 		// importChan <- n
-		return t.TranspileImportStmt(n)
+		return t.TranspileImportStmt(ctx, n)
 
 	case "include":
 		// includeChan <- n
@@ -1218,13 +1280,13 @@ func (t *Transpiler) TranspileStmt(n *builder.Node) (*string, error) {
 		// return t.TranspileIncludeStmt(n)
 
 	case "assignment":
-		return t.TranspileAssignmentStmt(n)
+		return t.TranspileAssignmentStmt(ctx, n)
 
 	case "decl":
-		return t.TranspileDeclStmt(n)
+		return t.TranspileDeclStmt(ctx, n)
 
 	case "function":
-		t.functionWorker(n)
+		t.functionWorker(ctx, n)
 		// Right now just grab the name from the string
 		// Later on we can issue new function names for lambdas
 		// var name = n.Kind
@@ -1233,34 +1295,34 @@ func (t *Transpiler) TranspileStmt(n *builder.Node) (*string, error) {
 		return nil, nil
 
 	case "return":
-		return t.TranspileReturnStmt(n)
+		return t.TranspileReturnStmt(ctx, n)
 
 	case "block":
-		return t.TranspileBlockStmt(n)
+		return t.TranspileBlockStmt(ctx, n)
 
 	case "while":
-		return t.TranspileWhileStmt(n)
+		return t.TranspileWhileStmt(ctx, n)
 
 	// case "forof":
 	// 	return t.TranspileForOfStmt(n)
 
 	case "forin":
-		return t.TranspileForInStmt(n)
+		return t.TranspileForInStmt(ctx, n)
 
 	case "forstd":
-		return t.TranspileForStdStmt(n)
+		return t.TranspileForStdStmt(ctx, n)
 
 	case "forever":
-		return t.TranspileForEverStmt(n)
+		return t.TranspileForEverStmt(ctx, n)
 
 	case "package":
 		// t.PackageChan <- n
-		return t.TranspilePackageStmt(n)
+		return t.TranspilePackageStmt(ctx, n)
 
 		// return nil, nil
 
 	case "selection":
-		var exp, err = t.TranspileSelectExpression(n)
+		var exp, err = t.TranspileSelectExpression(ctx, n)
 		if err != nil {
 			return nil, err
 		}
@@ -1287,7 +1349,7 @@ func (t *Transpiler) TranspileStmt(n *builder.Node) (*string, error) {
 		return nil, nil
 
 	case "interface":
-		var stringP, err = t.TranspileInterfaceDecl(n)
+		var stringP, err = t.TranspileInterfaceDecl(ctx, n)
 		if err != nil {
 			fmt.Printf("err %+v\n", err)
 			os.Exit(9)
@@ -1297,18 +1359,18 @@ func (t *Transpiler) TranspileStmt(n *builder.Node) (*string, error) {
 		return nil, nil
 
 	case "array_decl":
-		return t.TranspileArrayDeclStmt(n)
+		return t.TranspileArrayDeclStmt(ctx, n)
 	}
 
 	return nil, errors.Errorf("Not implemented statement: %+v", n)
 }
 
-func (t *Transpiler) TranspileArrayDeclStmt(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileArrayDeclStmt(ctx context.Context, n *builder.Node) (*string, error) {
 	if n.Type != "array_decl" {
 		return nil, errors.New("Node is not a package statement")
 	}
 
-	typeOf, err := t.TranspileType(n.Left)
+	typeOf, err := t.TranspileType(ctx, n.Left)
 	if err != nil {
 		return nil, err
 	}
@@ -1318,7 +1380,7 @@ func (t *Transpiler) TranspileArrayDeclStmt(n *builder.Node) (*string, error) {
 		return nil, err
 	}
 
-	arrExp, err := t.TranspileArrayExpression(n.Value.(*builder.Node))
+	arrExp, err := t.TranspileArrayExpression(ctx, n.Value.(*builder.Node))
 	if err != nil {
 		return nil, err
 	}
@@ -1335,7 +1397,7 @@ func (t *Transpiler) TranspileArrayDeclStmt(n *builder.Node) (*string, error) {
 	return &nString, nil
 }
 
-func (t *Transpiler) TranspilePackageStmt(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspilePackageStmt(ctx context.Context, n *builder.Node) (*string, error) {
 	if n.Type != "package" {
 		return nil, errors.New("Node is not a package statement")
 	}
@@ -1346,7 +1408,7 @@ func (t *Transpiler) TranspilePackageStmt(n *builder.Node) (*string, error) {
 		nString += "namespace "
 
 		var (
-			vString, err = t.TranspileExpression(n.Left)
+			vString, err = t.TranspileExpression(ctx, n.Left)
 		)
 
 		if err != nil {
@@ -1360,7 +1422,7 @@ func (t *Transpiler) TranspilePackageStmt(n *builder.Node) (*string, error) {
 
 	fmt.Println("STMTS LEN", len(n.Right.Value.([]*builder.Node)))
 
-	var vString, err = t.TranspileBlockStmt(n.Right)
+	var vString, err = t.TranspileBlockStmt(ctx, n.Right)
 	if err != nil {
 		return nil, err
 	}
@@ -1382,7 +1444,7 @@ func (t *Transpiler) TranspilePackageStmt(n *builder.Node) (*string, error) {
 	return &nString, nil
 }
 
-func (t *Transpiler) TranspileReturnStmt(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileReturnStmt(ctx context.Context, n *builder.Node) (*string, error) {
 	if n.Type != "return" {
 		return nil, errors.New("Node is not a return statement")
 	}
@@ -1395,7 +1457,7 @@ func (t *Transpiler) TranspileReturnStmt(n *builder.Node) (*string, error) {
 
 	// LHS (the return expression) is allowed to be empty
 	if n.Left != nil {
-		exprString, err := t.TranspileExpression(n.Left)
+		exprString, err := t.TranspileExpression(ctx, n.Left)
 		if err != nil {
 			return nil, err
 		}
@@ -1408,13 +1470,13 @@ func (t *Transpiler) TranspileReturnStmt(n *builder.Node) (*string, error) {
 	return &nString, nil
 }
 
-func (t *Transpiler) TranspileFunctionStmt(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileFunctionStmt(ctx context.Context, n *builder.Node) (*string, error) {
 	if n.Type != "function" {
 		return nil, errors.New("Node is not an function")
 	}
 
 	// Include std::map from C++
-	t.includeWorker(&builder.Node{
+	t.includeWorker(ctx, &builder.Node{
 		Type: "include",
 		Kind: "path",
 		Left: &builder.Node{
@@ -1423,10 +1485,10 @@ func (t *Transpiler) TranspileFunctionStmt(n *builder.Node) (*string, error) {
 		},
 	})
 
-	return t.TranspileFuncPartial(n)
+	return t.TranspileFuncPartial(ctx, n)
 }
 
-func (t *Transpiler) TranspileFuncPartial(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileFuncPartial(ctx context.Context, n *builder.Node) (*string, error) {
 	/*
 		A map with keys for `returns` and `args` will be egroups in the Metadata
 		`Kind` is the name of the function
@@ -1449,7 +1511,7 @@ func (t *Transpiler) TranspileFuncPartial(n *builder.Node) (*string, error) {
 	_ = aargsFunc
 
 	// args is an `sgroup`
-	argsString, err := t.TranspileSGroup(n.Metadata["args"].(*builder.Node))
+	argsString, err := t.TranspileSGroup(ctx, n.Metadata["args"].(*builder.Node))
 	if err != nil {
 		return nil, err
 	}
@@ -1472,7 +1534,7 @@ func (t *Transpiler) TranspileFuncPartial(n *builder.Node) (*string, error) {
 
 	if returns != nil {
 		// returns is a `type` for now; multiple returns are not supported right now
-		returnsStringP, err = t.TranspileEGroup(returns.(*builder.Node))
+		returnsStringP, err = t.TranspileEGroup(ctx, returns.(*builder.Node))
 		if err != nil {
 			return nil, err
 		}
@@ -1488,7 +1550,7 @@ func (t *Transpiler) TranspileFuncPartial(n *builder.Node) (*string, error) {
 	nString = *returnsStringP + " " + nString
 
 	if n.Value != nil {
-		blockString, err := t.TranspileBlockStmt(n.Value.(*builder.Node))
+		blockString, err := t.TranspileBlockStmt(ctx, n.Value.(*builder.Node))
 		if err != nil {
 			return nil, err
 		}
@@ -1501,7 +1563,7 @@ func (t *Transpiler) TranspileFuncPartial(n *builder.Node) (*string, error) {
 	return &nString, nil
 }
 
-func (t *Transpiler) TranspileInterfaceFuncPartial(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileInterfaceFuncPartial(ctx context.Context, n *builder.Node) (*string, error) {
 	/*
 		A map with keys for `returns` and `args` will be egroups in the Metadata
 		`Kind` is the name of the function
@@ -1521,7 +1583,7 @@ func (t *Transpiler) TranspileInterfaceFuncPartial(n *builder.Node) (*string, er
 	var nString = "(*" + n.Kind + ")"
 
 	// args is an `sgroup`
-	argsString, err := t.TranspileSGroup(n.Metadata["args"].(*builder.Node))
+	argsString, err := t.TranspileSGroup(ctx, n.Metadata["args"].(*builder.Node))
 	if err != nil {
 		return nil, err
 	}
@@ -1555,7 +1617,7 @@ func (t *Transpiler) TranspileInterfaceFuncPartial(n *builder.Node) (*string, er
 
 	if returns != nil {
 		// returns is a `type` for now; multiple returns are not supported right now
-		returnsStringP, err = t.TranspileEGroup(returns.(*builder.Node))
+		returnsStringP, err = t.TranspileEGroup(ctx, returns.(*builder.Node))
 		if err != nil {
 			return nil, err
 		}
@@ -1571,7 +1633,7 @@ func (t *Transpiler) TranspileInterfaceFuncPartial(n *builder.Node) (*string, er
 	nString = *returnsStringP + " " + nString
 
 	if n.Value != nil {
-		blockString, err := t.TranspileBlockStmt(n.Value.(*builder.Node))
+		blockString, err := t.TranspileBlockStmt(ctx, n.Value.(*builder.Node))
 		if err != nil {
 			return nil, err
 		}
@@ -1611,7 +1673,7 @@ func (t *Transpiler) TranspileIdentExpression(n *builder.Node) (*string, error) 
 	return &nString, nil
 }
 
-func (t *Transpiler) TranspileType(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileType(ctx context.Context, n *builder.Node) (*string, error) {
 	if n.Type != "type" {
 		blob, _ := json.Marshal(n)
 		fmt.Println("blob:", string(blob))
@@ -1628,7 +1690,7 @@ func (t *Transpiler) TranspileType(n *builder.Node) (*string, error) {
 		nString = "std::" + nString
 
 		// TODO: switch this to just use a damn string later
-		t.includeWorker(&builder.Node{
+		t.includeWorker(ctx, &builder.Node{
 			Type: "include",
 			Left: &builder.Node{
 				Type:  "literal",
@@ -1639,7 +1701,7 @@ func (t *Transpiler) TranspileType(n *builder.Node) (*string, error) {
 	case "map":
 		nString = "std::map<%s, %s>"
 
-		t.includeWorker(&builder.Node{
+		t.includeWorker(ctx, &builder.Node{
 			Type: "include",
 			Left: &builder.Node{
 				Type:  "literal",
@@ -1647,7 +1709,7 @@ func (t *Transpiler) TranspileType(n *builder.Node) (*string, error) {
 			},
 		})
 
-		t.includeWorker(&builder.Node{
+		t.includeWorker(ctx, &builder.Node{
 			Type: "include",
 			Kind: "path",
 			Left: &builder.Node{
@@ -1658,7 +1720,7 @@ func (t *Transpiler) TranspileType(n *builder.Node) (*string, error) {
 
 	// TODO(scottshotgg): for now every array will just be a list
 	case "array":
-		t.includeWorker(&builder.Node{
+		t.includeWorker(ctx, &builder.Node{
 			Type: "include",
 			Left: &builder.Node{
 				Type:  "literal",
@@ -1670,7 +1732,7 @@ func (t *Transpiler) TranspileType(n *builder.Node) (*string, error) {
 
 	case "pointer":
 		nString = "*"
-		var typeStringP, err = t.TranspileType(n.Left)
+		var typeStringP, err = t.TranspileType(ctx, n.Left)
 		if err != nil {
 			return nil, err
 		}
@@ -1687,7 +1749,7 @@ func (t *Transpiler) TranspileType(n *builder.Node) (*string, error) {
 }
 
 // This changes an Express literal to be formatted the way C++ expects
-func (t *Transpiler) prepLiteral(n *builder.Node, cpp string) *string {
+func (t *Transpiler) prepLiteral(ctx context.Context, n *builder.Node, cpp string) *string {
 	switch n.Kind {
 	case "string":
 		cpp = "\"" + cpp + "\""
@@ -1697,7 +1759,7 @@ func (t *Transpiler) prepLiteral(n *builder.Node, cpp string) *string {
 
 	case "struct":
 		// Transpile the block for the value
-		vString, err := t.TranspileBlockExpression(n.Right)
+		vString, err := t.TranspileBlockExpression(ctx, n.Right)
 		if err != nil {
 			fmt.Println("err:", err)
 			os.Exit(9)
@@ -1711,7 +1773,7 @@ func (t *Transpiler) prepLiteral(n *builder.Node, cpp string) *string {
 	return &cpp
 }
 
-func (t *Transpiler) TranspileLiteralExpression(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileLiteralExpression(ctx context.Context, n *builder.Node) (*string, error) {
 	if n.Type != "literal" {
 		return nil, errors.New("Node is not an literal")
 	}
@@ -1719,10 +1781,10 @@ func (t *Transpiler) TranspileLiteralExpression(n *builder.Node) (*string, error
 	blob, _ := json.Marshal(n)
 	fmt.Println("its me again: n:", string(blob))
 
-	return t.prepLiteral(n, fmt.Sprintf("%v", n.Value)), nil
+	return t.prepLiteral(ctx, n, fmt.Sprintf("%v", n.Value)), nil
 }
 
-func (t *Transpiler) TranspileArrayExpression(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileArrayExpression(ctx context.Context, n *builder.Node) (*string, error) {
 	if n.Type != "array" {
 		return nil, errors.New("Node is not an array")
 	}
@@ -1732,7 +1794,7 @@ func (t *Transpiler) TranspileArrayExpression(n *builder.Node) (*string, error) 
 	value := n.Value.([]*builder.Node)
 	for _, v := range value {
 		fmt.Println("v:", *v)
-		vString, err := t.TranspileExpression(v)
+		vString, err := t.TranspileExpression(ctx, v)
 		if err != nil {
 			return nil, err
 		}
@@ -1746,7 +1808,7 @@ func (t *Transpiler) TranspileArrayExpression(n *builder.Node) (*string, error) 
 	return &nString, nil
 }
 
-func (t *Transpiler) TranspileAssignmentStmt(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileAssignmentStmt(ctx context.Context, n *builder.Node) (*string, error) {
 	if n.Type != "assignment" {
 		return nil, errors.New("Node is not an assignment")
 	}
@@ -1763,7 +1825,7 @@ func (t *Transpiler) TranspileAssignmentStmt(n *builder.Node) (*string, error) {
 	// if we need any pre-statements
 
 	// Translate the ident expression (lhs)
-	vString, err = t.TranspileExpression(n.Left)
+	vString, err = t.TranspileExpression(ctx, n.Left)
 	if err != nil {
 		return nil, err
 	}
@@ -1774,9 +1836,26 @@ func (t *Transpiler) TranspileAssignmentStmt(n *builder.Node) (*string, error) {
 
 	if n.Left.Value != nil {
 		var lv = t.Builder.ScopeTree.Get(n.Left.Value.(string))
-		var lvType = t.Builder.ScopeTree.GetType(lv.Value.(*builder.Node).Value.(string))
+
+		switch {
+		case lv == nil:
+			return nil, errors.New("lv == nil")
+
+		case lv.Value == nil:
+			return nil, errors.New("lv.Value == nil")
+
+		case lv.Value.(*builder.Node).Value == nil:
+			return nil, errors.New("lv.Value.(*builder.Node).Value == nil")
+		}
+
+		var lvv, ok = lv.Value.(*builder.Node).Value.(string)
+		if !ok {
+			return nil, errors.Errorf("lv.Value.(*builder.Node).Value.(string) not ok; %T %+v", lv.Value.(*builder.Node).Value, lv.Value.(*builder.Node).Value.(string))
+		}
+
+		var lvType = t.Builder.ScopeTree.GetType(lvv)
 		if lvType.Kind == "interface" {
-			extra, conv, err := t.convertIfaceAssign(n)
+			extra, conv, err := t.convertIfaceAssign(ctx, n)
 			if err != nil {
 				return nil, err
 			}
@@ -1785,15 +1864,15 @@ func (t *Transpiler) TranspileAssignmentStmt(n *builder.Node) (*string, error) {
 				nString = *extra + nString
 			}
 
-			vString, err = t.TranspileStructBlockStmt(conv)
+			vString, err = t.TranspileStructBlockStmt(ctx, conv)
 		} else {
 			// TODO: figure out a better way for this shit
 			// Translate the ident expression (lhs)
-			vString, err = t.TranspileExpression(n.Right)
+			vString, err = t.TranspileExpression(ctx, n.Right)
 		}
 	} else {
 		// Translate the ident expression (lhs)
-		vString, err = t.TranspileExpression(n.Right)
+		vString, err = t.TranspileExpression(ctx, n.Right)
 	}
 
 	if err != nil {
@@ -1807,7 +1886,7 @@ func (t *Transpiler) TranspileAssignmentStmt(n *builder.Node) (*string, error) {
 	return &nString, nil
 }
 
-func (t *Transpiler) TranspileDeclStmt(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileDeclStmt(ctx context.Context, n *builder.Node) (*string, error) {
 	if n.Type != "decl" {
 		return nil, errors.New("Node is not an declaration")
 	}
@@ -1832,8 +1911,10 @@ func (t *Transpiler) TranspileDeclStmt(n *builder.Node) (*string, error) {
 	var typeOf = &tt
 	var err error
 
-	if n.Left.Type != "deref" {
-		typeOf, err = t.TranspileType(n.Value.(*builder.Node))
+	if n.Left.Type != "pointer" {
+		// TODO: scottshotgg : 10.16.23 : Changed this because pointer reciever wasn't working
+		// anymore for interfaces/methods
+		typeOf, err = t.TranspileExpression(ctx, n.Value.(*builder.Node))
 		if err != nil {
 			return nil, err
 		}
@@ -1847,7 +1928,7 @@ func (t *Transpiler) TranspileDeclStmt(n *builder.Node) (*string, error) {
 	}
 
 	// Translate the ident expression (lhs)
-	vString, err := t.TranspileExpression(n.Left)
+	vString, err := t.TranspileExpression(ctx, n.Left)
 	if err != nil {
 		return nil, err
 	}
@@ -1878,7 +1959,7 @@ func (t *Transpiler) TranspileDeclStmt(n *builder.Node) (*string, error) {
 	// May have to change this down the line or something
 	switch *typeOf {
 	case "map":
-		vString, err = t.TranspileMapBlockStmt(n.Right)
+		vString, err = t.TranspileMapBlockStmt(ctx, n.Right)
 		if err != nil {
 			return nil, err
 		}
@@ -1920,11 +2001,11 @@ func (t *Transpiler) TranspileDeclStmt(n *builder.Node) (*string, error) {
 		nString = *typeOf + " " + nString
 
 		var nn = n.Value.(*builder.Node)
-		var md = nn.Metadata
-		if md != nil && md["kind"] == "struct" {
-			vString, err = t.TranspileStructBlockStmt(n.Right)
-		} else if md != nil && md["kind"] == "interface" {
-			extra, conv, err := t.convertIfaceAssign(n)
+		if nn.Kind == "struct" {
+			var ctxx = context.WithValue(ctx, CtxIsStruct("is_struct"), true)
+			vString, err = t.TranspileExpression(ctxx, n.Right)
+		} else if nn.Kind == "interface" {
+			extra, conv, err := t.convertIfaceAssign(ctx, n)
 			if err != nil {
 				return nil, err
 			}
@@ -1933,7 +2014,8 @@ func (t *Transpiler) TranspileDeclStmt(n *builder.Node) (*string, error) {
 				nString = *extra + nString
 			}
 
-			vString, err = t.TranspileStructBlockStmt(conv)
+			var ctxx = context.WithValue(ctx, CtxIsStruct("is_struct"), true)
+			vString, err = t.TranspileExpression(ctxx, conv)
 			// // TODO: generate helper function
 			// var tt = t.Builder.ScopeTree.Vars[n.Right.Value.(string)]
 			// _ = tt
@@ -1970,7 +2052,7 @@ func (t *Transpiler) TranspileDeclStmt(n *builder.Node) (*string, error) {
 			// TODO: get type of Interface
 			// TODO: make function to implement them
 		} else {
-			vString, err = t.TranspileExpression(n.Right)
+			vString, err = t.TranspileExpression(ctx, n.Right)
 		}
 	}
 
@@ -1978,7 +2060,7 @@ func (t *Transpiler) TranspileDeclStmt(n *builder.Node) (*string, error) {
 		return nil, err
 	}
 
-	if n.Left.Type == "deref" && n.Left.Kind == "type" {
+	if n.Value.(*builder.Node).Kind == "pointer" {
 		if vString != nil {
 			nString += *vString
 		}
@@ -1997,7 +2079,7 @@ func (t *Transpiler) TranspileDeclStmt(n *builder.Node) (*string, error) {
 	return &nString, nil
 }
 
-func (t *Transpiler) GenHelper(interfaceName, structName string, prop *builder.TypeValue) (*string, *string, error) {
+func (t *Transpiler) GenHelper(ctx context.Context, interfaceName, structName string, prop *builder.TypeValue) (*string, *string, error) {
 	/*
 		- take function from prop
 		- create new function: impl_<interface>_<struct>_<func>
@@ -2019,13 +2101,13 @@ func (t *Transpiler) GenHelper(interfaceName, structName string, prop *builder.T
 	var ptrStr string
 
 	var argNodes = args.Value.([]*builder.Node)
-	if argNodes[0].Value.(*builder.Node).Type != "deref" {
+	if argNodes[0].Value.(*builder.Node).Kind != "pointer" {
 		ptrStr = "*"
 	}
 
 	if len(argNodes) > 1 {
 		for _, arg := range argNodes {
-			argsStrP, err := t.TranspileDeclStmt(arg)
+			argsStrP, err := t.TranspileDeclStmt(ctx, arg)
 			if err != nil {
 				panic("wtf args string")
 			}
@@ -2045,7 +2127,7 @@ func (t *Transpiler) GenHelper(interfaceName, structName string, prop *builder.T
 
 	if returns != nil {
 		// returns is a `type` for now; multiple returns are not supported right now
-		returnsStringP, err := t.TranspileEGroup(returns.(*builder.Node))
+		returnsStringP, err := t.TranspileEGroup(ctx, returns.(*builder.Node))
 		if err != nil {
 			return nil, nil, err
 		}
@@ -2062,7 +2144,7 @@ func (t *Transpiler) GenHelper(interfaceName, structName string, prop *builder.T
 	return &fnName, &header, nil
 }
 
-func (t *Transpiler) convertIfaceAssign(n *builder.Node) (*string, *builder.Node, error) {
+func (t *Transpiler) convertIfaceAssign(ctx context.Context, n *builder.Node) (*string, *builder.Node, error) {
 	/*
 		Value: interface definition
 		Left: lhs ident
@@ -2128,7 +2210,7 @@ func (t *Transpiler) convertIfaceAssign(n *builder.Node) (*string, *builder.Node
 
 		assigns[0].Right.Left.Value = tempVarName
 
-		nr, err := t.TranspileStructBlockStmt(n.Right.Right)
+		nr, err := t.TranspileStructBlockStmt(ctx, n.Right.Right)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -2192,7 +2274,7 @@ func (t *Transpiler) convertIfaceAssign(n *builder.Node) (*string, *builder.Node
 			continue
 		}
 
-		fnName, helper, err := t.GenHelper(typeName, structTypeStr, prop)
+		fnName, helper, err := t.GenHelper(ctx, typeName, structTypeStr, prop)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -2286,7 +2368,7 @@ func (t *Transpiler) resolveType(n *builder.Node) (*string, error) {
 // 	return &nString, nil
 // }
 
-func (t *Transpiler) TranspileConditionExpression(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileConditionExpression(ctx context.Context, n *builder.Node) (*string, error) {
 	if n.Type != "comp" {
 		return nil, errors.New("Node is not an comp")
 	}
@@ -2298,7 +2380,7 @@ func (t *Transpiler) TranspileConditionExpression(n *builder.Node) (*string, err
 	)
 
 	// Translate the lhs
-	vString, err = t.TranspileExpression(n.Left)
+	vString, err = t.TranspileExpression(ctx, n.Left)
 	if err != nil {
 		return nil, err
 	}
@@ -2306,7 +2388,7 @@ func (t *Transpiler) TranspileConditionExpression(n *builder.Node) (*string, err
 	nString += *vString
 
 	// Translate the rhs
-	vString, err = t.TranspileExpression(n.Right)
+	vString, err = t.TranspileExpression(ctx, n.Right)
 	if err != nil {
 		return nil, err
 	}
@@ -2316,7 +2398,7 @@ func (t *Transpiler) TranspileConditionExpression(n *builder.Node) (*string, err
 	return &nString, nil
 }
 
-func (t *Transpiler) TranspileBinOpExpression(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileBinOpExpression(ctx context.Context, n *builder.Node) (*string, error) {
 	if n.Type != "binop" {
 		return nil, errors.New("Node is not a binop")
 	}
@@ -2328,7 +2410,7 @@ func (t *Transpiler) TranspileBinOpExpression(n *builder.Node) (*string, error) 
 	)
 
 	// Translate the ident expression (lhs)
-	vString, err = t.TranspileExpression(n.Left)
+	vString, err = t.TranspileExpression(ctx, n.Left)
 	if err != nil {
 		return nil, err
 	}
@@ -2336,7 +2418,7 @@ func (t *Transpiler) TranspileBinOpExpression(n *builder.Node) (*string, error) 
 	nString += *vString + n.Value.(string)
 
 	// Translate the ident expression (lhs)
-	vString, err = t.TranspileExpression(n.Right)
+	vString, err = t.TranspileExpression(ctx, n.Right)
 	if err != nil {
 		return nil, err
 	}
@@ -2346,7 +2428,7 @@ func (t *Transpiler) TranspileBinOpExpression(n *builder.Node) (*string, error) 
 	return &nString, nil
 }
 
-func (t *Transpiler) TranspileStructBlockStmt(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileStructBlockStmt(ctx context.Context, n *builder.Node) (*string, error) {
 	if n == nil {
 		return nil, nil
 	}
@@ -2362,7 +2444,7 @@ func (t *Transpiler) TranspileStructBlockStmt(n *builder.Node) (*string, error) 
 	for _, stmt := range n.Value.([]*builder.Node) {
 		fmt.Println("STMT FIELD:", stmt)
 
-		ex, err := t.TranspileExpression(stmt.Right)
+		ex, err := t.TranspileExpression(ctx, stmt.Right)
 		if err != nil {
 			return nil, err
 		}
@@ -2375,7 +2457,7 @@ func (t *Transpiler) TranspileStructBlockStmt(n *builder.Node) (*string, error) 
 	return &nString, nil
 }
 
-func (t *Transpiler) TranspileBlockStmt(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileBlockStmt(ctx context.Context, n *builder.Node) (*string, error) {
 	if n == nil {
 		var nString = "{}"
 		return &nString, nil
@@ -2392,7 +2474,7 @@ func (t *Transpiler) TranspileBlockStmt(n *builder.Node) (*string, error) {
 	)
 
 	for _, stmt := range n.Value.([]*builder.Node) {
-		vString, err = t.TranspileStmt(stmt)
+		vString, err = t.TranspileStmt(ctx, stmt)
 		if err != nil {
 			return nil, err
 		}
@@ -2414,7 +2496,7 @@ func (t *Transpiler) TranspileBlockStmt(n *builder.Node) (*string, error) {
 	return &nString, nil
 }
 
-func (t *Transpiler) TranspileMapBlockStmt(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileMapBlockStmt(ctx context.Context, n *builder.Node) (*string, error) {
 	if n.Type != "block" {
 		return nil, errors.New("Node is not a block")
 	}
@@ -2430,7 +2512,7 @@ func (t *Transpiler) TranspileMapBlockStmt(n *builder.Node) (*string, error) {
 			return nil, errors.Errorf("All statements in a map have to be key-value pairs: %+v\n", stmt)
 		}
 
-		vString, err = t.TranspileStmt(stmt)
+		vString, err = t.TranspileStmt(ctx, stmt)
 		if err != nil {
 			return nil, err
 		}
@@ -2489,7 +2571,7 @@ func (t *Transpiler) TranspileMapBlockStmt(n *builder.Node) (*string, error) {
 
 // TODO: for now all variables will have a `.` in front, later on it
 // should only be the public variables
-func (t *Transpiler) TranspileBlockExpression(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileBlockExpression(ctx context.Context, n *builder.Node) (*string, error) {
 	if n == nil {
 		var nString = "{}"
 		return &nString, nil
@@ -2508,7 +2590,7 @@ func (t *Transpiler) TranspileBlockExpression(n *builder.Node) (*string, error) 
 	// TODO: don't have a type checker so for right now
 	// just type check in here
 	for _, stmt := range n.Value.([]*builder.Node) {
-		vString, err = t.TranspileStmt(stmt)
+		vString, err = t.TranspileStmt(ctx, stmt)
 		if err != nil {
 			return nil, err
 		}
@@ -2527,12 +2609,12 @@ func (t *Transpiler) TranspileBlockExpression(n *builder.Node) (*string, error) 
 		nString += *vString + ","
 	}
 
-	nString = "{" + nString + "}"
+	nString = fmt.Sprintf("{%s}", nString)
 
 	return &nString, nil
 }
 
-func (t *Transpiler) TranspileEGroup(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileEGroup(ctx context.Context, n *builder.Node) (*string, error) {
 	if n.Type != "egroup" {
 		return nil, errors.New("Node is not a egroup")
 	}
@@ -2544,7 +2626,7 @@ func (t *Transpiler) TranspileEGroup(n *builder.Node) (*string, error) {
 	)
 
 	for i, e := range n.Value.([]*builder.Node) {
-		vString, err = t.TranspileExpression(e)
+		vString, err = t.TranspileExpression(ctx, e)
 		if err != nil {
 			return nil, err
 		}
@@ -2557,7 +2639,7 @@ func (t *Transpiler) TranspileEGroup(n *builder.Node) (*string, error) {
 	return &nString, nil
 }
 
-func (t *Transpiler) TranspileStreamEGroup(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileStreamEGroup(ctx context.Context, n *builder.Node) (*string, error) {
 	if n.Type != "egroup" {
 		return nil, errors.New("Node is not a egroup")
 	}
@@ -2569,7 +2651,7 @@ func (t *Transpiler) TranspileStreamEGroup(n *builder.Node) (*string, error) {
 	)
 
 	for i, e := range n.Value.([]*builder.Node) {
-		vString, err = t.TranspileExpression(e)
+		vString, err = t.TranspileExpression(ctx, e)
 		if err != nil {
 			return nil, err
 		}
@@ -2582,7 +2664,7 @@ func (t *Transpiler) TranspileStreamEGroup(n *builder.Node) (*string, error) {
 	return &nString, nil
 }
 
-func (t *Transpiler) TranspileSGroup(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileSGroup(ctx context.Context, n *builder.Node) (*string, error) {
 	if n.Type != "sgroup" {
 		return nil, errors.New("Node is not a sgroup")
 	}
@@ -2594,7 +2676,7 @@ func (t *Transpiler) TranspileSGroup(n *builder.Node) (*string, error) {
 	)
 
 	for i, s := range n.Value.([]*builder.Node) {
-		vString, err = t.TranspileStmt(s)
+		vString, err = t.TranspileStmt(ctx, s)
 		if err != nil {
 			return nil, err
 		}
@@ -2630,7 +2712,7 @@ func (t *Transpiler) TranspileSGroup(n *builder.Node) (*string, error) {
 	return &nString, nil
 }
 
-func (t *Transpiler) TranspileCallExpression(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileCallExpression(ctx context.Context, n *builder.Node) (*string, error) {
 	// func (t *Transpiler) TranspileCallExpression(n *builder.Node, isInterface bool) (*string, error) {
 	if n.Type != "call" {
 		return nil, errors.New("Node is not a call")
@@ -2642,7 +2724,7 @@ func (t *Transpiler) TranspileCallExpression(n *builder.Node) (*string, error) {
 		err     error
 	)
 
-	vString, err = t.TranspileExpression(n.Value.(*builder.Node))
+	vString, err = t.TranspileExpression(ctx, n.Value.(*builder.Node))
 	if err != nil {
 		return nil, err
 	}
@@ -2668,7 +2750,7 @@ func (t *Transpiler) TranspileCallExpression(n *builder.Node) (*string, error) {
 	funcName, ok := n.Value.(*builder.Node).Value.(string)
 	if ok {
 		if cFuncs[n.Value.(*builder.Node).Value.(string)] {
-			t.includeWorker(&builder.Node{
+			t.includeWorker(ctx, &builder.Node{
 				Type: "include",
 				Left: &builder.Node{
 					Type:  "literal",
@@ -2678,7 +2760,7 @@ func (t *Transpiler) TranspileCallExpression(n *builder.Node) (*string, error) {
 		}
 
 		if funcName == "Println" {
-			var argString, err = t.TranspileStreamEGroup(args.(*builder.Node))
+			var argString, err = t.TranspileStreamEGroup(ctx, args.(*builder.Node))
 			if err != nil {
 				return nil, err
 			}
@@ -2693,7 +2775,7 @@ func (t *Transpiler) TranspileCallExpression(n *builder.Node) (*string, error) {
 
 			return &nString, nil
 		} else if funcName == "sleep" {
-			t.includeWorker(&builder.Node{
+			t.includeWorker(ctx, &builder.Node{
 				Type: "include",
 				Left: &builder.Node{
 					Type:  "literal",
@@ -2705,7 +2787,7 @@ func (t *Transpiler) TranspileCallExpression(n *builder.Node) (*string, error) {
 
 	// if
 
-	vString, err = t.TranspileEGroup(args.(*builder.Node))
+	vString, err = t.TranspileEGroup(ctx, args.(*builder.Node))
 	if err != nil {
 		return nil, err
 	}
@@ -2731,11 +2813,11 @@ var cFuncs = map[string]bool{
 	"now":     true,
 }
 
-func (t *Transpiler) TranspileForInStmt(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileForInStmt(ctx context.Context, n *builder.Node) (*string, error) {
 	var nString = fmt.Sprintf("for (auto const& %s : %s)", n.Left.Left.Value.(string), n.Right.Value.(string))
 
 	// Translate the block statement
-	vString, err := t.TranspileBlockStmt(n.Value.(*builder.Node))
+	vString, err := t.TranspileBlockStmt(ctx, n.Value.(*builder.Node))
 	if err != nil {
 		return nil, err
 	}
@@ -2745,7 +2827,7 @@ func (t *Transpiler) TranspileForInStmt(n *builder.Node) (*string, error) {
 	return &nString, nil
 }
 
-func (t *Transpiler) TranspileForStdStmt(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileForStdStmt(ctx context.Context, n *builder.Node) (*string, error) {
 	// Change forin to be a block statement containing:
 	//	- declare temp var
 	//	- declare array/iter
@@ -2768,7 +2850,7 @@ func (t *Transpiler) TranspileForStdStmt(n *builder.Node) (*string, error) {
 
 	// Make and translate the ident into a declaration
 	ds := TransformIdentToDefaultDecl(n.Metadata["start"].(*builder.Node))
-	vString, err = t.TranspileDeclStmt(ds)
+	vString, err = t.TranspileDeclStmt(ctx, ds)
 	if err != nil {
 		return nil, err
 	}
@@ -2777,7 +2859,7 @@ func (t *Transpiler) TranspileForStdStmt(n *builder.Node) (*string, error) {
 
 	// Make and translate the array expression into a declaration
 	dss := TransformExpressionToDecl(n.Metadata["end"].(*builder.Node))
-	vString, err = t.TranspileDeclStmt(dss)
+	vString, err = t.TranspileDeclStmt(ctx, dss)
 	if err != nil {
 		return nil, err
 	}
@@ -2785,7 +2867,7 @@ func (t *Transpiler) TranspileForStdStmt(n *builder.Node) (*string, error) {
 	nString += *vString
 
 	// Make and translate the less than operation
-	vString, err = t.TranspileConditionExpression(&builder.Node{
+	vString, err = t.TranspileConditionExpression(ctx, &builder.Node{
 		Type:  "comp",
 		Value: "<",
 		Left:  n.Metadata["start"].(*builder.Node),
@@ -2798,7 +2880,7 @@ func (t *Transpiler) TranspileForStdStmt(n *builder.Node) (*string, error) {
 	nString += fmt.Sprintf("while(%s)", *vString)
 
 	// Translate the block statement
-	vString, err = t.TranspileBlockStmt(n.Value.(*builder.Node))
+	vString, err = t.TranspileBlockStmt(ctx, n.Value.(*builder.Node))
 	if err != nil {
 		return nil, err
 	}
@@ -2806,7 +2888,7 @@ func (t *Transpiler) TranspileForStdStmt(n *builder.Node) (*string, error) {
 	nString += *vString
 
 	// Lastly, make and translate an increment statement for the ident
-	vString, err = t.TranspileIncrementExpression(&builder.Node{
+	vString, err = t.TranspileIncrementExpression(ctx, &builder.Node{
 		Type: "inc",
 		Left: n.Metadata["start"].(*builder.Node),
 	})
@@ -2819,7 +2901,7 @@ func (t *Transpiler) TranspileForStdStmt(n *builder.Node) (*string, error) {
 	return &nString, nil
 }
 
-func (t *Transpiler) TranspileForEverStmt(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileForEverStmt(ctx context.Context, n *builder.Node) (*string, error) {
 	// Change forin to be a block statement containing:
 	//	- declare temp var
 	//	- declare array/iter
@@ -2841,7 +2923,7 @@ func (t *Transpiler) TranspileForEverStmt(n *builder.Node) (*string, error) {
 	)
 
 	// Translate the block statement
-	vString, err = t.TranspileBlockStmt(n.Value.(*builder.Node))
+	vString, err = t.TranspileBlockStmt(ctx, n.Value.(*builder.Node))
 	if err != nil {
 		return nil, err
 	}
@@ -2851,7 +2933,7 @@ func (t *Transpiler) TranspileForEverStmt(n *builder.Node) (*string, error) {
 	return &nString, nil
 }
 
-func (t *Transpiler) TranspileWhileStmt(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileWhileStmt(ctx context.Context, n *builder.Node) (*string, error) {
 	/*
 		while statements are simple, we already have all the tools:
 		`while` `(` expr `)` block
@@ -2913,14 +2995,14 @@ func (t *Transpiler) TranspileWhileStmt(n *builder.Node) (*string, error) {
 		)
 
 		fmt.Printf("transpile expr: %+v\n", n.Left.Right)
-		condition, err := t.TranspileExpression(n.Left)
+		condition, err := t.TranspileExpression(ctx, n.Left)
 		if err != nil {
 			return nil, err
 		}
 
 		nString += *condition + ")"
 
-		block, err := t.TranspileBlockStmt(n.Value.(*builder.Node))
+		block, err := t.TranspileBlockStmt(ctx, n.Value.(*builder.Node))
 		if err != nil {
 			return nil, err
 		}
@@ -2935,7 +3017,7 @@ func (t *Transpiler) TranspileWhileStmt(n *builder.Node) (*string, error) {
 	}
 
 	// Translate the block statement
-	vString, err := t.TranspileBlockStmt(n.Value.(*builder.Node))
+	vString, err := t.TranspileBlockStmt(ctx, n.Value.(*builder.Node))
 	if err != nil {
 		return nil, err
 	}
@@ -2945,7 +3027,7 @@ func (t *Transpiler) TranspileWhileStmt(n *builder.Node) (*string, error) {
 	return &nString, nil
 }
 
-func (t *Transpiler) TranspileIfStmt(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileIfStmt(ctx context.Context, n *builder.Node) (*string, error) {
 	/*
 		Form:
 		`if` [expr] [block] {`else` {epxr} [block]}
@@ -2965,7 +3047,7 @@ func (t *Transpiler) TranspileIfStmt(n *builder.Node) (*string, error) {
 		err     error
 	)
 
-	vString, err = t.TranspileExpression(n.Value.(*builder.Node))
+	vString, err = t.TranspileExpression(ctx, n.Value.(*builder.Node))
 	if err != nil {
 		return nil, err
 	}
@@ -2973,7 +3055,7 @@ func (t *Transpiler) TranspileIfStmt(n *builder.Node) (*string, error) {
 	// Add the condition and the parenthesis
 	nString += *vString + ")"
 
-	vString, err = t.TranspileBlockStmt(n.Left)
+	vString, err = t.TranspileBlockStmt(ctx, n.Left)
 	if err != nil {
 		return nil, err
 	}
@@ -2986,13 +3068,13 @@ func (t *Transpiler) TranspileIfStmt(n *builder.Node) (*string, error) {
 		// Check whether it is an elseif of just an else
 		switch n.Right.Type {
 		case "if":
-			vString, err = t.TranspileIfStmt(n.Right)
+			vString, err = t.TranspileIfStmt(ctx, n.Right)
 			if err != nil {
 				return nil, err
 			}
 
 		case "block":
-			vString, err = t.TranspileBlockStmt(n.Right)
+			vString, err = t.TranspileBlockStmt(ctx, n.Right)
 			if err != nil {
 				return nil, err
 			}

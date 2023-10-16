@@ -38,12 +38,20 @@ func (b *Builder) ParseSet(n *Node) (*Node, error) {
 func (b *Builder) ParseBinOp(n *Node) (*Node, error) {
 	var op = b.Tokens[b.Index].Value.String
 
+	// TODO: scottshotgg : 10.16.23 : make a builer.Save() func later
+	var bIndex = b.Index
+
 	// Step over the operator token
 	b.Index++
 
 	right, err := b.ParseTerm1()
 	if err != nil {
 		return nil, err
+	}
+
+	if right.Type != "ident" && right.Type != "literal" {
+		b.Index = bIndex
+		return n, ErrContinue
 	}
 
 	return &Node{

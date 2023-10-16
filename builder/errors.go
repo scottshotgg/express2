@@ -14,6 +14,7 @@ var (
 	ErrNotImplemented = errors.New("Not implemented")
 	ErrMultDimArrInit = errors.New("Cannot use multiple expression inside array type initializer")
 	ErrOutOfTokens    = errors.New("Out of tokens")
+	ErrContinue       = errors.New("continue")
 )
 
 func (b *Builder) AppendTokenToError(errText string) error {

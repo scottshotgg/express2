@@ -1704,7 +1704,7 @@ func (b *Builder) ParseFunctionPartialDecl(rcvrType string) (*Node, error) {
 
 		var rcvrVal = rcvr.Value.(*Node)
 
-		if rcvrVal.Type == "deref" {
+		if rcvrVal.Kind == "pointer" {
 			typeName = rcvrVal.Left.Value.(string)
 			rcvrType = "*" + typeName
 		} else {
@@ -1835,6 +1835,10 @@ func (b *Builder) ParseFunctionPartialDecl(rcvrType string) (*Node, error) {
 	// scottshotgg : 3/27/23 : if it's a method then declare it on the struct
 	if isMethod {
 		var n = b.ScopeTree.GetType(typeName)
+		if n == nil {
+			return nil, errors.Errorf("n == nil: %s %+v", typeName, n)
+		}
+
 		n.Props[kind] = &TypeValue{
 			Type:  FunctionValue,
 			Value: &node,
@@ -2035,10 +2039,9 @@ func deriveTypeFromArray(n *Node) *SpecificType {
 
 // TODO: what if types were expressions ...
 
-// ParseStatement ** does ** not look ahead
+// ParseStatement ** does not ** look ahead
 func (b *Builder) ParseStmt() (*Node, error) {
 	switch b.Tokens[b.Index].Type {
-
 	case token.LBracket:
 		return b.ParseArrayDeclStmt()
 

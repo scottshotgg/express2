@@ -1,6 +1,7 @@
 package compiler
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -346,7 +347,9 @@ func (c *Compiler) compileFile(filename string) error {
 	start = time.Now()
 	var tr = transpiler.New(ast, b, "main", c.LibBase)
 
-	err = tr.Transpile()
+	var ctx = context.Background()
+
+	err = tr.Transpile(ctx)
 	c.PipelineTimes["transpile"] = time.Since(start).String()
 	if err != nil {
 		return err
