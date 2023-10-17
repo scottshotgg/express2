@@ -201,6 +201,9 @@ func (b *Builder) ParseIndexExpression(n *Node) (*Node, error) {
 	// Step over the expression
 	b.Index++
 
+	// Step over the RBracket
+	// b.Index++
+
 	return &Node{
 		Type: "index",
 		// Value: n,

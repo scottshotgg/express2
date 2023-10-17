@@ -9,7 +9,7 @@ struct Husky {
 }
 
 // Reciever passed by reference; method returns assigned field
-func [Husky h] Kind() string {
+func [*Husky h] Kind() string {
 	return h.kind
 }
 
@@ -17,6 +17,9 @@ func main() {
 	Husky h = {
 		kind: "husky 2"
 	}
+
+	int i = 7
+	*int ii = &i
 
 	Println(h.Kind())
 }

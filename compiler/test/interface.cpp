@@ -20,18 +20,22 @@ struct Husky {
 // Interfaces:
 
 // Prototypes:
-std::string Kind(Husky h= ;
+std::string Kind(Husky *h);
 
 // Functions:
-std::string Kind(Husky h= {}){
+std::string Kind(Husky *h) {
   defer onReturn, onExit;
-  return h.kind;}
+  return h->kind;
+}
 
 // Main:
 // generated: false
-int main(){
+int main() {
   defer onReturn, onExit;
   Husky h = {
       .kind = "husky 2",
   };
-  std::cout << Kind(h) << std::endl;}
+  int i = 7;
+  int ii = &i;
+  std::cout << Kind(&h) << std::endl;
+}

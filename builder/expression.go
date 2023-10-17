@@ -299,7 +299,7 @@ func (b *Builder) ParseFactor() (*Node, error) {
 		if n != nil {
 			// var tt, err = b.ParseType(nil)
 			// fmt.Println("ParseType", tt, err)
-			// typeOf = "type"
+			typeOf = "type"
 
 			var next = b.Tokens[b.Index+1]
 			if next.Type == token.LBrace {
@@ -320,8 +320,8 @@ func (b *Builder) ParseFactor() (*Node, error) {
 				}, nil
 			}
 
-			typeOf = "type"
-			return b.ParseType(nil)
+			// typeOf = "type"
+			// return b.ParseType(nil)
 		}
 
 		// Check the scope map for the variable, if we already have a variable declared then use that

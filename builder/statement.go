@@ -426,6 +426,10 @@ func (b *Builder) ParseBlockStmt() (*Node, error) {
 		b.Tokens[b.Index].Type != token.RBrace {
 		stmt, err = b.ParseStmt()
 		if err != nil {
+			if err.Error() == "ParseLiteralStatement not implemented for: R_BRACE" {
+				break
+			}
+
 			return nil, err
 		}
 
@@ -1297,11 +1301,11 @@ func (b *Builder) ParseIdentStmt() (*Node, error) {
 				node.Metadata = map[string]interface{}{
 					"isIfaceAssign": "true",
 				}
-
 			}
 		}
 
-		b.Index++
+		// TODO: here
+		// b.Index++
 
 		return node, nil
 
@@ -1704,7 +1708,8 @@ func (b *Builder) ParseFunctionPartialDecl(rcvrType string) (*Node, error) {
 
 		var rcvrVal = rcvr.Value.(*Node)
 
-		if rcvrVal.Kind == "pointer" {
+		if rcvrVal.Type == "deref" {
+			// if rcvrVal.Kind == "pointer" {
 			typeName = rcvrVal.Left.Value.(string)
 			rcvrType = "*" + typeName
 		} else {
@@ -1910,6 +1915,9 @@ func (b *Builder) ParseDerefStmt() (*Node, error) {
 
 	// Increment over the first part of the expression
 	b.Index++
+
+	// TODO: scottshotgg : 10.16.23 : this is where we need to pick up from
+	// swapping the pointers around is confusing the compiler; pointer vs deref
 
 	return &Node{
 		Type:  t,

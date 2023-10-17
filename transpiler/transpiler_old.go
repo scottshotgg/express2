@@ -826,7 +826,7 @@ func (t *Transpiler) TranspileSelectExpression(ctx context.Context, n *builder.N
 		switch {
 		case lv.Type == "type":
 
-		case lv.Kind == "pointer":
+		case lv.Type == "deref":
 			lv = lv.Left
 			deref = true
 		}
@@ -925,7 +925,7 @@ func (t *Transpiler) TranspileSelectExpression(ctx context.Context, n *builder.N
 	} else if left.Type == "decl" {
 		switch left.Value.(type) {
 		case *builder.Node:
-			if left.Value.(*builder.Node).Kind == "pointer" {
+			if left.Value.(*builder.Node).Type == "deref" {
 				// if n.Right.Value.(*builder.Node).Type == "call" {
 				// 	return
 				// }
@@ -933,14 +933,14 @@ func (t *Transpiler) TranspileSelectExpression(ctx context.Context, n *builder.N
 				selector = "->"
 			}
 
-		case builder.Node:
-			if left.Value.(builder.Node).Kind == "pointer" {
-				// if n.Right.Value.(*builder.Node).Type == "call" {
-				// 	return
-				// }
+			// case builder.Node:
+			// 	if left.Value.(builder.Node).Kind == "pointer" {
+			// 		// if n.Right.Value.(*builder.Node).Type == "call" {
+			// 		// 	return
+			// 		// }
 
-				selector = "->"
-			}
+			// 		selector = "->"
+			// 	}
 		}
 	}
 
@@ -2001,10 +2001,13 @@ func (t *Transpiler) TranspileDeclStmt(ctx context.Context, n *builder.Node) (*s
 		nString = *typeOf + " " + nString
 
 		var nn = n.Value.(*builder.Node)
-		if nn.Kind == "struct" {
+		var md = nn.Metadata
+		if md != nil && md["kind"] == "struct" {
+			// if nn.Kind == "struct" {
 			var ctxx = context.WithValue(ctx, CtxIsStruct("is_struct"), true)
 			vString, err = t.TranspileExpression(ctxx, n.Right)
-		} else if nn.Kind == "interface" {
+			// } else if nn.Kind == "interface" {
+		} else if md != nil && md["kind"] == "interface" {
 			extra, conv, err := t.convertIfaceAssign(ctx, n)
 			if err != nil {
 				return nil, err
@@ -2060,7 +2063,8 @@ func (t *Transpiler) TranspileDeclStmt(ctx context.Context, n *builder.Node) (*s
 		return nil, err
 	}
 
-	if n.Value.(*builder.Node).Kind == "pointer" {
+	if n.Left.Type == "deref" && n.Left.Kind == "type" {
+		// if n.Value.(*builder.Node).Kind == "pointer" {
 		if vString != nil {
 			nString += *vString
 		}
@@ -2101,7 +2105,8 @@ func (t *Transpiler) GenHelper(ctx context.Context, interfaceName, structName st
 	var ptrStr string
 
 	var argNodes = args.Value.([]*builder.Node)
-	if argNodes[0].Value.(*builder.Node).Kind != "pointer" {
+	// if argNodes[0].Value.(*builder.Node).Kind != "pointer" {
+	if argNodes[0].Value.(*builder.Node).Type != "deref" {
 		ptrStr = "*"
 	}
 
