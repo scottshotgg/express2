@@ -99,6 +99,7 @@ const (
 	EqOrGThan    = "EQ_OR_GT"
 	EqOrLThan    = "EQ_OR_LT"
 	Increment    = "INCREMENT"
+	Decrement    = "DECREMENT"
 	Package      = "PACKAGE"
 	Use          = "USE"
 	C            = "C"

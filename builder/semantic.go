@@ -1,9 +1,6 @@
 package builder
 
 import (
-	"encoding/json"
-	"fmt"
-
 	"github.com/pkg/errors"
 )
 
@@ -15,12 +12,6 @@ var baseTypes = map[string]struct{}{
 	"float":  {},
 }
 
-// type Checker interface {
-// 	Passes() []Pass
-// 	AST() *Node
-// 	ScopeTree() *ScopeTree
-// }
-
 type Checker struct {
 	ps        []Pass
 	ast       *Node
@@ -29,12 +20,12 @@ type Checker struct {
 
 func NewChecker(ast *Node, p ...Pass) *Checker {
 	return &Checker{
-		ps:        p,
-		ast:       ast,
-		scopeTree: NewScopeTree(),
+		ps:  p,
+		ast: ast,
 	}
 }
 
+// AddPass appends a pass to the checker's pipeline.
 func (c *Checker) AddPass(p Pass) {
 	c.ps = append(c.ps, p)
 }
@@ -42,12 +33,10 @@ func (c *Checker) AddPass(p Pass) {
 // TODO: think about this returning a report
 func (c *Checker) Execute() (*Node, error) {
 	for _, pass := range c.ps {
-		changed, err := pass.Check(c.ast)
+		_, err := pass.Check(c.ast)
 		if err != nil {
 			return nil, err
 		}
-
-		fmt.Println("changed, err:", changed, err)
 	}
 
 	return c.ast, nil
@@ -65,16 +54,6 @@ type DummyPass struct {
 }
 
 func (d *DummyPass) Check(n *Node) (bool, error) {
-	fmt.Println("my name is:", d.Name())
-	fmt.Println("i pass anything that comes my way because im a dummy")
-
-	astJSON, err := json.Marshal(n)
-	if err != nil {
-		return false, err
-	}
-
-	fmt.Println(string(astJSON))
-
 	return true, nil
 }
 
@@ -89,8 +68,6 @@ func NewDummyPass(name string) *DummyPass {
 }
 
 // ---------------------------- real thing ----------------------------
-
-// Define out the way that passes/checker/s will work
 
 // TypeResolver is a pass that attempts to resolve idents into types in the case of declaration statements
 type TypeResolver struct {
@@ -110,8 +87,6 @@ func NewTypeResolverWithScope(scopeTree *ScopeTree) *TypeResolver {
 }
 
 func (t *TypeResolver) Check(n *Node) (bool, error) {
-	// Look for anything with a body
-	fmt.Printf("node_me %+v", *n)
 	switch n.Type {
 	case "call":
 	case "selection":
@@ -138,12 +113,11 @@ func (t *TypeResolver) Check(n *Node) (bool, error) {
 		// later on when we return structs, user-defined types, and object
 		// then we can do that
 		// Nothing needs to be done RIGHT NOW in this case for a return
+
 	case "egroup":
 		// egroup has to be here for function returns
 		// In this case it is just a list of idents that are actually types
 		for i, returnType := range n.Value.([]*Node) {
-
-			// Find the original type
 			tv := t.scopeTree.GetType(returnType.Value.(string))
 			if tv == nil {
 				return false, errors.Errorf("could not alias to unfound type: %s", n.Left.Value.(string))
@@ -162,7 +136,6 @@ func (t *TypeResolver) Check(n *Node) (bool, error) {
 	case "sgroup":
 		// For the sgroup, this represents function arguments, so just
 		// process them like normal statements
-		fmt.Printf("n %+v\n", *n)
 		for _, stmt := range n.Value.([]*Node) {
 			changed, err := t.Check(stmt)
 			if err != nil {
@@ -172,16 +145,8 @@ func (t *TypeResolver) Check(n *Node) (bool, error) {
 
 	// TODO: this also needs to check that the type is not already defined
 	case "typedef":
-		fmt.Println("got a typedef")
-		// Typedef will come out as:
-		// type [ident] = [ident|selection]
 		switch n.Right.Type {
 		case "ident":
-			// ensure that this is a type
-			// if it is, add n.Left.Value.(string) to the types
-			fmt.Println("found a type", n.Left.Value.(string))
-
-			// Find the original type
 			tv := t.scopeTree.GetType(n.Right.Value.(string))
 			if tv == nil {
 				return false, errors.Errorf("could not alias to unfound type: %s", n.Left.Value.(string))
@@ -198,7 +163,6 @@ func (t *TypeResolver) Check(n *Node) (bool, error) {
 				typeName    = n.Right.Value.(*Node).Right.Value.(string)
 			)
 
-			// The selection has to come from an imported package
 			tv := t.scopeTree.GetImportedType(packageName, typeName)
 			if tv != nil {
 				return false, errors.Errorf("could not find type %s from package %s", typeName, packageName)
@@ -220,7 +184,6 @@ func (t *TypeResolver) Check(n *Node) (bool, error) {
 		var stmts = n.Value.([]*Node)
 
 		for _, stmt := range stmts {
-			fmt.Println("stmt", *stmt)
 			changed, err := t.Check(stmt)
 			if err != nil {
 				return changed, err
@@ -228,29 +191,19 @@ func (t *TypeResolver) Check(n *Node) (bool, error) {
 		}
 
 	case "decl":
-		// resolve the type
-		fmt.Println("found a decl statement")
-		fmt.Printf("node: %+v\n", *n.Value.(*Node))
-
 		var shouldBeType = *n.Value.(*Node)
-		fmt.Println("shouldBeType", shouldBeType.Value)
 
 		switch shouldBeType.Type {
 		case "selection":
 			// look in imports as that is the only other place types can be declared
 			// this should only ever be [package].[type]
-
 			var packageOf = shouldBeType.Left.Value.(string)
 			var typeOf = shouldBeType.Right.Value.(string)
-			fmt.Println("packageOf, typeOf", packageOf, typeOf)
 
 			// Skip the C types for now, change this later when the meta package is taken out
 			if packageOf == "c" {
 				n.Value = shouldBeType.Right
 			} else {
-				fmt.Printf("imports %+v\n", t.scopeTree.GetImports())
-
-				// Set the type
 				var tv = t.scopeTree.GetImportedType(packageOf, typeOf)
 				shouldBeType.Type = tv.Kind
 				n.Value = &Node{
@@ -258,7 +211,6 @@ func (t *TypeResolver) Check(n *Node) (bool, error) {
 					Kind:  "imported",
 					Value: shouldBeType,
 				}
-				fmt.Printf("n.Value %+v\n", n.Value)
 
 				var err = t.scopeTree.Declare(n)
 				if err != nil {
@@ -272,7 +224,6 @@ func (t *TypeResolver) Check(n *Node) (bool, error) {
 				return false, errors.Errorf("could not find type: %s", n.Left.Value.(string))
 			}
 
-			// Grab the pointer, set it as a type, and reset the node value
 			var node = n.Value.(*Node)
 			node.Type = "type"
 			n.Value = node
@@ -280,27 +231,21 @@ func (t *TypeResolver) Check(n *Node) (bool, error) {
 
 	case "let":
 		// For let statements, we infer the type from the right-hand side expression
-		// First, check the right-hand side to resolve any types
 		_, err := t.Check(n.Right)
 		if err != nil {
 			return false, err
 		}
 
-		// Now we need to create a type node from the right-hand side
-		// and attach it to the declaration for type checking
 		var typeNode *Node
 
 		switch n.Right.Type {
 		case "literal":
-			// Get the type from the literal's Kind field
 			typeNode = &Node{
 				Type: "type",
 				Kind: n.Right.Kind,
 			}
 
 		case "ident":
-			// This could be a reference to a type or another variable
-			// For now, try to look it up as a type
 			tv := t.scopeTree.GetType(n.Right.Value.(string))
 			if tv != nil {
 				typeNode = &Node{
@@ -308,8 +253,6 @@ func (t *TypeResolver) Check(n *Node) (bool, error) {
 					Kind: tv.Kind,
 				}
 			} else {
-				// Not a type, it's a variable reference
-				// Look up the variable to get its type
 				decl := t.scopeTree.Get(n.Right.Value.(string))
 				if decl != nil && decl.Type == "decl" && decl.Value != nil {
 					typeNode = decl.Value.(*Node)
@@ -319,29 +262,23 @@ func (t *TypeResolver) Check(n *Node) (bool, error) {
 			}
 
 		case "call":
-			// Function call - look up the return type
-			// For now, we need to resolve the function call first
 			typeNode = &Node{
 				Type: "type",
 				Kind: "unknown",
 			}
 
 		case "type":
-			// Already a type node
 			typeNode = n.Right
 
 		default:
-			// Try to look up as a type first
 			typeNode = &Node{
 				Type: "type",
 				Kind: "unknown",
 			}
 		}
 
-		// Set the type on the let node's value
 		n.Value = typeNode
 
-		// Now declare the variable
 		err = t.scopeTree.Declare(n)
 		if err != nil {
 			return false, err
@@ -358,7 +295,6 @@ func (t *TypeResolver) Check(n *Node) (bool, error) {
 			return false, err
 		}
 
-		// Check the args
 		if n.Metadata["args"] != nil {
 			changed, err = t.Check(n.Metadata["args"].(*Node))
 			if err != nil {
@@ -371,7 +307,6 @@ func (t *TypeResolver) Check(n *Node) (bool, error) {
 			}
 		}
 
-		// Check the returns
 		if n.Metadata["returns"] != nil {
 			changed, err = t.Check(n.Metadata["returns"].(*Node))
 			if err != nil {
@@ -394,7 +329,6 @@ func (t *TypeResolver) Check(n *Node) (bool, error) {
 			}
 		}
 
-		// Check the body; this should never be nil
 		changed, err = t.Check(n.Value.(*Node))
 		if err != nil {
 			return changed, err
@@ -409,7 +343,6 @@ func (t *TypeResolver) Check(n *Node) (bool, error) {
 		var err error
 		var packageName string
 
-		// fix this shit: n.Right.Value.([]*Node)[0].Left.Value
 		if n.Kind == "c" {
 			return false, nil
 		}
@@ -421,7 +354,6 @@ func (t *TypeResolver) Check(n *Node) (bool, error) {
 			return false, err
 		}
 
-		// Right side has the AST for that file
 		changed, err := t.Check(n.Right)
 		if err != nil {
 			return changed, err
@@ -433,23 +365,14 @@ func (t *TypeResolver) Check(n *Node) (bool, error) {
 		}
 
 	case "package":
-		// check the right side
 		var changed, err = t.Check(n.Right)
 		if err != nil {
 			return changed, err
 		}
 
 	default:
-		fmt.Println("got type:", n.Type)
 		return false, errors.Errorf("type not implemented in %s: %+v", t.Name(), *n)
 	}
-
-	astJSON, err := json.Marshal(n)
-	if err != nil {
-		return false, err
-	}
-
-	fmt.Println(string(astJSON))
 
 	return false, nil
 }

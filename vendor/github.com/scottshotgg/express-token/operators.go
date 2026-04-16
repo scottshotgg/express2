@@ -173,6 +173,16 @@ var OperatorMap = map[string]Token{
 		},
 	},
 
+	// Decrement
+	"--": {
+		WSNotRequired: true,
+		Type:          Decrement,
+		Value: Value{
+			Type:   "decrement",
+			String: "--",
+		},
+	},
+
 	// TODO: add the templated operators ability to the parser and remove the tokens completely
 	// VECTOR OPERANDS
 	".+": {

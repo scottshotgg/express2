@@ -9,6 +9,7 @@ import (
 	"github.com/scottshotgg/express-lex"
 	"github.com/scottshotgg/express-token"
 	"github.com/scottshotgg/express2/builder"
+	"github.com/scottshotgg/express2/pkg/logger"
 )
 
 func getTokensFromString(s string) ([]token.Token, error) {
@@ -35,7 +36,7 @@ func getBuilderFromString(test string) (*builder.Builder, error) {
 		fmt.Println(token)
 	}
 
-	return builder.New(tokens), nil
+	return builder.New(tokens, logger.Noop()), nil
 }
 
 func printTokensFromBuilder(b *builder.Builder) {

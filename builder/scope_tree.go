@@ -2,10 +2,8 @@ package builder
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"os"
-	"runtime"
 	"sync"
 
 	"github.com/pkg/errors"
@@ -113,11 +111,6 @@ func (st *ScopeTree) NewChildScope(name string) (*ScopeTree, error) {
 
 	// Check for a child with the same name already
 	if st.Children[name] != nil {
-		// DEBUG: print what children exist and the stack trace
-		fmt.Printf("DEBUG: scopeTree.Children already has '%s', existing keys: %v\n", name, getKeys(st.Children))
-		buf := make([]byte, 4096)
-		n := runtime.Stack(buf, false)
-		fmt.Printf("Stack trace:\n%s\n", buf[:n])
 		return nil, errors.Errorf("There is already a scope with that name; %s", name)
 	}
 
@@ -190,8 +183,6 @@ func (st *ScopeTree) Declare(ref *Node) error {
 		var ok bool
 		refName, ok = ref.Left.Value.(string)
 		if !ok {
-			blob, _ := json.Marshal(ref)
-			fmt.Println("blobberino:", string(blob))
 			return errors.Errorf("Node value was not a string %+v", ref)
 		}
 
@@ -200,8 +191,6 @@ func (st *ScopeTree) Declare(ref *Node) error {
 		var ok bool
 		refName, ok = ref.Left.Value.(string)
 		if !ok {
-			blob, _ := json.Marshal(ref)
-			fmt.Println("blobberino:", string(blob))
 			return errors.Errorf("Node value was not a string %+v", ref)
 		}
 
@@ -307,16 +296,10 @@ func (st *ScopeTree) GetType(name string) *TypeValue {
 
 	var ref = st.Types[name]
 	if ref != nil {
-		fmt.Println("found it in the types", name)
-		// If we get something from the current scope then return
-		fmt.Println("ref", *ref)
 		return ref
 	}
 
-	// If we have a parent then check that
 	if st.Parent != nil {
-		fmt.Println("going to the parents", name)
-		// Fetch from the parent if our scope doesn't have it
 		return st.Parent.GetType(name)
 	}
 

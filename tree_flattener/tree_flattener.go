@@ -318,7 +318,6 @@ func (f *Flattener) Flatten(node *builder.Node) ([]*builder.Node, error) {
 		)
 
 		for includeName := range f.IncludeChan {
-			fmt.Println("includeName", includeName)
 			// If it's already in the map then just skip it
 			_, ok = includesMap[includeName]
 			if ok {

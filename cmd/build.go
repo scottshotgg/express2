@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"github.com/scottshotgg/express2/compiler"
+	"github.com/scottshotgg/express2/pkg/logger"
 
 	"path/filepath"
 
@@ -57,7 +58,6 @@ to quickly create a Cobra application.`,
 
 		// TODO: need to check it for all the available characters
 		var filenameArg = args[len(args)-1]
-		fmt.Println("args", args)
 		// filenameFull, err := filepath.Abs()
 		stat, err := os.Stat(filenameArg)
 		if err != nil {
@@ -128,13 +128,14 @@ to quickly create a Cobra application.`,
 			outputs = map[string]string{}
 		)
 
-		c, err := compiler.New(rawPath)
+		debug := viper.GetBool("debug")
+		dbgLog := logger.New(debug)
+
+		c, err := compiler.New(rawPath, dbgLog)
 		if err != nil {
 			fmt.Printf("Error: %v\n", err)
 			return
 		}
-
-		fmt.Println("Using: rawPath", rawPath)
 
 		// If they specified a filepath then use that
 		// Else just output to the current directory
@@ -167,9 +168,6 @@ to quickly create a Cobra application.`,
 		if viper.GetBool("emit-cpp") || viper.GetBool("emit-all") {
 			outputs["cpp"] = rawPath + ".cpp"
 		}
-
-		fmt.Println("outputs", outputs)
-		// os.Exit(9)
 
 		c.SetOutput(outputs)
 

@@ -6,6 +6,7 @@ import (
 	ast "github.com/scottshotgg/express-ast"
 	lex "github.com/scottshotgg/express-lex"
 	"github.com/scottshotgg/express2/builder"
+	"github.com/scottshotgg/express2/pkg/logger"
 	"github.com/scottshotgg/express2/test"
 )
 
@@ -22,7 +23,7 @@ func getBuilderFromString(source string) (*builder.Builder, error) {
 		return nil, err
 	}
 
-	return builder.New(tokens), nil
+	return builder.New(tokens, logger.Noop()), nil
 }
 
 // TestGetArrayType tests extracting array type from nodes
@@ -329,12 +330,12 @@ func TestFlattenForIn(t *testing.T) {
 		t.Fatalf("FlattenForIn returned nil")
 	}
 
-	if len(result) < 1 {
-		t.Fatalf("Expected at least 1 statement, got %d", len(result))
+	if len(result) < 2 {
+		t.Fatalf("Expected at least 2 statements (decl + while), got %d", len(result))
 	}
 
-	// The result should contain a while loop
-	whileStmt := result[0]
+	// FlattenForIn returns [keyVar, ...extraDecls, while]; the last element is the while loop.
+	whileStmt := result[len(result)-1]
 	if whileStmt.Type != "while" {
 		t.Errorf("Expected while type, got '%s'", whileStmt.Type)
 	}
@@ -381,11 +382,11 @@ func TestFlattenForOf(t *testing.T) {
 		t.Fatalf("FlattenForOf returned nil")
 	}
 
-	if len(result) < 1 {
-		t.Fatalf("Expected at least 1 statement, got %d", len(result))
+	if len(result) < 2 {
+		t.Fatalf("Expected at least 2 statements (decl + while), got %d", len(result))
 	}
 
-	// The result should contain an incVar (int index variable declaration)
+	// The result should start with an int index variable declaration.
 	incVar := result[0]
 	if incVar.Type != "decl" {
 		t.Errorf("Expected decl type for incVar, got '%s'", incVar.Type)
@@ -397,8 +398,8 @@ func TestFlattenForOf(t *testing.T) {
 		t.Errorf("Expected 'int' as value type, got '%s'", valueNode.Value)
 	}
 
-	// Check the while loop is at index 3
-	whileStmt := result[3]
+	// The last element is the while loop.
+	whileStmt := result[len(result)-1]
 	if whileStmt.Type != "while" {
 		t.Errorf("Expected while type, got '%s'", whileStmt.Type)
 	}

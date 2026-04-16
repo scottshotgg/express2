@@ -195,13 +195,15 @@ func (meta *Lexer) Lex() ([]token.Token, error) {
 			continue
 		}
 
-		// Filter out the comments
+		// Filter out the comments and handle multi-character operators: ++, --, +=, -=, *=, /=, %=, ==, !=, <=, >=, &&, ||
 		switch lexemeToken.Value.Type {
 		case "div":
+			// Handle comments and /=
 			index++
 			if index < len(meta.source)-1 {
 				switch meta.source[index] {
 				case '/':
+					// Single-line comment
 					for {
 						index++
 						if index == len(meta.source) || meta.source[index] == '\n' {
@@ -210,6 +212,7 @@ func (meta *Lexer) Lex() ([]token.Token, error) {
 					}
 
 				case '*':
+					// Multi-line comment
 					for {
 						index++
 						if index == len(meta.source) || (meta.source[index] == '*' && meta.source[index+1] == '/') {
@@ -218,11 +221,83 @@ func (meta *Lexer) Lex() ([]token.Token, error) {
 						}
 					}
 
+				case '=':
+					// /=
+					meta.Tokens = append(meta.Tokens, token.TokenMap["/="])
+					continue
+
 				default:
+					// Regular division
 					meta.Tokens = append(meta.Tokens, token.TokenMap[char])
 				}
 			}
 
+			continue
+
+		case "add":
+			// Check if next char is also + (increment)
+			if index+1 < len(meta.source) && string(meta.source[index+1]) == "+" {
+				index++
+				if meta.Accumulator != "" {
+					ts, err := meta.LexLiteral()
+					if err != nil {
+						return nil, err
+					}
+					meta.Tokens = append(meta.Tokens, ts)
+					meta.Accumulator = ""
+				}
+				meta.Tokens = append(meta.Tokens, token.TokenMap["++"])
+				continue
+			}
+			meta.Tokens = append(meta.Tokens, lexemeToken)
+			continue
+
+		case "sub":
+			// Check if next char is also - (decrement)
+			if index+1 < len(meta.source) && string(meta.source[index+1]) == "-" {
+				index++
+				if meta.Accumulator != "" {
+					ts, err := meta.LexLiteral()
+					if err != nil {
+						return nil, err
+					}
+					meta.Tokens = append(meta.Tokens, ts)
+					meta.Accumulator = ""
+				}
+				meta.Tokens = append(meta.Tokens, token.TokenMap["--"])
+				continue
+			}
+			meta.Tokens = append(meta.Tokens, lexemeToken)
+			continue
+
+		case "eq":
+			// Check if next char is = (equals)
+			if index+1 < len(meta.source) && string(meta.source[index+1]) == "=" {
+				index++
+				meta.Tokens = append(meta.Tokens, token.TokenMap["=="])
+				continue
+			}
+			meta.Tokens = append(meta.Tokens, lexemeToken)
+			continue
+
+		case "lt":
+			// Check if next char is = (less than or equal)
+			if index+1 < len(meta.source) && string(meta.source[index+1]) == "=" {
+				index++
+				meta.Tokens = append(meta.Tokens, token.TokenMap["<="])
+				continue
+			}
+			meta.Tokens = append(meta.Tokens, lexemeToken)
+			continue
+
+		case "gt":
+			// Check if next char is = (greater than or equal)
+			if index+1 < len(meta.source) && string(meta.source[index+1]) == "=" {
+				index++
+				meta.Tokens = append(meta.Tokens, token.TokenMap[">="])
+				continue
+			}
+			meta.Tokens = append(meta.Tokens, lexemeToken)
 			continue
 
 		// Use the lexer to parse strings

@@ -1,6 +1,10 @@
 package builder
 
-import token "github.com/scottshotgg/express-token"
+import (
+	token "github.com/scottshotgg/express-token"
+
+	"github.com/scottshotgg/express2/pkg/logger"
+)
 
 type (
 	Index struct {
@@ -40,8 +44,9 @@ type (
 		prefixParseFns map[string]prefixParseFn
 		infixParseFns  map[string]infixParseFn
 
-		ScopeTree     *ScopeTree
-		BlockCounter  int
+		ScopeTree    *ScopeTree
+		BlockCounter int
+		log          logger.Logger
 	}
 )
 

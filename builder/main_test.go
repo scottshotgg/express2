@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/scottshotgg/express2/builder"
+	"github.com/scottshotgg/express2/pkg/logger"
 )
 
 const (
@@ -20,7 +21,7 @@ var (
 )
 
 func TestNew(t *testing.T) {
-	if builder.New(nil) == nil {
+	if builder.New(nil, logger.Noop()) == nil {
 		t.Errorf(errFormatString, "Builder was nil for some reason")
 	}
 }

@@ -713,7 +713,9 @@ func CompressTokens(lexTokens []token.Token) ([]token.Token, error) {
 			nextToken := lexTokens[i+1]
 
 			// This needs to be simplified
-			if currentToken.Type == token.Assign || currentToken.Type == token.SecOp || currentToken.Type == token.PriOp && nextToken.Type == token.Assign || nextToken.Type == token.SecOp || nextToken.Type == token.PriOp {
+			// Only attempt to combine operator tokens; never consume a literal (e.g. "" after =)
+			if nextToken.Type != token.Literal &&
+				(currentToken.Type == token.Assign || currentToken.Type == token.SecOp || currentToken.Type == token.PriOp && nextToken.Type == token.Assign || nextToken.Type == token.SecOp || nextToken.Type == token.PriOp) {
 				compressedToken, ok := token.TokenMap[currentToken.Value.String+nextToken.Value.String]
 				// fmt.Println("added \"" + lexTokens[i].Value.String + nextToken.Value.String + "\"")
 				if ok {

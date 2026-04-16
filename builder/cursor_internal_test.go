@@ -6,6 +6,7 @@ import (
 	ast "github.com/scottshotgg/express-ast"
 	lex "github.com/scottshotgg/express-lex"
 	token "github.com/scottshotgg/express-token"
+	"github.com/scottshotgg/express2/pkg/logger"
 )
 
 func newBuilderFromSource(src string) (*Builder, error) {
@@ -17,7 +18,7 @@ func newBuilderFromSource(src string) (*Builder, error) {
 	if err != nil {
 		return nil, err
 	}
-	return New(tokens), nil
+	return New(tokens, logger.Noop()), nil
 }
 
 func TestCursorPeek(t *testing.T) {

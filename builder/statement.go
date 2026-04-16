@@ -11,6 +11,7 @@ import (
 	ast "github.com/scottshotgg/express-ast"
 	lex "github.com/scottshotgg/express-lex"
 	token "github.com/scottshotgg/express-token"
+	"github.com/scottshotgg/express2/pkg/logger"
 )
 
 var (
@@ -296,8 +297,8 @@ func (b *Builder) ParseIfStatement() (*Node, error) {
 }
 
 func (b *Builder) ParseMapBlockStatement() (*Node, error) {
-	fmt.Println("=== ParseMapBlockStatement called ===")
-	fmt.Printf("Index=%d, token=%+v\n", b.Index, b.Tokens[b.Index])
+	b.log.Debug("=== ParseMapBlockStatement called ===")
+	b.log.Debugf("Index=%d, token=%+v", b.Index, b.Tokens[b.Index])
 
 	// Check ourselves ...
 	if b.Tokens[b.Index].Type != token.LBrace {
@@ -307,7 +308,7 @@ func (b *Builder) ParseMapBlockStatement() (*Node, error) {
 	// Increment over the left brace token
 	b.Index++
 
-	fmt.Printf("After LBrace, Index=%d\n", b.Index)
+	b.log.Debugf("After LBrace, Index=%d", b.Index)
 
 	var (
 		stmt  *Node
@@ -316,7 +317,7 @@ func (b *Builder) ParseMapBlockStatement() (*Node, error) {
 	)
 
 	for b.Index < len(b.Tokens) && b.Tokens[b.Index].Type != token.RBrace {
-		fmt.Printf("Loop: Index=%d, token=%+v\n", b.Index, b.Tokens[b.Index])
+		b.log.Debugf("Loop: Index=%d, token=%+v", b.Index, b.Tokens[b.Index])
 
 		// Parse the key (expression)
 		stmt, err = b.ParseExpression()
@@ -324,12 +325,12 @@ func (b *Builder) ParseMapBlockStatement() (*Node, error) {
 			return nil, err
 		}
 
-		fmt.Printf("After ParseExpression for key: stmt.Type=%s, Index=%d\n", stmt.Type, b.Index)
+		b.log.Debugf("After ParseExpression for key: stmt.Type=%s, Index=%d", stmt.Type, b.Index)
 
 		// Check if the NEXT token is the separator token (= or :)
 		if b.Index+1 < len(b.Tokens) && (b.Tokens[b.Index+1].Type == token.Assign || b.Tokens[b.Index+1].Type == token.Set) {
-			fmt.Println("Creating kv pair!")
-			fmt.Printf("Next token is separator: %+v\n", b.Tokens[b.Index+1])
+			b.log.Debug("Creating kv pair!")
+			b.log.Debugf("Next token is separator: %+v", b.Tokens[b.Index+1])
 
 			// Move past both the key and separator to get to the value
 			b.Index += 2
@@ -349,25 +350,25 @@ func (b *Builder) ParseMapBlockStatement() (*Node, error) {
 				Left:  stmt,
 				Right: value,
 			}
-			fmt.Printf("Created kv: %+v\n", stmt)
+			b.log.Debugf("Created kv: %+v", stmt)
 		} else {
-			fmt.Println("NOT creating kv pair, next token is not = or :")
+			b.log.Debug("NOT creating kv pair, next token is not = or :")
 		}
 
 		blob, _ := json.Marshal(stmt)
-		fmt.Println("kvstmtkv:", string(blob))
+		b.log.Debug("kvstmtkv:", string(blob))
 
 		// All statements in a map have to be key-value pairs
 		if stmt.Type != "kv" {
 			return nil, errors.Errorf("All statements in a map have to be key-value pairs: %+v\n", stmt)
 		}
 
-		fmt.Println("stmt:", stmt)
+		b.log.Debug("stmt:", stmt)
 
 		stmts = append(stmts, stmt)
 	}
 
-	fmt.Println("=== ParseMapBlockStatement done ===")
+	b.log.Debug("=== ParseMapBlockStatement done ===")
 
 	// Step over the right brace token
 	b.Index++
@@ -483,7 +484,7 @@ func (b *Builder) ParseBlockStatement() (*Node, error) {
 			return nil, err2
 		}
 
-		fmt.Println("i am here", stmt)
+		b.log.Debug("i am here", stmt)
 
 		stmts = append(stmts, stmt)
 	}
@@ -721,7 +722,7 @@ func (b *Builder) ParseCBlock() (*Node, error) {
 
 	// Gobble up all the code until the next left brace; use a simple array as a stack to know when we are done
 	for _, t := range b.Tokens[b.Index:] {
-		fmt.Println("t", t)
+		b.log.Debug("t", t)
 
 		if t.Type == token.RBrace {
 			found = true
@@ -904,8 +905,8 @@ func (b *Builder) ParseStructStatement() (*Node, error) {
 }
 
 func (b *Builder) ParseMapStatement() (*Node, error) {
-	fmt.Println("=== ParseMapStatement called ===")
-	fmt.Printf("Index=%d, token=%+v\n", b.Index, b.Tokens[b.Index])
+	b.log.Debug("=== ParseMapStatement called ===")
+	b.log.Debugf("Index=%d, token=%+v", b.Index, b.Tokens[b.Index])
 
 	// Check ourselves ... (map can be token.Map or token.Type with Value.Type == "map")
 	if b.Tokens[b.Index].Type != token.Map && !(b.Tokens[b.Index].Type == token.Type && b.Tokens[b.Index].Value.Type == "map") {
@@ -915,7 +916,7 @@ func (b *Builder) ParseMapStatement() (*Node, error) {
 	// Skip over the `map` token
 	b.Index++
 
-	fmt.Printf("After map, Index=%d\n", b.Index)
+	b.log.Debugf("After map, Index=%d", b.Index)
 
 	// Create the ident
 	ident, err := b.ParseExpression()
@@ -923,7 +924,7 @@ func (b *Builder) ParseMapStatement() (*Node, error) {
 		return nil, err
 	}
 
-	fmt.Printf("After ParseExpression for ident: Index=%d\n", b.Index)
+	b.log.Debugf("After ParseExpression for ident: Index=%d", b.Index)
 
 	// Increment over the ident token
 	b.Index++
@@ -942,7 +943,7 @@ func (b *Builder) ParseMapStatement() (*Node, error) {
 	// Increment over the equals
 	b.Index++
 
-	fmt.Printf("About to call ParseMapBlockStatement: Index=%d\n", b.Index)
+	b.log.Debugf("About to call ParseMapBlockStatement: Index=%d", b.Index)
 
 	// Parse the right hand side
 	body, err := b.ParseMapBlockStatement()
@@ -1014,8 +1015,8 @@ func (b *Builder) ParseLetStatement() (*Node, error) {
 }
 
 func (b *Builder) ParseLiteralStatement() (*Node, error) {
-	fmt.Println("=== ParseLiteralStatement called ===")
-	fmt.Printf("Current token at Index(%d): %+v\n", b.Index, b.Tokens[b.Index])
+	b.log.Debug("=== ParseLiteralStatement called ===")
+	b.log.Debugf("Current token at Index(%d): %+v", b.Index, b.Tokens[b.Index])
 
 	// Parse an expession
 	// check the next token for a `:`
@@ -1029,11 +1030,11 @@ func (b *Builder) ParseLiteralStatement() (*Node, error) {
 	}
 
 	blob, _ := json.Marshal(left)
-	fmt.Println("leftblobby:", string(blob))
+	b.log.Debug("leftblobby:", string(blob))
 
 	b.Index++
 
-	fmt.Printf("After parsing left, Index=%d, token: %+v\n", b.Index, b.Tokens[b.Index])
+	b.log.Debugf("After parsing left, Index=%d, token: %+v", b.Index, b.Tokens[b.Index])
 
 	switch b.Tokens[b.Index].Type {
 	case token.Set:
@@ -1089,7 +1090,7 @@ func (b *Builder) ParseIdentStatement() (*Node, error) {
 		// Right: expr,
 	}
 
-	fmt.Println("identOrType, err", identOrType, err, b.Tokens[b.Index].Type)
+	b.log.Debug("identOrType, err", identOrType, err, b.Tokens[b.Index].Type)
 
 	switch b.Tokens[b.Index].Type {
 	case token.Ident:
@@ -1104,17 +1105,17 @@ func (b *Builder) ParseIdentStatement() (*Node, error) {
 		node.Type = "decl"
 		node.Value = identOrType
 
-		fmt.Println("got another ident", b.Tokens[b.Index], node)
+		b.log.Debug("got another ident", b.Tokens[b.Index], node)
 
 		node.Left, err = b.ParseExpression()
 		if err != nil {
 			return nil, err
 		}
 
-		fmt.Println("node.Left", node.Left)
+		b.log.Debug("node.Left", node.Left)
 
 		if b.Index > len(b.Tokens)-1 && b.Tokens[b.Index+1].Type != token.Assign {
-			fmt.Println("b.Tokens[b.Index+1]", b.Tokens[b.Index+1])
+			b.log.Debug("b.Tokens[b.Index+1]", b.Tokens[b.Index+1])
 			return node, nil
 		}
 
@@ -1141,8 +1142,8 @@ func (b *Builder) ParseIdentStatement() (*Node, error) {
 			This is the assignment case where a simple assignment is as:
 				i = 0
 		*/
-		fmt.Println("got assign")
-		fmt.Printf("Index before ParseExpression: %d\n", b.Index)
+		b.log.Debug("got assign")
+		b.log.Debugf("Index before ParseExpression: %d", b.Index)
 
 		// Step over the assign
 		b.Index++
@@ -1152,12 +1153,12 @@ func (b *Builder) ParseIdentStatement() (*Node, error) {
 			return nil, err
 		}
 
-		fmt.Println("node.Right:", node.Right)
-		fmt.Printf("Index after ParseExpression: %d\n", b.Index)
+		b.log.Debug("node.Right:", node.Right)
+		b.log.Debugf("Index after ParseExpression: %d", b.Index)
 
 		b.Index++
 
-		fmt.Printf("Index before return: %d\n", b.Index)
+		b.log.Debugf("Index before return: %d", b.Index)
 		return node, nil
 
 	case token.LBrace:
@@ -1173,7 +1174,7 @@ func (b *Builder) ParseIdentStatement() (*Node, error) {
 		b.Index++
 
 		blob, _ := json.Marshal(node)
-		fmt.Println("blobby:", string(blob))
+		b.log.Debug("blobby:", string(blob))
 
 		return node, nil
 
@@ -1192,7 +1193,7 @@ func (b *Builder) ParseIdentStatement() (*Node, error) {
 		b.Index++
 
 		blob, _ := json.Marshal(node)
-		fmt.Println("setblobby:", string(blob))
+		b.log.Debug("setblobby:", string(blob))
 
 		return node, nil
 
@@ -1295,7 +1296,7 @@ func (b *Builder) ParsePackageStatement() (*Node, error) {
 		}
 
 		stmts = append(stmts, stmt)
-		fmt.Println("STMT", stmt)
+		b.log.Debug("STMT", stmt)
 	}
 
 	return &Node{
@@ -1377,7 +1378,7 @@ func (b *Builder) parseFileImport(filename string) (*Node, *ScopeTree, error) {
 		return nil, nil, err
 	}
 
-	fmt.Println("source", string(source))
+	b.log.Debug("source", string(source))
 
 	// Lex and tokenize the source code
 	tokens, err := lex.New(string(source)).Lex()
@@ -1392,7 +1393,7 @@ func (b *Builder) parseFileImport(filename string) (*Node, *ScopeTree, error) {
 	}
 
 	// Build the AST
-	b2 := New(tokens)
+	b2 := New(tokens, logger.Noop())
 	ast, err := b2.BuildAST()
 	if err != nil {
 		return nil, nil, err
@@ -1424,7 +1425,7 @@ func (b *Builder) ParseImportStatement() (*Node, error) {
 	// 3. Normal selection checking after that
 	// 4. Take special care for transpileImportStatement
 
-	fmt.Println("expr.Kind", expr.Value.(string))
+	b.log.Debug("expr.Kind", expr.Value.(string))
 
 	if expr.Value.(string) == "c" {
 		b.Index++
@@ -1565,26 +1566,21 @@ func (b *Builder) ParseFunctionStatement() (*Node, error) {
 
 			b.Index++
 
-		} else if b.Tokens[b.Index].Type == token.Type {
-			// Make an egroup with one return in it
-			node.Metadata["returns"] = &Node{
-				Type: "egroup",
-				Value: []*Node{
-					{
-						Type:  "type",
-						Value: b.Tokens[b.Index].Value.String,
-					},
-				},
-			}
-
-			// Step over the type token
-			b.Index++
 		} else {
-			return nil, errors.Errorf("could not parse returns on %s: %v", node.Kind, b.Tokens[b.Index])
+			// Single return type: primitive or user-defined
+			typeNode, typeErr := b.ParseTypeExpr()
+			if typeErr != nil {
+				return nil, errors.Errorf("could not parse return type for %s: %v", node.Kind, typeErr)
+			}
+			node.Metadata["returns"] = &Node{
+				Type:  "egroup",
+				Value: []*Node{typeNode},
+			}
+			b.Index++
 		}
 	}
 
-	fmt.Println("node.Metadata[returns]:", node.Metadata["returns"])
+	b.log.Debug("node.Metadata[returns]:", node.Metadata["returns"])
 
 	// We are not supporting named arguments for now
 	// Check for the return type token
@@ -1681,7 +1677,7 @@ func (b *Builder) ParseDerefStatement() (*Node, error) {
 
 // ParseStatement ** does ** not look ahead
 func (b *Builder) ParseStatement() (*Node, error) {
-	fmt.Printf("=== ParseStatement called, Index=%d, token=%+v ===\n", b.Index, b.Tokens[b.Index])
+	b.log.Debugf("=== ParseStatement called, Index=%d, token=%+v ===", b.Index, b.Tokens[b.Index])
 	switch b.Tokens[b.Index].Type {
 
 	case token.Launch:
@@ -1766,14 +1762,14 @@ func (b *Builder) ParseStatement() (*Node, error) {
 
 		if n.Type == "decl" {
 			blob, _ := json.Marshal(n)
-			fmt.Println("nblobn:", string(blob))
+			b.log.Debug("nblobn:", string(blob))
 
 			err = b.ScopeTree.Declare(n)
 			if err != nil {
 				return nil, err
 			}
 			blob, _ = json.Marshal(b.ScopeTree)
-			fmt.Println("ScopeTree:", string(blob))
+			b.log.Debug("ScopeTree:", string(blob))
 		}
 
 		return n, nil
@@ -1800,26 +1796,26 @@ func (b *Builder) ParseStatement() (*Node, error) {
 				}
 			}
 			// Handle full type annotation: map string -> int ident = ...
-			fmt.Printf("DEBUG: Checking full type annotation... Token=%s Value.Type=%s\n", b.Tokens[b.Index].Value.String, b.Tokens[b.Index].Value.Type)
+			b.log.Debugf("DEBUG: Checking full type annotation... Token=%s Value.Type=%s", b.Tokens[b.Index].Value.String, b.Tokens[b.Index].Value.Type)
 			if b.Tokens[b.Index].Value.Type == "map" || b.Tokens[b.Index].Value.Type == "struct" || b.Tokens[b.Index].Value.Type == "object" {
-				fmt.Println("DEBUG: Is map/struct/object")
+				b.log.Debug("DEBUG: Is map/struct/object")
 				// Check if this looks like a type annotation (type -> type pattern)
 				if nextToken.Type == token.Type && b.Index+2 < len(b.Tokens) {
-					fmt.Println("DEBUG: Next token is Type and we have enough tokens")
+					b.log.Debug("DEBUG: Next token is Type and we have enough tokens")
 					nextNextToken := b.peekAt(2)
 					// Check for -> pattern (SecOp = sub, GThan = >)
 					// The -> is tokenized as two separate tokens: SecOp (-) and GThan (>)
 					if nextNextToken.Type == token.SecOp && b.Index+3 < len(b.Tokens) {
-						fmt.Println("DEBUG: Found SecOp (-)")
+						b.log.Debug("DEBUG: Found SecOp (-)")
 						nextNextNextToken := b.peekAt(3)
 						if nextNextNextToken.Type == token.GThan && b.Index+4 < len(b.Tokens) {
-							fmt.Println("DEBUG: Found GThan (>)")
+							b.log.Debug("DEBUG: Found GThan (>)")
 							nextNextNextNextToken := b.peekAt(4)
 							if nextNextNextNextToken.Type == token.Type && b.Index+5 < len(b.Tokens) {
-								fmt.Println("DEBUG: Found second type")
+								b.log.Debug("DEBUG: Found second type")
 								nextNextNextNextNextToken := b.peekAt(5)
 								if nextNextNextNextNextToken.Type == token.Ident && b.Index+6 < len(b.Tokens) && b.peekAt(6).Type == token.Assign {
-									fmt.Println("DEBUG: Calling ParseMapStatement!")
+									b.log.Debug("DEBUG: Calling ParseMapStatement!")
 									switch b.Tokens[b.Index].Value.Type {
 									case "map":
 										return b.ParseMapStatement()

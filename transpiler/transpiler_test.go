@@ -9,6 +9,7 @@ import (
 	"github.com/scottshotgg/express-lex"
 	"github.com/scottshotgg/express-token"
 	"github.com/scottshotgg/express2/builder"
+	"github.com/scottshotgg/express2/pkg/logger"
 	"github.com/scottshotgg/express2/transpiler"
 )
 
@@ -35,7 +36,7 @@ func getBuilderFromString(test string) (*builder.Builder, error) {
 		return nil, err
 	}
 
-	return builder.New(tokens), nil
+	return builder.New(tokens, logger.Noop()), nil
 }
 
 func getTranspilerFromBuilder(b *builder.Builder) (*transpiler.Transpiler, error) {
