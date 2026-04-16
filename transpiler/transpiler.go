@@ -757,6 +757,22 @@ func (t *Transpiler) TranspileIncrementExpression(n *builder.Node) (*string, err
 	return lhs, nil
 }
 
+func (t *Transpiler) TranspileDecrementExpression(n *builder.Node) (*string, error) {
+	if n.Type != "dec" {
+		return nil, errors.New("Node is not a dec")
+	}
+
+	lhs, err := t.TranspileExpression(n.Left)
+	if err != nil {
+		return nil, err
+	}
+
+	// Put parenthesis around it
+	*lhs = "(" + *lhs + ")--"
+
+	return lhs, nil
+}
+
 func (t *Transpiler) TranspileIndexExpression(n *builder.Node) (*string, error) {
 	/*
 		Left is an expression
@@ -836,6 +852,20 @@ func (t *Transpiler) TranspileDerefExpression(n *builder.Node) (*string, error) 
 	return &nString, nil
 }
 
+func (t *Transpiler) TranspileNotExpression(n *builder.Node) (*string, error) {
+	if n.Type != "not" {
+		return nil, errors.New("Node is not a not")
+	}
+
+	operand, err := t.TranspileExpression(n.Left)
+	if err != nil {
+		return nil, err
+	}
+
+	result := "!" + *operand
+	return &result, nil
+}
+
 // The type checker should produce arrow function ones as well
 func (t *Transpiler) TranspileRefExpression(n *builder.Node) (*string, error) {
 	if n.Type != "ref" {
@@ -888,6 +918,15 @@ func (t *Transpiler) TranspileExpression(n *builder.Node) (*string, error) {
 
 	case "ref":
 		return t.TranspileRefExpression(n)
+
+	case "not":
+		return t.TranspileNotExpression(n)
+
+	case "inc":
+		return t.TranspileIncrementExpression(n)
+
+	case "dec":
+		return t.TranspileDecrementExpression(n)
 
 	case "type":
 		return t.TranspileType(n)
@@ -1083,11 +1122,9 @@ func (t *Transpiler) TranspileStatement(n *builder.Node) (*string, error) {
 		return t.TranspileMapStatement(n)
 
 	case "typedef":
-		// typeChan <- n
 		return t.TranspileTypeDeclaration(n)
 
 	case "struct":
-		// structChan <- n
 		return t.TranspileStructDeclaration(n)
 
 	case "object":
@@ -1099,6 +1136,14 @@ func (t *Transpiler) TranspileStatement(n *builder.Node) (*string, error) {
 
 	case "inc":
 		var cppString, err = t.TranspileIncrementExpression(n)
+		if err == nil {
+			*cppString += ";"
+		}
+
+		return cppString, err
+
+	case "dec":
+		var cppString, err = t.TranspileDecrementExpression(n)
 		if err == nil {
 			*cppString += ";"
 		}
@@ -1134,6 +1179,9 @@ func (t *Transpiler) TranspileStatement(n *builder.Node) (*string, error) {
 	case "decl":
 		return t.TranspileDeclarationStatement(n)
 
+	case "let":
+		return t.TranspileLetStatement(n)
+
 	case "function":
 		t.FuncChan <- n
 		// Right now just grab the name from the string
@@ -1149,6 +1197,8 @@ func (t *Transpiler) TranspileStatement(n *builder.Node) (*string, error) {
 		return t.TranspileBlockStatement(n)
 
 	case "while":
+		// while is not a user-facing keyword in Express2
+		// it's used internally by the tree flattener to convert for-in/for-of loops
 		return t.TranspileWhileStatement(n)
 
 	// case "forof":
@@ -1156,6 +1206,9 @@ func (t *Transpiler) TranspileStatement(n *builder.Node) (*string, error) {
 
 	case "forin":
 		return t.TranspileForInStatement(n)
+
+	case "forover":
+		return t.TranspileForOverStatement(n)
 
 	case "forstd":
 		return t.TranspileForStdStatment(n)
@@ -1349,12 +1402,29 @@ func (t *Transpiler) TranspileType(n *builder.Node) (*string, error) {
 		return nil, errors.New("Node is not a type")
 	}
 
-	nString, ok := n.Value.(string)
-	if !ok {
-		return nil, errors.Errorf("Node value was not a string; %v", n)
+	var nString string
+	// Handle both string values (original) and node values (from let inference)
+	if val, ok := n.Value.(string); ok {
+		nString = val
+	} else if n.Kind != "" {
+		// Use Kind when Value is not a string (e.g., from let type inference)
+		nString = n.Kind
+	} else {
+		return nil, errors.Errorf("Node value was not a string and Kind is empty; %v", n)
 	}
 
 	switch nString {
+	case "var":
+		// var is the dynamic type class
+		// Include var.cpp and use the var class
+		t.IncludeChan <- &builder.Node{
+			Type: "include",
+			Left: &builder.Node{
+				Type:  "literal",
+				Value: t.LibBase + "var.cpp",
+			},
+		}
+
 	case "string":
 		nString = "std::" + nString
 
@@ -1411,7 +1481,15 @@ func (t *Transpiler) TranspileType(n *builder.Node) (*string, error) {
 
 	// Check if the type is imported or not
 	if n.Metadata["package"] != nil {
-		nString = n.Metadata["package"].(string) + "::" + n.Value.(string)
+		var packageName = n.Metadata["package"].(string)
+		// Get the type string from Value or Kind
+		var typeName string
+		if val, ok := n.Value.(string); ok {
+			typeName = val
+		} else {
+			typeName = n.Kind
+		}
+		nString = packageName + "::" + typeName
 	}
 
 	return &nString, nil
@@ -1644,6 +1722,68 @@ func (t *Transpiler) TranspileDeclarationStatement(n *builder.Node) (*string, er
 	return &nString, nil
 }
 
+func (t *Transpiler) TranspileLetStatement(n *builder.Node) (*string, error) {
+	if n.Type != "let" {
+		return nil, errors.New("Node is not a let statement")
+	}
+
+	// Translate the ident expression (lhs)
+	vString, err := t.TranspileExpression(n.Left)
+	if err != nil {
+		return nil, err
+	}
+
+	var nString = *vString
+
+	// RHS is allowed to be nil to support declarations without values like `string s`
+	if n.Right == nil {
+		return nil, errors.New("let statements must have a right-hand side expression")
+	}
+
+	// Infer the type from the right-hand side expression
+	var typeString string
+	switch n.Right.Type {
+	case "literal":
+		// Infer type from literal kind
+		switch n.Right.Kind {
+		case "int":
+			typeString = "int"
+		case "float":
+			typeString = "float"
+		case "string":
+			typeString = "std::string"
+			t.IncludeChan <- &builder.Node{
+				Type: "include",
+				Left: &builder.Node{
+					Type:  "literal",
+					Value: "string",
+				},
+			}
+		case "bool":
+			typeString = "bool"
+		case "char":
+			typeString = "char"
+		default:
+			return nil, errors.Errorf("Unknown literal kind for let: %s", n.Right.Kind)
+		}
+	default:
+		// For other expression types, use auto type inference
+		typeString = "auto"
+	}
+
+	// Translate the expression (rhs)
+	vString, err = t.TranspileExpression(n.Right)
+	if err != nil {
+		return nil, err
+	}
+
+	nString = typeString + " " + nString + " = " + *vString + ";"
+
+	// fmt.Println("nString", nString)
+
+	return &nString, nil
+}
+
 func (t *Transpiler) resolveType(n *builder.Node) (*string, error) {
 	blob, _ := json.Marshal(n)
 	fmt.Println("vvvvvvv:", string(blob))
@@ -1787,6 +1927,15 @@ func (t *Transpiler) TranspileBlockStatement(n *builder.Node) (*string, error) {
 	)
 
 	for _, stmt := range n.Value.([]*builder.Node) {
+		// Skip struct declarations - they're handled at global scope
+		if stmt.Type == "struct" {
+			continue
+		}
+		// Skip typedef declarations - they're handled at global scope
+		if stmt.Type == "typedef" {
+			continue
+		}
+
 		vString, err = t.TranspileStatement(stmt)
 		if err != nil {
 			return nil, err
@@ -2128,6 +2277,55 @@ func (t *Transpiler) TranspileForInStatement(n *builder.Node) (*string, error) {
 	return &nString, nil
 }
 
+func (t *Transpiler) TranspileForOverStatement(n *builder.Node) (*string, error) {
+	if n.Type != "forover" {
+		return nil, errors.New("Node is not a forover")
+	}
+
+	keyIdent := n.Metadata["start"].(*builder.Node).Value.(string)
+	collection, err := t.TranspileExpression(n.Metadata["end"].(*builder.Node))
+	if err != nil {
+		return nil, err
+	}
+
+	var nString string
+	var bodyPrefix string
+
+	if ident2, ok := n.Metadata["start2"]; ok {
+		// Two-variable form: for i, j over x
+		// Transpile as an indexed for-loop with both key and value
+		valIdent := ident2.(*builder.Node).Value.(string)
+		nString = fmt.Sprintf("{auto& _coll = %s; for (int %s = 0; %s < _coll.size(); %s++)",
+			*collection, keyIdent, keyIdent, keyIdent)
+		bodyPrefix = fmt.Sprintf("auto %s = _coll[%s];", valIdent, keyIdent)
+	} else {
+		// Single-variable form: for i over x
+		// Transpile as an indexed for-loop; i gets the index
+		nString = fmt.Sprintf("{auto& _coll = %s; for (int %s = 0; %s < _coll.size(); %s++)",
+			*collection, keyIdent, keyIdent, keyIdent)
+	}
+
+	// Translate the body
+	vString, err := t.TranspileBlockStatement(n.Value.(*builder.Node))
+	if err != nil {
+		return nil, err
+	}
+
+	if bodyPrefix != "" {
+		// Inject the value declaration at the start of the block body
+		// TranspileBlockStatement returns "{ ... }", so insert after the opening brace
+		body := *vString
+		nString += "{" + bodyPrefix + body[1:]
+	} else {
+		nString += *vString
+	}
+
+	// Close the outer scoping block
+	nString += "}"
+
+	return &nString, nil
+}
+
 func (t *Transpiler) TranspileForStdStatment(n *builder.Node) (*string, error) {
 	// Change forin to be a block statement containing:
 	//	- declare temp var
@@ -2202,96 +2400,39 @@ func (t *Transpiler) TranspileForStdStatment(n *builder.Node) (*string, error) {
 	return &nString, nil
 }
 
+// TranspileWhileStatement handles while loops.
+// Note: while is NOT a user-facing keyword in Express2.
+// It's used internally by the tree flattener to convert for-in/for-of loops.
+// User code cannot directly write while loops.
 func (t *Transpiler) TranspileWhileStatement(n *builder.Node) (*string, error) {
 	/*
 		while statements are simple, we already have all the tools:
 		`while` `(` expr `)` block
 	*/
 
-	var nString string
-
-	var v = t.Builder.ScopeTree.Get(n.Right.Value.(string))
-
-	blob, _ := json.Marshal(v)
-	fmt.Println("vvvvblobbyhill:", string(blob))
-
-	if v != nil && v.Value != nil && v.Value.(*builder.Node).Kind == "map" {
-		nString = fmt.Sprintf("for (auto const& set : %s)", n.Right.Value.(string))
-		start := n.Metadata["start"]
-		if start == nil {
-			return nil, errors.New("No start amount ...")
-			// return nil
-		}
-
-		n.Value.(*builder.Node).Value = append([]*builder.Node{{
-			Type: "decl",
-			Value: &builder.Node{
-				Type: "type",
-				// Kind: "int",
-				Value: "auto",
-			},
-			Left: start.(*builder.Node),
-			Right: &builder.Node{
-				Type:  "literal",
-				Kind:  "auto",
-				Value: "set.first",
-			},
-		}}, n.Value.(*builder.Node).Value.([]*builder.Node)...)
-
-		blob, _ = json.Marshal(n.Value.(*builder.Node).Value)
-		fmt.Println("blobbyhill:", string(blob))
-
-	} else {
-		start := n.Metadata["start"]
-		if start == nil {
-			return nil, errors.New("No start amount ...")
-			// return nil
-		}
-
-		/*
-			while statements are simple, we already have all the tools:
-			`while` `(` expr `)` block
-		*/
-
-		if n.Type != "while" {
-			return nil, errors.New("Node is not a while")
-		}
-
-		var (
-			nString = fmt.Sprintf("int %s=0;{ while(", start.(*builder.Node).Value)
-			// vString *string
-			// err     error
-		)
-
-		fmt.Printf("transpile expr: %+v\n", n.Left.Right)
-		condition, err := t.TranspileExpression(n.Left)
-		if err != nil {
-			return nil, err
-		}
-
-		nString += *condition + ")"
-
-		block, err := t.TranspileBlockStatement(n.Value.(*builder.Node))
-		if err != nil {
-			return nil, err
-		}
-
-		var b = *block
-
-		b = b[:len(b)-1] + start.(*builder.Node).Value.(string) + "++;" + b[len(b)-1:]
-
-		nString += b + "}"
-
-		return &nString, nil
+	if n.Type != "while" {
+		return nil, errors.New("Node is not a while")
 	}
 
-	// Translate the block statement
-	vString, err := t.TranspileBlockStatement(n.Value.(*builder.Node))
+	var (
+		nString = "while ("
+		// vString *string
+		// err     error
+	)
+
+	condition, err := t.TranspileExpression(n.Left)
 	if err != nil {
 		return nil, err
 	}
 
-	nString += *vString
+	nString += *condition + ")"
+
+	block, err := t.TranspileBlockStatement(n.Value.(*builder.Node))
+	if err != nil {
+		return nil, err
+	}
+
+	nString += *block
 
 	return &nString, nil
 }
