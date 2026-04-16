@@ -25,7 +25,7 @@ func (f *File) Length() int {
 	return -1
 }
 
-// NewFile retuns a new file and sets the filename
+// NewFile returns a new file and sets the filename
 func NewFile(filename string) *File {
 	return &File{
 		Name: filename,

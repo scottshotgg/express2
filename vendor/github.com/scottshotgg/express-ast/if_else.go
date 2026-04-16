@@ -3,7 +3,7 @@ package ast
 import (
 	"fmt"
 
-	"github.com/scottshotgg/express-token"
+	token "github.com/scottshotgg/express-token"
 )
 
 // IfElse represents the following form:

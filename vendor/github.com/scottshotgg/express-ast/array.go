@@ -1,8 +1,6 @@
 package ast
 
-import (
-	"github.com/scottshotgg/express-token"
-)
+import token "github.com/scottshotgg/express-token"
 
 // type ArrayType int
 
@@ -62,9 +60,9 @@ func NewArray(t token.Token, elements []Expression) *Array {
 			// }
 
 			// Compare to figure out if we need to upgrade the array type or not
-			if e.Type().Type != typeOf.Type && e.Type().UpgradesTo != typeOf.Type {
+			if typeOf.UpgradesTo != nil && e.Type().Type != typeOf.Type && e.Type().UpgradesTo.Type != typeOf.Type {
 				// if the collected types can upgrade to the expression type
-				if e.Type().Type == typeOf.UpgradesTo {
+				if typeOf.UpgradesTo != nil && e.Type().Type == typeOf.UpgradesTo.Type {
 					typeOf = e.Type()
 				} else {
 					homogenous = false

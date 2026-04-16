@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
-	"github.com/scottshotgg/express-token"
+	token "github.com/scottshotgg/express-token"
 )
 
 type ASTBuilder struct {
@@ -356,16 +356,16 @@ func (a *ASTBuilder) GetBlock() (*Block, error) {
 }
 
 // GetStatement needs to switch and capture these:
-//	- assignment
-//		- type
-//		- ident
-//	- block
-//	- call
-//		- ident
-//	- func / fn
-//	- if/else
-//	- loop
-//	- return
+//   - assignment
+//   - type
+//   - ident
+//   - block
+//   - call
+//   - ident
+//   - func / fn
+//   - if/else
+//   - loop
+//   - return
 func (a *ASTBuilder) GetStatement() (Statement, error) {
 	typeOf := ""
 	currentToken := a.Tokens[a.Index]
@@ -387,7 +387,7 @@ func (a *ASTBuilder) GetStatement() (Statement, error) {
 
 	case token.Ident:
 		// Here we will want to look at what is next and handle it
-		// If it is an assignment statment then we are looking for an expression afterwards
+		// If it is an assignment statement then we are looking for an expression afterwards
 
 		// FIXME: need to implement Type() so that we can get the var type
 		ident, err := NewIdent(a.Tokens[a.Index], typeOf)

@@ -1,0 +1,45 @@
+version: "2"
+
+linters:
+  default: standard
+  enable:
+    - misspell
+    - nilerr
+    - unconvert
+    - unparam
+  settings:
+    errcheck:
+      exclude-functions:
+        # ── CLI output ────────────────────────────────────────────────────────
+        # fmt print functions write to stdout/stderr and virtually never fail.
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
+        - fmt.Print
+        - fmt.Printf
+        - fmt.Println
+
+        # tabwriter.Flush writes to the same underlying writer.
+        - (*text/tabwriter.Writer).Flush
+
+        # Drain-and-discard after a non-OK HTTP response: we already have an
+        # error to return and discarding the body is best-effort.
+        - io.Copy
+  exclusions:
+    rules:
+      # Test helper functions are intentionally written for flexibility even
+      # when current tests only use a single value for a given parameter.
+      - path: "_test\\.go"
+        linters:
+          - unparam
+
+      # Suppress errcheck for all test files — test boilerplate (os.Remove,
+      # f.Close, os.Setenv, srv.Shutdown, etc.) follows patterns where errors
+      # are not actionable and would just add noise without catching real bugs.
+      - path: "_test\\.go"
+        linters:
+          - errcheck
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

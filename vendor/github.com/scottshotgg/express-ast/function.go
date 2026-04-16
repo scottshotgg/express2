@@ -1,8 +1,6 @@
 package ast
 
-import (
-	"github.com/scottshotgg/express-token"
-)
+import token "github.com/scottshotgg/express-token"
 
 // Function represents the following form:
 // [ `func` | `fn` ] [ ident ] [ group ] { group } [ block ]

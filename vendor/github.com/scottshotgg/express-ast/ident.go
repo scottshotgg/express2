@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/scottshotgg/express-token"
+	token "github.com/scottshotgg/express-token"
 )
 
 // Ident represents the following form:
@@ -223,7 +223,7 @@ func NewVarIdent(t token.Token) (*Ident, error) {
 	return &Ident{
 		Token: t,
 		// Set the var type to nothing; "0"
-		TypeOf: NewVarType(0),
+		TypeOf: NewVarType(NewNoneType()),
 		Name:   t.Value.String,
 	}, nil
 }

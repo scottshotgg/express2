@@ -1,0 +1,67 @@
+when:
+  - event: push
+  - event: pull_request
+
+steps:
+  - name: download
+    image: registry.6740.io/library/ci-builder/go:latest
+    environment:
+      CGO_ENABLED: "0"
+      GOOS: linux
+      GOARCH: amd64
+    volumes:
+      - woodpecker-cache-go:/root/go
+    commands:
+      - go mod download -x
+
+  - name: lint
+    depends_on:
+      - download
+    image: registry.6740.io/library/ci-builder/go:latest
+    environment:
+      CGO_ENABLED: "0"
+      GOOS: linux
+      GOARCH: amd64
+    failure: ignore
+    commands:
+      - golangci-lint run --timeout 5m --issues-exit-code 1 -v
+
+  - name: test
+    depends_on:
+      - download
+    image: registry.6740.io/library/ci-builder/go:latest
+    environment:
+      CGO_ENABLED: "0"
+      GOOS: linux
+      GOARCH: amd64
+    volumes:
+      - woodpecker-cache-go:/root/go
+    commands:
+      - make cover
+
+  - name: race
+    depends_on:
+      - download
+    image: registry.6740.io/library/ci-builder/go:latest
+    volumes:
+      - woodpecker-cache-go:/root/go
+    commands:
+      - make test-race
+
+  - name: build
+    depends_on:
+      - lint
+      - test
+      - race
+    image: registry.6740.io/library/ci-builder/go:latest
+    environment:
+      CGO_ENABLED: "0"
+      GOOS: linux
+      GOARCH: amd64
+    volumes:
+      - woodpecker-cache-go:/root/go
+    commands:
+      - go build -o express2 ./...
+
+volumes:
+  - woodpecker-cache-go:/root/go

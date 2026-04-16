@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/scottshotgg/express-token"
+	token "github.com/scottshotgg/express-token"
 )
 
 type IterableType int

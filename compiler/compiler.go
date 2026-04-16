@@ -337,7 +337,14 @@ func (c *Compiler) compileFile(filename string) error {
 
 	fmt.Println(string(astJSON))
 
-	// return nil
+	// Run semantic pass to resolve type aliases
+	fmt.Println("\nRunning semantic pass ...")
+	start = time.Now()
+	ast, err = builder.NewChecker(ast, builder.NewTypeResolverWithScope(b.ScopeTree)).Execute()
+	c.PipelineTimes["semantic"] = time.Since(start).String()
+	if err != nil {
+		return err
+	}
 
 	// Change "main" to something else later
 

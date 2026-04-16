@@ -3,7 +3,7 @@ package ast
 import (
 	"fmt"
 
-	"github.com/scottshotgg/express-token"
+	token "github.com/scottshotgg/express-token"
 )
 
 // Index is the action represented by the square brackets ([ expression ] `[` [ expression ] `]`)

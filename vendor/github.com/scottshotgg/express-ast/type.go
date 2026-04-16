@@ -34,6 +34,9 @@ const (
 	// StructType denotes a struct literal type
 	StructType
 
+	// InterfaceType denotes a struct literal type
+	InterfaceType
+
 	// ObjectType denotes an object literal type
 	ObjectType
 
@@ -49,6 +52,33 @@ const (
 	UserDefinedType
 )
 
+var (
+	ltMap = map[LiteralType]string{
+		NoneType:    "none",
+		DefaultType: "default",
+		IntType:     "int",
+		BoolType:    "bool",
+		FloatType:   "float",
+		CharType:    "char",
+		StringType:  "string",
+		ObjectType:  "object",
+		VarType:     "var",
+
+		// // TODO: these needs sub-typeing
+		// ArrayType:       "array::?",
+		// StructType:      "struct::?",
+		// FunctionType:    "function::?",
+		// UserDefinedType: "user_defined::?",
+	}
+)
+
+func (lt LiteralType) String() string {
+	return ltMap[lt]
+}
+
+// func LiteralTypeFromString(s string) LiteralType {
+// }
+
 // Type is used to specify a variable type
 type Type struct {
 	Name  string
@@ -56,10 +86,10 @@ type Type struct {
 	Array bool
 
 	// UpgradesTo is used to specify how/what a variable can upgrade to
-	UpgradesTo LiteralType
+	UpgradesTo *Type
 
 	// ShadowType is mainly used in dynamic types to specify what the real type is
-	ShadowType *LiteralType
+	ShadowType *Type
 }
 
 func (t *Type) Kind() NodeType { return TypeNode }
@@ -97,30 +127,38 @@ func DeclareUserDefinedType(udt *Type) LiteralType {
 	return typeIndex
 }
 
+// func NewType()
+
+// NewIntType is used to take some of the boilerplate code out of defining an int Type
+func NewNoneType() *Type {
+	return &Type{
+		Name: "none",
+		Type: NoneType,
+	}
+}
+
 // NewIntType is used to take some of the boilerplate code out of defining an int Type
 func NewIntType() *Type {
 	return &Type{
 		Name:       "int",
 		Type:       IntType,
-		UpgradesTo: FloatType,
+		UpgradesTo: NewFloatType(),
 	}
 }
 
 // NewBoolType is used to take some of the boilerplate code out of defining a bool Type
 func NewBoolType() *Type {
 	return &Type{
-		Name:       "bool",
-		Type:       BoolType,
-		UpgradesTo: NoneType,
+		Name: "bool",
+		Type: BoolType,
 	}
 }
 
 // NewFloatType is used to take some of the boilerplate code out of defining a float Type
 func NewFloatType() *Type {
 	return &Type{
-		Name:       "float",
-		Type:       FloatType,
-		UpgradesTo: NoneType,
+		Name: "float",
+		Type: FloatType,
 	}
 }
 
@@ -129,26 +167,25 @@ func NewCharType() *Type {
 	return &Type{
 		Name:       "char",
 		Type:       CharType,
-		UpgradesTo: StringType,
+		UpgradesTo: NewStringType(),
 	}
 }
 
 // NewStringType is used to take some of the boilerplate code out of defining a string Type
 func NewStringType() *Type {
 	return &Type{
-		Name:       "string",
-		Type:       StringType,
-		UpgradesTo: NoneType,
+		Name: "string",
+		Type: StringType,
 	}
 }
 
 // NewVarType is used to take some of the boilerplate code out of defining an var Type
-func NewVarType(lt LiteralType) *Type {
-	// somehow need to gaurantee that the shadow type is not `var`
+func NewVarType(lt *Type) *Type {
+	// somehow need to guarantee that the shadow type is not `var`
 	return &Type{
 		Name:       "var",
 		Type:       VarType,
-		ShadowType: &lt,
+		ShadowType: lt,
 		// UpgradesTo: UpgradableTypesMap[lt],
 	}
 }
@@ -156,27 +193,54 @@ func NewVarType(lt LiteralType) *Type {
 // NewObjectType is used to take some of the boilerplate code out of defining an object Type
 func NewObjectType() *Type {
 	return &Type{
-		Name:       "object",
-		Type:       ObjectType,
-		UpgradesTo: NoneType,
+		Name: "object",
+		Type: ObjectType,
 	}
 }
 
 // NewStructType is used to take some of the boilerplate code out of defining a struct Type
 func NewStructType(lt LiteralType) *Type {
-	if _, ok := idToUserDefinedTypeMap[lt]; !ok {
-		// FIXME: fix this later or something
-		fmt.Printf("Not able to find %d in map during struct inititializer\n", lt)
-		panic("oh shit brah")
-	}
-
-	thing := StructType
-	return &Type{
+	var t = &Type{
 		Name:       "struct",
 		Type:       lt,
-		ShadowType: &thing,
-		UpgradesTo: ObjectType,
+		ShadowType: NewStructType(0),
+		UpgradesTo: NewObjectType(),
 	}
+
+	if lt != 0 {
+		var ok bool
+		t.ShadowType, ok = idToUserDefinedTypeMap[lt]
+		if !ok {
+			// FIXME: fix this later or something
+			fmt.Printf("Not able to find %d in map during struct inititializer\n", lt)
+			panic("oh shit brah")
+		}
+	}
+
+	return t
+}
+
+// NewInterfaceType is used to take some of the boilerplate code out of defining a struct Type
+func NewInterfaceType(lt LiteralType) *Type {
+	panic("NewInterfaceType not implemented")
+	// var t = &Type{
+	// 	Name:       "interface",
+	// 	Type:       lt,
+	// 	ShadowType: NewStructType(0),
+	// 	UpgradesTo: NewObjectType(),
+	// }
+
+	// if lt != 0 {
+	// 	var ok bool
+	// 	t.ShadowType, ok = idToUserDefinedTypeMap[lt]
+	// 	if !ok {
+	// 		// FIXME: fix this later or something
+	// 		fmt.Printf("Not able to find %d in map during struct inititializer\n", lt)
+	// 		panic("oh shit brah")
+	// 	}
+	// }
+
+	// return t
 }
 
 // NewFunctionType is used to take some of the boilerplate code out of defining a function Type

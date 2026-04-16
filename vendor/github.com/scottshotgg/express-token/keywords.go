@@ -26,6 +26,14 @@ var KeywordMap = map[string]Token{
 		},
 	},
 
+	"interface": {
+		Type: Interface,
+		Value: Value{
+			Type:   "keyword",
+			String: "interface",
+		},
+	},
+
 	"object": {
 		Type: Object,
 		Value: Value{
@@ -74,11 +82,19 @@ var KeywordMap = map[string]Token{
 		},
 	},
 
-	"launch": {
-		Type: Launch,
+	"thread": {
+		Type: Thread,
 		Value: Value{
 			Type:   "keyword",
-			String: "launch",
+			String: "thread",
+		},
+	},
+
+	"link": {
+		Type: Link,
+		Value: Value{
+			Type:   "keyword",
+			String: "link",
 		},
 	},
 
@@ -87,6 +103,14 @@ var KeywordMap = map[string]Token{
 		Value: Value{
 			Type:   "keyword",
 			String: "enum",
+		},
+	},
+
+	"launch": {
+		Type: Launch,
+		Value: Value{
+			Type:   "keyword",
+			String: "launch",
 		},
 	},
 

@@ -1,6 +1,6 @@
 package ast
 
-import "github.com/scottshotgg/express-token"
+import token "github.com/scottshotgg/express-token"
 
 type NodeType int
 

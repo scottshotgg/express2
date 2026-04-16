@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/scottshotgg/express-token"
+	token "github.com/scottshotgg/express-token"
 )
 
 // Literal is an abstract type that represents a literal value, in constrast with a value-producer, such as an expression
@@ -199,6 +199,30 @@ func (sl *StructLiteral) String() string {
 	return fmt.Sprintf("%+v", sl.Value)
 }
 
+// InterfaceLiteral represents a named object : this produces a type
+// TODO: this might need to be moved to the type.go file
+// FIXME: this might need to be fixed or something
+type InterfaceLiteral struct {
+	Token  token.Token
+	TypeOf *Type
+	Value  map[string]Expression
+}
+
+func (sl *InterfaceLiteral) expressionNode() {}
+
+// TokenLiteral returns the literal value of the token
+func (sl *InterfaceLiteral) TokenLiteral() token.Token { return sl.Token }
+
+// Type implements literal
+func (sl *InterfaceLiteral) Type() *Type { return sl.TypeOf }
+
+func (sl *InterfaceLiteral) Kind() NodeType { return LiteralNode }
+
+func (sl *InterfaceLiteral) String() string {
+	// Might want to use JSON for this
+	return fmt.Sprintf("%+v", sl.Value)
+}
+
 // FunctionLiteral represents a named object : this produces a type
 type FunctionLiteral struct {
 	Token  token.Token
@@ -246,7 +270,8 @@ func TypeFromString(t string) *Type {
 		return NewStringType()
 
 	case "var":
-		return NewVarType(VarType)
+		// TODO: fix this - we are just passing an int type here for now
+		return NewVarType(NewIntType())
 
 	case "object":
 		return NewObjectType()
@@ -362,6 +387,18 @@ func NewStruct(t token.Token, structType LiteralType, value map[string]Expressio
 	}
 }
 
+// NewInterface returns a new struct literal
+func NewInterface(t token.Token, structType LiteralType, value map[string]Expression) *InterfaceLiteral {
+	return &InterfaceLiteral{
+		Token:  t,
+		TypeOf: NewStructType(structType),
+
+		// This is for the properties of the struct, but somehow we probably need to have a
+		// UserDefinedValueMap like we have for the UserDefinedTypeMap
+		Value: value,
+	}
+}
+
 // NewObject returns a new object literal
 func NewObject(t token.Token, value Block) *ObjectLiteral {
 	return &ObjectLiteral{
@@ -375,7 +412,7 @@ func NewObject(t token.Token, value Block) *ObjectLiteral {
 func NewVarFromInt(t token.Token, value int) *VarLiteral {
 	return &VarLiteral{
 		Token:  t,
-		TypeOf: NewVarType(IntType),
+		TypeOf: NewVarType(NewIntType()),
 		Value:  value,
 	}
 }
@@ -384,7 +421,7 @@ func NewVarFromInt(t token.Token, value int) *VarLiteral {
 func NewVarFromBool(t token.Token, value bool) *VarLiteral {
 	return &VarLiteral{
 		Token:  t,
-		TypeOf: NewVarType(BoolType),
+		TypeOf: NewVarType(NewBoolType()),
 		Value:  value,
 	}
 }
@@ -393,7 +430,7 @@ func NewVarFromBool(t token.Token, value bool) *VarLiteral {
 func NewVarFromFloat(t token.Token, value float64) *VarLiteral {
 	return &VarLiteral{
 		Token:  t,
-		TypeOf: NewVarType(FloatType),
+		TypeOf: NewVarType(NewFloatType()),
 		Value:  value,
 	}
 }
@@ -402,7 +439,7 @@ func NewVarFromFloat(t token.Token, value float64) *VarLiteral {
 func NewVarFromChar(t token.Token, value rune) *VarLiteral {
 	return &VarLiteral{
 		Token:  t,
-		TypeOf: NewVarType(CharType),
+		TypeOf: NewVarType(NewCharType()),
 		Value:  value,
 	}
 }
@@ -411,7 +448,7 @@ func NewVarFromChar(t token.Token, value rune) *VarLiteral {
 func NewVarFromString(t token.Token, value string) *VarLiteral {
 	return &VarLiteral{
 		Token:  t,
-		TypeOf: NewVarType(StringType),
+		TypeOf: NewVarType(NewStringType()),
 		Value:  value,
 	}
 }
@@ -420,7 +457,7 @@ func NewVarFromString(t token.Token, value string) *VarLiteral {
 func NewVarFromObject(t token.Token, value Block) *VarLiteral {
 	return &VarLiteral{
 		Token:  t,
-		TypeOf: NewVarType(ObjectType),
+		TypeOf: NewVarType(NewObjectType()),
 		Value:  value,
 	}
 }
@@ -438,7 +475,7 @@ func NewVarFromObject(t token.Token, value Block) *VarLiteral {
 func NewVarFromFunction(t token.Token, value Block) *VarLiteral {
 	return &VarLiteral{
 		Token:  t,
-		TypeOf: NewVarType(FunctionType),
+		TypeOf: NewVarType(NewFunctionType()),
 		Value:  value,
 	}
 }

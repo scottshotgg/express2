@@ -1,6 +1,6 @@
 package ast
 
-import "github.com/scottshotgg/express-token"
+import token "github.com/scottshotgg/express-token"
 
 // C blocks fundamentally contain statements that cannot be checked
 // at compile time by the Express compiler. These statements will be

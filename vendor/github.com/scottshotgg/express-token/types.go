@@ -56,7 +56,7 @@ var TypeMap = map[string]Token{
 		Type: Type,
 		Value: Value{
 			Type:   "map", // this doesn't create a var
-			String: "std::map<var, var>",
+			String: "map",
 		},
 	},
 
@@ -82,6 +82,13 @@ var TypeMap = map[string]Token{
 	// 	Value: Value{
 	// 		Type:   StructType,
 	// 		String: StructType,
+	// 	},
+	// },
+	// InterfaceType: {
+	// 	Type: Type,
+	// 	Value: Value{
+	// 		Type:   InterfaceType,
+	// 		String: InterfaceType,
 	// 	},
 	// },
 	ArrayType: {

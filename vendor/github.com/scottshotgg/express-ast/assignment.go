@@ -4,8 +4,7 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
-
-	"github.com/scottshotgg/express-token"
+	token "github.com/scottshotgg/express-token"
 )
 
 // AssignmentType encompasses the different types of assignment
@@ -99,13 +98,13 @@ func NewAssignment(t token.Token, i *Ident, e Expression) (*Assignment, error) {
 		if i.TypeOf != nil && *i.TypeOf != (Type{}) {
 			return nil, errors.Errorf("Cannot use var declaration with type: %s", i.Name)
 		}
-		i.TypeOf = NewVarType(e.Type().Type)
+		i.TypeOf = NewVarType(e.Type())
 
 	case "=":
 		as.Type = Equals
 
 	default:
-		return nil, errors.New("Could not detect assingment type from token")
+		return nil, errors.New("Could not detect assignment type from token")
 	}
 
 	return &as, nil

@@ -3,7 +3,7 @@ package ast
 import (
 	"fmt"
 
-	"github.com/scottshotgg/express-token"
+	token "github.com/scottshotgg/express-token"
 )
 
 // Access is the action ([ expression ] `.` [ expression ]) represented by the

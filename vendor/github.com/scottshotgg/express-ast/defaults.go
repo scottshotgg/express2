@@ -3,7 +3,7 @@ package ast
 import (
 	"fmt"
 
-	"github.com/scottshotgg/express-token"
+	token "github.com/scottshotgg/express-token"
 )
 
 // this file might be better served from the actual parser or whatever is working with the AST

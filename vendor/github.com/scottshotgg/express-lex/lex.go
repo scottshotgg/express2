@@ -5,7 +5,6 @@ import (
 	"strconv"
 
 	"github.com/pkg/errors"
-
 	token "github.com/scottshotgg/express-token"
 )
 

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/scottshotgg/express-token"
+	token "github.com/scottshotgg/express-token"
 )
 
 // If we want to allow objects to contain statements in Express objects,

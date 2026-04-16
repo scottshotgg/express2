@@ -1,8 +1,6 @@
 package ast
 
-import (
-	"github.com/scottshotgg/express-token"
-)
+import token "github.com/scottshotgg/express-token"
 
 // Group is an abstract type that is used in the grammar of the form:
 // `(` { element }* `)`
