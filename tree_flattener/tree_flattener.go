@@ -13,6 +13,7 @@ import (
 type Flattener struct {
 	IncludeChan chan string
 	Wg          sync.WaitGroup
+	IdentCounter int
 }
 
 func New() *Flattener {
@@ -113,6 +114,18 @@ func (f *Flattener) transformIdentAndValueToDecl(typeOf string, node, value *bui
 }
 
 func (f *Flattener) transformArrayToDecl(typeOf string, node *builder.Node) *builder.Node {
+	// Generate a unique identifier name for the array variable
+	// If node.Value is a string, use it; otherwise generate a name
+	var identValue string
+	switch v := node.Value.(type) {
+	case string:
+		identValue = v
+	default:
+		// Generate a unique name like "arr_0", "arr_1", etc.
+		identValue = fmt.Sprintf("arr_%d", f.IdentCounter)
+		f.IdentCounter++
+	}
+
 	return &builder.Node{
 		Type: "decl",
 		// Type
@@ -127,7 +140,7 @@ func (f *Flattener) transformArrayToDecl(typeOf string, node *builder.Node) *bui
 		// ident
 		Left: &builder.Node{
 			Type:  "ident",
-			Value: node.Value,
+			Value: identValue,
 		},
 		Right: node,
 	}
@@ -211,27 +224,30 @@ func (f *Flattener) anonymizeIdentName(n *builder.Node) error {
 // Don't need any type information for this except for the array
 
 func (f *Flattener) FlattenForIn(node *builder.Node) []*builder.Node {
-	arrayType := f.getArrayType(node.Metadata["end"].(*builder.Node))
-
-	// randomIdent := makeRandomIdent()
 	start := node.Metadata["start"]
 	if start == nil {
-		// return nil, errors.New("No start amount ...")
 		return nil
 	}
 
-	// err := anonymizeIdentName(start.(*builder.Node))
-	// if err != nil {
-	// 	return nil
-	// }
+	endNode := node.Metadata["end"].(*builder.Node)
 
-	fmt.Printf("ident %+v\n", start)
+	// int i = 0
+	keyVar := f.transformIdentToDecl("int", 0, start.(*builder.Node))
 
-	keyVar := f.transformIdentToDecl("auto", "set.first", start.(*builder.Node))
-	// valueVar := transformIdentToDecl("auto", "set.second", node.Metadata["end"].(*builder.Node))
-	// incVar := transformIdentToDecl("auto", start.(*builder.Node))
+	// Determine the array ident to use in the while condition.
+	// If the end is already a named variable, use it directly to avoid
+	// "auto numbers = numbers;" self-referential declarations.
+	var arrayIdent *builder.Node
+	var extraDecls []*builder.Node
+	if endNode.Type == "ident" {
+		arrayIdent = endNode
+	} else {
+		arrayType := f.getArrayType(endNode)
+		arrayVar := f.transformArrayToDecl(arrayType, endNode)
+		arrayIdent = arrayVar.Left
+		extraDecls = []*builder.Node{arrayVar}
+	}
 
-	arrayVar := f.transformArrayToDecl(arrayType, node.Metadata["end"].(*builder.Node))
 	block := node.Value.(*builder.Node)
 
 	// Flatten all statements in the block
@@ -241,7 +257,7 @@ func (f *Flattener) FlattenForIn(node *builder.Node) []*builder.Node {
 		return nil
 	}
 
-	stmts := append(block.Value.([]*builder.Node)) //, makeIncrementOp(node.Metadata["start"].(*builder.Node)))
+	stmts := append(block.Value.([]*builder.Node), f.makeIncrementOp(start.(*builder.Node)))
 	while := &builder.Node{
 		Type: "while",
 		Value: &builder.Node{
@@ -249,28 +265,14 @@ func (f *Flattener) FlattenForIn(node *builder.Node) []*builder.Node {
 			Value: stmts,
 		},
 		Metadata: node.Metadata,
-		Right:    node.Metadata["end"].(*builder.Node),
-		Left:     f.makeLTComp(keyVar.Left, f.makeLengthCall(arrayVar.Left)),
+		Right:    endNode,
+		Left:     f.makeLTComp(keyVar.Left, f.makeLengthCall(arrayIdent)),
 	}
 
-	// recurse, assign result to while.Value, return while.Value
-
-	// make induction variable
-	// make array if needed
-	// make while loop with condition
-	// recurse into block
-
-	fmt.Println("something", []*builder.Node{
-		keyVar,
-		// arrayVar,
-		while,
-	})
-
-	return []*builder.Node{
-		// incVar,
-		// arrayVar,
-		while,
-	}
+	result := []*builder.Node{keyVar}
+	result = append(result, extraDecls...)
+	result = append(result, while)
+	return result
 }
 
 // func (f * Flattener) FlattenBlock(node *builder.Node) []*builder.Node {
@@ -397,34 +399,70 @@ func (f *Flattener) FlattenNode(node *builder.Node) error {
 }
 
 func (f *Flattener) FlattenForOf(node *builder.Node) []*builder.Node {
-	randomIdent := f.makeRandomIdent()
-	arrayType := f.getArrayType(node.Metadata["end"].(*builder.Node))
-	incVar := f.transformIdentToDecl("int", 0, node.Metadata["start"].(*builder.Node))
-	indVar := f.transformIdentToDecl(arrayType, 0, randomIdent)
-	arrayVar := f.transformArrayToDecl(arrayType, node.Metadata["end"].(*builder.Node))
-	block := node.Value.(*builder.Node)
-	stmts := append(block.Value.([]*builder.Node), f.makeIncrementOp(node.Metadata["start"].(*builder.Node)))
-	while := &builder.Node{
-		Type: "while",
-		// Value: , // THIS NEEDS TO BE THE BLOCK AFTER IT IS CHECKED
-		Value: &builder.Node{
-			Type: "block",
-			Value: append(
-				[]*builder.Node{
-					f.transformIdentToAssignment(randomIdent, &builder.Node{
-						Type:  "selection",
-						Left:  node.Metadata["end"].(*builder.Node),
-						Right: node.Metadata["start"].(*builder.Node),
-					})},
-				stmts...),
-		},
-		Left: f.makeLTComp(incVar.Left, arrayVar.Left),
+	// Generate a unique internal index counter name
+	idxIdentName := fmt.Sprintf("_idx_%d", f.IdentCounter)
+	f.IdentCounter++
+
+	idxIdent := &builder.Node{Type: "ident", Value: idxIdentName}
+	// int _idx_N = 0
+	idxVar := f.transformIdentToDecl("int", 0, idxIdent)
+
+	endNode := node.Metadata["end"].(*builder.Node)
+
+	// Determine the array ident to use in the while condition.
+	// If the end is already a named variable, use it directly to avoid
+	// "auto numbers = numbers;" self-referential declarations.
+	var arrayIdent *builder.Node
+	var extraDecls []*builder.Node
+	if endNode.Type == "ident" {
+		arrayIdent = endNode
+	} else {
+		arrayType := f.getArrayType(endNode)
+		arrayVar := f.transformArrayToDecl(arrayType, endNode)
+		arrayIdent = arrayVar.Left
+		extraDecls = []*builder.Node{arrayVar}
 	}
 
-	return []*builder.Node{
-		incVar,
-		indVar,
-		arrayVar,
-		while,
+	block := node.Value.(*builder.Node)
+
+	// Flatten all statements in the block
+	var err = f.FlattenNode(block)
+	if err != nil {
+		log.Printf("err: %+v\n", err)
+		return nil
 	}
+
+	// auto value = arr_N[_idx_N]  -- declared at the top of the while body
+	elemDecl := &builder.Node{
+		Type: "decl",
+		Value: &builder.Node{
+			Type:  "type",
+			Value: "auto",
+		},
+		Left: node.Metadata["start"].(*builder.Node),
+		Right: &builder.Node{
+			Type:  "index",
+			Left:  arrayIdent,
+			Right: idxIdent,
+		},
+	}
+
+	stmts := append(
+		[]*builder.Node{elemDecl},
+		append(block.Value.([]*builder.Node), f.makeIncrementOp(idxIdent))...,
+	)
+
+	while := &builder.Node{
+		Type: "while",
+		Value: &builder.Node{
+			Type:  "block",
+			Value: stmts,
+		},
+		Left: f.makeLTComp(idxIdent, f.makeLengthCall(arrayIdent)),
+	}
+
+	result := []*builder.Node{idxVar}
+	result = append(result, extraDecls...)
+	result = append(result, while)
+	return result
 }
