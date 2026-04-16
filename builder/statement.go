@@ -84,7 +84,7 @@ func (b *Builder) ParseForPrepositionStatement() (*Node, error) {
 	// Step over the for token
 	b.Index++
 
-	// Parse the ident before the `in` token
+	// Parse the first ident before the preposition
 	var ident, err = b.ParseExpression()
 	if err != nil {
 		return nil, err
@@ -92,6 +92,21 @@ func (b *Builder) ParseForPrepositionStatement() (*Node, error) {
 
 	// Step over the ident token
 	b.Index++
+
+	// Check for a second ident (for i, j over x)
+	var ident2 *Node
+	if b.Tokens[b.Index].Type == token.Separator && b.Tokens[b.Index].Value.Type == "comma" {
+		// Step over the comma
+		b.Index++
+
+		ident2, err = b.ParseExpression()
+		if err != nil {
+			return nil, err
+		}
+
+		// Step over the second ident
+		b.Index++
+	}
 
 	var prepType string
 
@@ -101,6 +116,9 @@ func (b *Builder) ParseForPrepositionStatement() (*Node, error) {
 
 	case "of":
 		prepType = "forof"
+
+	case "over":
+		prepType = "forover"
 
 	default:
 		return nil, b.AppendTokenToError("Could not get preposition")
@@ -124,13 +142,19 @@ func (b *Builder) ParseForPrepositionStatement() (*Node, error) {
 		return nil, err
 	}
 
+	metadata := map[string]interface{}{
+		"start": ident,
+		"end":   array,
+	}
+
+	if ident2 != nil {
+		metadata["start2"] = ident2
+	}
+
 	return &Node{
-		Type:  prepType,
-		Value: body,
-		Metadata: map[string]interface{}{
-			"start": ident,
-			"end":   array,
-		},
+		Type:     prepType,
+		Value:    body,
+		Metadata: metadata,
 	}, nil
 }
 
@@ -207,9 +231,15 @@ func (b *Builder) ParseForStatement() (*Node, error) {
 		return nil, ErrOutOfTokens
 	}
 
-	// For right now just look ahead two
-	if b.Tokens[b.Index+2].Type == token.Keyword {
-		return b.ParseForPrepositionStatement()
+	// Scan forward from Index+1 looking for a preposition keyword (in/of/over)
+	// before hitting a block opener. This handles both `for i in x` and `for i, j over x`.
+	for i := b.Index + 1; i < len(b.Tokens); i++ {
+		if b.Tokens[i].Type == token.LBrace {
+			break
+		}
+		if b.Tokens[i].Type == token.Keyword {
+			return b.ParseForPrepositionStatement()
+		}
 	}
 
 	return b.ParseForStdStatement()
@@ -266,6 +296,9 @@ func (b *Builder) ParseIfStatement() (*Node, error) {
 }
 
 func (b *Builder) ParseMapBlockStatement() (*Node, error) {
+	fmt.Println("=== ParseMapBlockStatement called ===")
+	fmt.Printf("Index=%d, token=%+v\n", b.Index, b.Tokens[b.Index])
+
 	// Check ourselves ...
 	if b.Tokens[b.Index].Type != token.LBrace {
 		return nil, b.AppendTokenToError("Could not get left brace")
@@ -274,6 +307,8 @@ func (b *Builder) ParseMapBlockStatement() (*Node, error) {
 	// Increment over the left brace token
 	b.Index++
 
+	fmt.Printf("After LBrace, Index=%d\n", b.Index)
+
 	var (
 		stmt  *Node
 		stmts []*Node
@@ -281,9 +316,42 @@ func (b *Builder) ParseMapBlockStatement() (*Node, error) {
 	)
 
 	for b.Index < len(b.Tokens) && b.Tokens[b.Index].Type != token.RBrace {
+		fmt.Printf("Loop: Index=%d, token=%+v\n", b.Index, b.Tokens[b.Index])
+
+		// Parse the key (expression)
 		stmt, err = b.ParseExpression()
 		if err != nil {
 			return nil, err
+		}
+
+		fmt.Printf("After ParseExpression for key: stmt.Type=%s, Index=%d\n", stmt.Type, b.Index)
+
+		// Check if the NEXT token is the separator token (= or :)
+		if b.Index+1 < len(b.Tokens) && (b.Tokens[b.Index+1].Type == token.Assign || b.Tokens[b.Index+1].Type == token.Set) {
+			fmt.Println("Creating kv pair!")
+			fmt.Printf("Next token is separator: %+v\n", b.Tokens[b.Index+1])
+
+			// Move past both the key and separator to get to the value
+			b.Index += 2
+
+			// Parse the value
+			var value *Node
+			value, err = b.ParseExpression()
+			if err != nil {
+				return nil, err
+			}
+
+			// Move past the value token
+			b.Index++
+
+			stmt = &Node{
+				Type:  "kv",
+				Left:  stmt,
+				Right: value,
+			}
+			fmt.Printf("Created kv: %+v\n", stmt)
+		} else {
+			fmt.Println("NOT creating kv pair, next token is not = or :")
 		}
 
 		blob, _ := json.Marshal(stmt)
@@ -298,6 +366,8 @@ func (b *Builder) ParseMapBlockStatement() (*Node, error) {
 
 		stmts = append(stmts, stmt)
 	}
+
+	fmt.Println("=== ParseMapBlockStatement done ===")
 
 	// Step over the right brace token
 	b.Index++
@@ -388,19 +458,29 @@ func (b *Builder) ParseBlockStatement() (*Node, error) {
 	}
 
 	// Increment over the left brace token
-	b.Index++ // Create a new child scope for the function
+	b.Index++
+
+	// Create a new child scope for the block with a unique name
+	blockName := fmt.Sprintf("block_%d", b.BlockCounter)
+	b.BlockCounter++
+
+	newScope, err := b.ScopeTree.NewChildScope(blockName)
+	if err != nil {
+		return nil, err
+	}
+	b.ScopeTree = newScope
 
 	var (
 		stmt  *Node
 		stmts []*Node
-		err   error
+		err2  error
 	)
 
 	for b.Index < len(b.Tokens) &&
 		b.Tokens[b.Index].Type != token.RBrace {
-		stmt, err = b.ParseStatement()
-		if err != nil {
-			return nil, err
+		stmt, err2 = b.ParseStatement()
+		if err2 != nil {
+			return nil, err2
 		}
 
 		fmt.Println("i am here", stmt)
@@ -410,6 +490,12 @@ func (b *Builder) ParseBlockStatement() (*Node, error) {
 
 	// Step over the right brace token
 	b.Index++
+
+	// Leave the block scope
+	b.ScopeTree, err = b.ScopeTree.Leave()
+	if err != nil {
+		return nil, err
+	}
 
 	return &Node{
 		Type:  "block",
@@ -818,19 +904,26 @@ func (b *Builder) ParseStructStatement() (*Node, error) {
 }
 
 func (b *Builder) ParseMapStatement() (*Node, error) {
-	// Check ourselves ...
-	if b.Tokens[b.Index].Type != token.Map {
+	fmt.Println("=== ParseMapStatement called ===")
+	fmt.Printf("Index=%d, token=%+v\n", b.Index, b.Tokens[b.Index])
+
+	// Check ourselves ... (map can be token.Map or token.Type with Value.Type == "map")
+	if b.Tokens[b.Index].Type != token.Map && !(b.Tokens[b.Index].Type == token.Type && b.Tokens[b.Index].Value.Type == "map") {
 		return nil, b.AppendTokenToError("Could not get map declaration statement")
 	}
 
 	// Skip over the `map` token
 	b.Index++
 
+	fmt.Printf("After map, Index=%d\n", b.Index)
+
 	// Create the ident
 	ident, err := b.ParseExpression()
 	if err != nil {
 		return nil, err
 	}
+
+	fmt.Printf("After ParseExpression for ident: Index=%d\n", b.Index)
 
 	// Increment over the ident token
 	b.Index++
@@ -848,6 +941,8 @@ func (b *Builder) ParseMapStatement() (*Node, error) {
 
 	// Increment over the equals
 	b.Index++
+
+	fmt.Printf("About to call ParseMapBlockStatement: Index=%d\n", b.Index)
 
 	// Parse the right hand side
 	body, err := b.ParseMapBlockStatement()
@@ -919,6 +1014,9 @@ func (b *Builder) ParseLetStatement() (*Node, error) {
 }
 
 func (b *Builder) ParseLiteralStatement() (*Node, error) {
+	fmt.Println("=== ParseLiteralStatement called ===")
+	fmt.Printf("Current token at Index(%d): %+v\n", b.Index, b.Tokens[b.Index])
+
 	// Parse an expession
 	// check the next token for a `:`
 	// Parse another expression
@@ -934,6 +1032,8 @@ func (b *Builder) ParseLiteralStatement() (*Node, error) {
 	fmt.Println("leftblobby:", string(blob))
 
 	b.Index++
+
+	fmt.Printf("After parsing left, Index=%d, token: %+v\n", b.Index, b.Tokens[b.Index])
 
 	switch b.Tokens[b.Index].Type {
 	case token.Set:
@@ -972,7 +1072,7 @@ func (b *Builder) ParseIdentStatement() (*Node, error) {
 	// Increment over the ident token
 	b.Index++
 
-	if identOrType.Type == "call" {
+	if identOrType.Type == "call" || identOrType.Type == "inc" || identOrType.Type == "dec" {
 		return identOrType, nil
 	}
 
@@ -1042,6 +1142,7 @@ func (b *Builder) ParseIdentStatement() (*Node, error) {
 				i = 0
 		*/
 		fmt.Println("got assign")
+		fmt.Printf("Index before ParseExpression: %d\n", b.Index)
 
 		// Step over the assign
 		b.Index++
@@ -1052,9 +1153,11 @@ func (b *Builder) ParseIdentStatement() (*Node, error) {
 		}
 
 		fmt.Println("node.Right:", node.Right)
+		fmt.Printf("Index after ParseExpression: %d\n", b.Index)
 
 		b.Index++
 
+		fmt.Printf("Index before return: %d\n", b.Index)
 		return node, nil
 
 	case token.LBrace:
@@ -1427,17 +1530,18 @@ func (b *Builder) ParseFunctionStatement() (*Node, error) {
 	// Set the name of the function
 	node.Kind = b.Tokens[b.Index].Value.String
 
-	// Create a new child scope for the function
-	b.ScopeTree, err = b.ScopeTree.NewChildScope(node.Kind)
-	if err != nil {
-		return nil, err
-	}
-
 	// Step over the ident token
 	b.Index++
 
 	if b.Tokens[b.Index].Type != token.LParen {
 		return nil, b.AppendTokenToError("Could not get left paren")
+	}
+
+	// Create a new child scope for function arguments so they don't collide
+	// with args from other functions at the same level.
+	b.ScopeTree, err = b.ScopeTree.NewChildScope("fn_" + node.Kind)
+	if err != nil {
+		return nil, err
 	}
 
 	args, err := b.ParseGroupOfStatements()
@@ -1499,15 +1603,15 @@ func (b *Builder) ParseFunctionStatement() (*Node, error) {
 		return nil, err
 	}
 
-	// node.Value = addDeferDeclarationToBlock(block)
-
-	// Assign our scope back to the current one
+	// Leave the function argument scope
 	b.ScopeTree, err = b.ScopeTree.Leave()
 	if err != nil {
 		return nil, err
 	}
 
-	// Declare the type in the upper scope after leaving
+	// node.Value = addDeferDeclarationToBlock(block)
+
+	// Declare the type in the upper scope
 	err = b.ScopeTree.Declare(&node)
 	if err != nil {
 		return nil, err
@@ -1528,7 +1632,7 @@ func (b *Builder) ParseDerefStatement() (*Node, error) {
 		return nil, b.AppendTokenToError("Could not get deref statement without *")
 	}
 
-	deref, err := b.ParseDerefExpression()
+	deref, err := b.ParseExpression()
 	if err != nil {
 		return nil, err
 	}
@@ -1577,6 +1681,7 @@ func (b *Builder) ParseDerefStatement() (*Node, error) {
 
 // ParseStatement ** does ** not look ahead
 func (b *Builder) ParseStatement() (*Node, error) {
+	fmt.Printf("=== ParseStatement called, Index=%d, token=%+v ===\n", b.Index, b.Tokens[b.Index])
 	switch b.Tokens[b.Index].Type {
 
 	case token.Launch:
@@ -1600,9 +1705,6 @@ func (b *Builder) ParseStatement() (*Node, error) {
 	case token.Import:
 		return b.ParseImportStatement()
 
-	// case token.Use:
-	// 	return b.ParseUseStatement()
-
 	case token.Include:
 		return b.ParseIncludeStatement()
 
@@ -1614,9 +1716,6 @@ func (b *Builder) ParseStatement() (*Node, error) {
 
 	case token.Object:
 		return b.ParseObjectStatement()
-
-	// case token.C:
-	// 	return b.ParseCBlock()
 
 	// For literal and idents, we will need to figure out what
 	// kind of statement it is
@@ -1680,6 +1779,63 @@ func (b *Builder) ParseStatement() (*Node, error) {
 		return n, nil
 
 	case token.Type:
+		// Check if this is a special type keyword that represents a statement
+		// like `map m = { ... }` or `struct Point = { ... }`
+		// or `map string -> int scores = { ... }`
+		if b.Index+1 < len(b.Tokens) {
+			nextToken := b.peekAt(1)
+			// If the next token is an ident and followed by =, it might be a statement
+			if nextToken.Type == token.Ident && b.Index+2 < len(b.Tokens) && b.peekAt(2).Type == token.Assign {
+				// Check if this is a known type keyword that should be handled as a statement
+				if b.Tokens[b.Index].Value.Type == "map" || b.Tokens[b.Index].Value.Type == "struct" || b.Tokens[b.Index].Value.Type == "object" {
+					// These should be parsed as statements, not type declarations
+					switch b.Tokens[b.Index].Value.Type {
+					case "map":
+						return b.ParseMapStatement()
+					case "struct":
+						return b.ParseStructStatement()
+					case "object":
+						return b.ParseObjectStatement()
+					}
+				}
+			}
+			// Handle full type annotation: map string -> int ident = ...
+			fmt.Printf("DEBUG: Checking full type annotation... Token=%s Value.Type=%s\n", b.Tokens[b.Index].Value.String, b.Tokens[b.Index].Value.Type)
+			if b.Tokens[b.Index].Value.Type == "map" || b.Tokens[b.Index].Value.Type == "struct" || b.Tokens[b.Index].Value.Type == "object" {
+				fmt.Println("DEBUG: Is map/struct/object")
+				// Check if this looks like a type annotation (type -> type pattern)
+				if nextToken.Type == token.Type && b.Index+2 < len(b.Tokens) {
+					fmt.Println("DEBUG: Next token is Type and we have enough tokens")
+					nextNextToken := b.peekAt(2)
+					// Check for -> pattern (SecOp = sub, GThan = >)
+					// The -> is tokenized as two separate tokens: SecOp (-) and GThan (>)
+					if nextNextToken.Type == token.SecOp && b.Index+3 < len(b.Tokens) {
+						fmt.Println("DEBUG: Found SecOp (-)")
+						nextNextNextToken := b.peekAt(3)
+						if nextNextNextToken.Type == token.GThan && b.Index+4 < len(b.Tokens) {
+							fmt.Println("DEBUG: Found GThan (>)")
+							nextNextNextNextToken := b.peekAt(4)
+							if nextNextNextNextToken.Type == token.Type && b.Index+5 < len(b.Tokens) {
+								fmt.Println("DEBUG: Found second type")
+								nextNextNextNextNextToken := b.peekAt(5)
+								if nextNextNextNextNextToken.Type == token.Ident && b.Index+6 < len(b.Tokens) && b.peekAt(6).Type == token.Assign {
+									fmt.Println("DEBUG: Calling ParseMapStatement!")
+									switch b.Tokens[b.Index].Value.Type {
+									case "map":
+										return b.ParseMapStatement()
+									case "struct":
+										return b.ParseStructStatement()
+									case "object":
+										return b.ParseObjectStatement()
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
 		var n, err = b.ParseIdentStatement()
 		if err != nil {
 			return nil, err
