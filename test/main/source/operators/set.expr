@@ -1,0 +1,7 @@
+func main() {
+  // The : operator creates key-value pairs in maps
+  map m = {
+    "key" : "value"
+    42 : true
+  }
+}

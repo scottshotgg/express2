@@ -1,0 +1,10 @@
+// This is a single-line comment
+
+/*
+  This is a
+  multi-line comment
+*/
+
+func main() {
+  int x = 10 // inline comment
+}

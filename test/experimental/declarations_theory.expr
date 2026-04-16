@@ -1,11 +1,15 @@
-function something() {
-  stuff := "woah"
+// EXPERIMENTAL: This file contains syntax experiments.
+// := is not an adopted operator. object keyword is shelved.
+
+func something() {
+  // stuff := "woah"    // := is not adopted
   var thing = "yeah"
 }
 
 
 // TODO: need to make this collapse
-a := 6.6
+// a := 6.6    // := is not adopted
+var a = 6.6
 a = 7
 
 // TODO: need to wipe out unused variables

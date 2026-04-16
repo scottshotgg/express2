@@ -1,0 +1,7 @@
+func worker() {
+  Println("launched")
+}
+
+func main() {
+  launch worker()
+}

@@ -1,0 +1,6 @@
+func main() {
+  // for-in iterates over the keys (indices) of a collection
+  for j in [10, 20, 30] {
+    int k = j
+  }
+}

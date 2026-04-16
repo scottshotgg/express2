@@ -13,17 +13,17 @@ var teststring = `{"Type":"program","Value":[{"Type":"import","Kind":"c"},{"Type
 func TestChecker(t *testing.T) {
 	var contents, err = ioutil.ReadFile("simple_import.expr")
 	if err != nil {
-		t.Errorf(errFormatString, err)
+		t.Fatalf(errFormatString, err)
 	}
 
 	b, err = getBuilderFromString(string(contents))
 	if err != nil {
-		t.Errorf(errFormatString, err)
+		t.Fatalf(errFormatString, err)
 	}
 
 	ast, err := b.BuildAST()
 	if err != nil {
-		t.Errorf(errFormatString, err)
+		t.Fatalf(errFormatString, err)
 	}
 
 	fmt.Println("\n\nstarting check")

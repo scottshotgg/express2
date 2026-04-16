@@ -1,0 +1,12 @@
+func main() {
+  // for-over with single variable: gets the index
+  for i over [10, 20, 30] {
+    int k = i
+  }
+
+  // for-over with two variables: key and value
+  for i, j over [10, 20, 30] {
+    int k = i
+    int v = j
+  }
+}

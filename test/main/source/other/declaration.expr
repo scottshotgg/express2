@@ -1,0 +1,17 @@
+func main() {
+  // Explicit typed declarations
+  int i = 10
+  string s = "hello"
+  bool b = true
+  float f = 3.14
+
+  // Uninitialized declarations
+  int j
+  string t
+
+  // Type-inferred
+  let x = 99
+
+  // Dynamic type
+  var v = "anything"
+}

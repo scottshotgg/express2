@@ -89,11 +89,11 @@ func getTypeOfExpression(expr ast.Expression) (*ast.Type, error) {
 				// only bother checking the type if homogenous is still true
 				if expr.(*ast.Array).Homogenous {
 					// Compare to figure out if we need to upgrade the array type or not
-					if e.Type().Type != typeOf.Type && e.Type().UpgradesTo != typeOf.Type {
+					if e.Type().Type != typeOf.Type && (e.Type().UpgradesTo == nil || e.Type().UpgradesTo.Type != typeOf.Type) {
 						// if the collected types can upgrade to the expression type
-						if e.Type().Type != typeOf.UpgradesTo {
+						if e.Type().Type != typeOf.UpgradesTo.Type {
 							expr.(*ast.Array).Homogenous = false
-							typeOf = ast.NewVarType(ast.NoneType)
+							typeOf = ast.NewVarType(nil)
 						}
 
 						// this is kinda hacky but works
@@ -225,7 +225,7 @@ func CheckStatements(statements []ast.Statement) ([]ast.Statement, error) {
 					} else if as.LHS.Type().Array != type2.Array ||
 						as.LHS.Type().Type != ast.VarType &&
 							as.LHS.Type().Type != type2.Type {
-						if as.LHS.Type().Type != type2.UpgradesTo {
+						if as.LHS.Type().Type != type2.UpgradesTo.Type {
 							return nil, errors.Errorf("Types did not match: \n%#v\n%v", as.LHS.Type().Type, as.RHS.Type().Type)
 						}
 					}
@@ -256,7 +256,7 @@ func CheckStatements(statements []ast.Statement) ([]ast.Statement, error) {
 				fmt.Println("checking types ", variable, type2)
 				// If the types are not directly the same then check whether the right hand side can upgrade
 				if variable.Type.Array != type2.Array || variable.Type.Type != ast.VarType && variable.Type.Type != type2.Type {
-					if variable.Type.Type != type2.UpgradesTo {
+					if variable.Type.Type != type2.UpgradesTo.Type {
 						return nil, errors.Errorf("Types did not match %v %v", as.LHS, as.RHS)
 					}
 				}

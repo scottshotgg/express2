@@ -1,0 +1,44 @@
+// EXPERIMENTAL: This file contains future/aspirational syntax ideas.
+// Not all of this compiles. See doc/language-reference.md for adopted syntax.
+
+package something
+
+import runtime
+include (
+  cl.h
+  std
+)
+
+// C/C++ code can be used through express
+std.vector<cl.Platform> platform
+cl.Platform.get(&platform)
+
+// FUTURE: arrow return syntax, fn keyword (removed), error type
+// function echo(var i) -> var { return i + i }
+
+func echo(var i) var {
+  return i + i
+}
+
+func main() {
+  // FUTURE: multiple return values
+  // let something, _ = callThisFunction()
+
+  let result = echo(5)
+
+  let string_thing = "hey look at me! im a stringy"
+
+  // FUTURE: launch with inline lambda
+  // launch func() string {
+  //   return "im an a-nony-moose lambda coroutine"
+  // }
+
+  launch echo("hey its me")
+
+  // FUTURE: launch returning a promise/future
+  // let result = launch func() string {
+  //   return "gimme da string"
+  // }
+  // result.then(handler)
+  // let coResult = result.future()
+}

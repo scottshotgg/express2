@@ -1,0 +1,19 @@
+struct Inner = {
+  bool flag = true
+}
+
+struct Outer = {
+  int count = 10
+  string name = "default"
+  Inner inner
+}
+
+func main() {
+  Outer o = {
+    count = 42
+    name = "custom"
+    inner = {
+      flag = false
+    }
+  }
+}

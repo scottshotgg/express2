@@ -1,0 +1,7 @@
+func main() {
+  enum {
+    red
+    green = red + 5
+    blue
+  }
+}

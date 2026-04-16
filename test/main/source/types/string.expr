@@ -1,0 +1,5 @@
+func main() {
+  string s = "hello world"
+  string empty = ""
+  string escaped = "line1\nline2"
+}

@@ -1,35 +1,29 @@
 package builder_test
 
 import (
-	"encoding/json"
-	"fmt"
-	"io/ioutil"
 	"testing"
-)
 
-var (
-	testBytes []byte
+	"github.com/scottshotgg/express2/builder"
 )
 
 func TestProgram(t *testing.T) {
-	testBytes, err = ioutil.ReadFile("test.expr")
+	src := `func main() { int i = 10 }`
+	b, err := getBuilderFromString(src)
 	if err != nil {
-		t.Fatalf("Could not read file: "+errFormatString, err)
+		t.Fatalf("lex: %v", err)
 	}
-
-	// keep this string here for injection
-	test := string(testBytes)
-
-	b, err = getBuilderFromString(test)
+	node, err := b.BuildAST()
 	if err != nil {
-		t.Errorf(errFormatString, err)
+		t.Fatalf("BuildAST: %v", err)
 	}
-
-	node, err = b.BuildAST()
-	if err != nil {
-		t.Errorf(errFormatString, err)
+	if node.Type != "program" {
+		t.Errorf("Type = %q, want program", node.Type)
 	}
-
-	nodeJSON, _ = json.Marshal(node)
-	fmt.Printf(jsonFormatString, nodeJSON)
+	stmts, ok := node.Value.([]*builder.Node)
+	if !ok {
+		t.Fatalf("Value is not []*builder.Node")
+	}
+	if len(stmts) != 1 {
+		t.Errorf("got %d stmts, want 1", len(stmts))
+	}
 }

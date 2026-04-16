@@ -1,0 +1,11 @@
+func main() {
+  // var is a dynamic type - can hold any value
+  var v = 42
+  var[] mixed = [666, "something_here", false, 73.986622195]
+
+  // var as a struct field
+  struct Token = {
+    string name = ""
+    var value
+  }
+}

@@ -31,8 +31,7 @@ var (
 			*int i
 			}`,
 		"isEqualBool": "bool b = 2 + 2 == 3 + 3",
-		"sgroup":      "(int i, string s)",
-		"decl":        "int i = 10",
+		"decl": "int i = 10",
 		"ifElse": `  if something {
     int x = 7
   } else if true {

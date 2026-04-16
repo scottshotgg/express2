@@ -3,6 +3,7 @@ package builder_test
 import (
 	"encoding/json"
 	"fmt"
+	"testing"
 
 	"github.com/scottshotgg/express-ast"
 	"github.com/scottshotgg/express-lex"
@@ -46,4 +47,49 @@ func printTokensFromBuilder(b *builder.Builder) {
 func printNode(node builder.Node) {
 	nodeJSON, _ = json.Marshal(node)
 	fmt.Printf(jsonFormatString, nodeJSON)
+}
+
+func parseStatement(t *testing.T, src string) *builder.Node {
+	t.Helper()
+	b, err := getBuilderFromString(src)
+	if err != nil {
+		t.Fatalf("lex error: %v", err)
+	}
+	node, err := b.ParseStatement()
+	if err != nil {
+		t.Fatalf("ParseStatement error: %v", err)
+	}
+	if node == nil {
+		t.Fatal("node was nil")
+	}
+	return node
+}
+
+func parseExpression(t *testing.T, src string) *builder.Node {
+	t.Helper()
+	b, err := getBuilderFromString(src)
+	if err != nil {
+		t.Fatalf("lex error: %v", err)
+	}
+	node, err := b.ParseExpression()
+	if err != nil {
+		t.Fatalf("ParseExpression error: %v", err)
+	}
+	if node == nil {
+		t.Fatal("node was nil")
+	}
+	return node
+}
+
+func buildAST(t *testing.T, src string) *builder.Node {
+	t.Helper()
+	b, err := getBuilderFromString(src)
+	if err != nil {
+		t.Fatalf("lex error: %v", err)
+	}
+	node, err := b.BuildAST()
+	if err != nil {
+		t.Fatalf("BuildAST error: %v", err)
+	}
+	return node
 }

@@ -1,3 +1,5 @@
+// EXPERIMENTAL: Nested object/map syntax using := and :
+// := is not adopted. : for kv pairs inside maps is adopted.
 its := 6
 
 something := {

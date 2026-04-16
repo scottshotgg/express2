@@ -124,4 +124,131 @@ func TestGetAssignment(t *testing.T) {
 	fmt.Printf("ref: %+v\n", ref.Right)
 }
 
-func TestNewChild(t *testing.T) {}
+func TestNewChild(t *testing.T) {
+	n, err := getASTFromString(testProgram)
+	if err != nil {
+		t.Fatalf("getASTFromString: %v", err)
+	}
+
+	parent := scope_tree.New(n)
+	child := parent.NewChild(nil)
+	if child == nil {
+		t.Fatal("NewChild returned nil")
+	}
+}
+
+func TestLeave(t *testing.T) {
+	n, err := getASTFromString(testProgram)
+	if err != nil {
+		t.Fatalf("getASTFromString: %v", err)
+	}
+
+	parent := scope_tree.New(n)
+	child := parent.NewChild(nil)
+	result, err := child.Leave()
+	if err != nil {
+		t.Fatalf("Leave: %v", err)
+	}
+	if result != parent {
+		t.Error("Leave did not return parent scope")
+	}
+}
+
+func TestLeaveFromGlobal(t *testing.T) {
+	n, err := getASTFromString(testProgram)
+	if err != nil {
+		t.Fatalf("getASTFromString: %v", err)
+	}
+
+	global := scope_tree.New(n)
+	_, err = global.Leave()
+	if err == nil {
+		t.Fatal("Leave from global scope should return an error")
+	}
+}
+
+func TestGetFromParent(t *testing.T) {
+	n, err := getASTFromString(testProgram)
+	if err != nil {
+		t.Fatalf("getASTFromString: %v", err)
+	}
+
+	parent := scope_tree.New(n)
+	declNode, err := getStatementASTFromString("int x = 5")
+	if err != nil {
+		t.Fatalf("getStatementASTFromString: %v", err)
+	}
+
+	if err := parent.Set(declNode); err != nil {
+		t.Fatalf("parent.Set: %v", err)
+	}
+
+	child := parent.NewChild(nil)
+	got := child.Get("x")
+	if got == nil {
+		t.Fatal("child.Get did not find parent variable")
+	}
+}
+
+func TestGetIsolation(t *testing.T) {
+	n, err := getASTFromString(testProgram)
+	if err != nil {
+		t.Fatalf("getASTFromString: %v", err)
+	}
+
+	parent := scope_tree.New(n)
+	child := parent.NewChild(nil)
+
+	declNode, err := getStatementASTFromString("int y = 7")
+	if err != nil {
+		t.Fatalf("getStatementASTFromString: %v", err)
+	}
+
+	if err := child.Set(declNode); err != nil {
+		t.Fatalf("child.Set: %v", err)
+	}
+
+	got := parent.Get("y")
+	if got != nil {
+		t.Fatal("parent.Get should not find child-only variable")
+	}
+}
+
+func TestDuplicateDecl(t *testing.T) {
+	n, err := getASTFromString(testProgram)
+	if err != nil {
+		t.Fatalf("getASTFromString: %v", err)
+	}
+
+	st := scope_tree.New(n)
+	declNode, err := getStatementASTFromString("int z = 3")
+	if err != nil {
+		t.Fatalf("getStatementASTFromString: %v", err)
+	}
+
+	if err := st.Set(declNode); err != nil {
+		t.Fatalf("first Set: %v", err)
+	}
+
+	// Second declaration of same name should fail
+	if err := st.Set(declNode); err == nil {
+		t.Fatal("second Set of same name should return an error")
+	}
+}
+
+func TestSetAssignUndeclared(t *testing.T) {
+	n, err := getASTFromString(testProgram)
+	if err != nil {
+		t.Fatalf("getASTFromString: %v", err)
+	}
+
+	st := scope_tree.New(n)
+	assignNode, err := getStatementASTFromString("undeclared = 10")
+	if err != nil {
+		t.Fatalf("getStatementASTFromString: %v", err)
+	}
+
+	if err := st.Set(assignNode); err == nil {
+		t.Fatal("Set assignment of undeclared variable should fail")
+	}
+}

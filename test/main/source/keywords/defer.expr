@@ -1,0 +1,9 @@
+func deferred() {
+  Println("deferred call")
+}
+
+func main() {
+  defer deferred()
+  defer Println("inline deferred")
+  Println("main body")
+}

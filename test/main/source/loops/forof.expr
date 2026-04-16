@@ -1,0 +1,6 @@
+func main() {
+  // for-of iterates over the values of a collection
+  for v of [10, 20, 30] {
+    int k = v
+  }
+}

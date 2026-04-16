@@ -1,1 +1,15 @@
-e
+struct Point = {
+  int x = 0
+  int y = 0
+}
+
+func main() {
+  Point p = {
+    x = 10
+    y = 20
+  }
+
+  int px = p.x
+  int[] arr = [1, 2, 3]
+  int first = arr[0]
+}

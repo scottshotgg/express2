@@ -1,0 +1,8 @@
+func main() {
+  int a = 10 + 5
+  int b = 10 - 3
+  int c = 4 * 7
+  int d = 20 / 4
+  int e = 10 % 3
+  int f = 2 ^ 8
+}

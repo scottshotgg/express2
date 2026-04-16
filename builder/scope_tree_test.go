@@ -52,7 +52,7 @@ func TestNewScopeTree(t *testing.T) {
 }
 
 func TestSetDeclaration(t *testing.T) {
-	TestNew(t)
+	TestNewScopeTree(t)
 
 	var err error
 

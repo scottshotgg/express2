@@ -4,6 +4,8 @@
 #include <map>
 #include <string>
 #include <limits>
+#include <vector>
+#include <sstream>
 
 using namespace std;
 

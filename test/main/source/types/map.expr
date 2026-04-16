@@ -1,0 +1,11 @@
+func main() {
+  string key = "hello"
+
+  map m = {
+    key : "world"
+    "number" : 42
+  }
+
+  var v = m[key]
+  m["new_key"] = true
+}

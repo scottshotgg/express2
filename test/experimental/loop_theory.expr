@@ -1,4 +1,6 @@
-function main() {
+// EXPERIMENTAL: Loop syntax experiments, for-over design notes.
+// Uses := and comma-separated for (not adopted). Contains for-over spec in comments.
+func main() {
   something: "crazy"
   k: {}
 

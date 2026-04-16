@@ -1,0 +1,4 @@
+func main() {
+  int[] nums = [1, 2, 3, 4, 5]
+  var[] mixed = [1, "two", false, 4.5]
+}

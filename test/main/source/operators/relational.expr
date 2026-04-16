@@ -1,0 +1,7 @@
+func main() {
+  bool a = 5 == 5
+  bool b = 5 < 10
+  bool c = 10 > 5
+  bool d = 5 <= 5
+  bool e = 10 >= 9
+}
