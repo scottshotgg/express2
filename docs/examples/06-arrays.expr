@@ -1,0 +1,23 @@
+// 06-arrays.expr
+// ==============
+// Demonstrates arrays in Express:
+// - Array declaration with explicit type
+// - Accessing elements
+// - Array iteration with for-in and for-of
+
+func main() {
+  int[] numbers = [1, 2, 3, 4, 5]
+
+  Println("First element:", numbers[0])
+  Println("Third element:", numbers[2])
+
+  Println("For-in loop (indices):")
+  for i in numbers {
+    Println("Index:", i)
+  }
+
+  Println("For-of loop (values):")
+  for value of numbers {
+    Println("Value:", value)
+  }
+}

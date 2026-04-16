@@ -1,0 +1,36 @@
+// 07-structs.expr
+// ===============
+// Demonstrates structs in Express:
+// - Struct definitions with primitive fields
+// - Creating struct instances
+// - Accessing and modifying fields
+
+struct Person = {
+  string name = ""
+  int age = 0
+}
+
+func greetPerson(Person p) {
+  Println("Hello,", p.name)
+  Println("Age:", p.age)
+}
+
+func main() {
+  Person alice = {
+    name = "Alice"
+    age = 30
+  }
+
+  Person bob = {
+    name = "Bob"
+    age = 25
+  }
+
+  Println("Alice's name:", alice.name)
+  Println("Bob's age:", bob.age)
+
+  alice.age = 31
+  Println("Alice's new age:", alice.age)
+
+  greetPerson(alice)
+}

@@ -1,0 +1,24 @@
+// 04-control-flow.expr
+// ====================
+// Demonstrates if/else statements and for loops
+
+func main() {
+  int temperature = 75
+
+  if temperature > 90 {
+    Println("It is hot outside")
+  } else if temperature > 70 {
+    Println("The weather is pleasant")
+  } else {
+    Println("It is cold outside")
+  }
+
+  int x = 10
+  if x == 10 {
+    Println("x is exactly 10")
+  }
+
+  for i in [10, 20, 30] {
+    Println("Index:", i)
+  }
+}

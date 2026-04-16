@@ -1,0 +1,22 @@
+// 08-maps.expr
+// ============
+// Demonstrates maps in Express:
+// - Map declaration with key-value initialization
+// - Accessing values by key
+// - Updating values
+//
+// Note: untyped maps default to string -> string in the transpiler.
+
+func main() {
+  map colors = {
+    "red" : "FF0000"
+    "green" : "00FF00"
+    "blue" : "0000FF"
+  }
+
+  Println("Red hex:", colors["red"])
+  Println("Blue hex:", colors["blue"])
+
+  colors["white"] = "FFFFFF"
+  Println("White hex:", colors["white"])
+}

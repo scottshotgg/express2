@@ -1,0 +1,28 @@
+// 05-functions.expr
+// =================
+// Demonstrates function definitions and calls
+
+func greet(string name) {
+  Println("Hello,", name)
+}
+
+func add(int a, int b) int {
+  return a + b
+}
+
+func factorial(int n) int {
+  if n <= 1 {
+    return 1
+  }
+  return n * factorial(n - 1)
+}
+
+func main() {
+  greet("Alice")
+  greet("Bob")
+
+  int sum = add(5, 10)
+  Println("5 + 10 =", sum)
+
+  Println("Factorial of 5:", factorial(5))
+}

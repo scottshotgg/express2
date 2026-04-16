@@ -1,0 +1,48 @@
+// 02-variables.expr
+// =================
+// This example demonstrates variable declaration in Express:
+// - 'var' for dynamic (any-type) variables
+// - 'let' for type-inferred variables
+// - Explicit typing with type keywords (int, string, bool, float)
+//
+// Express supports gradual typing, allowing you to choose the right
+// level of type safety for each variable.
+
+func main() {
+  // var: Dynamic type - can hold any value
+  // var is useful when you don't know the type yet or need flexibility
+  var dynamicVar = 42
+  Println("Dynamic var (int):", dynamicVar)
+
+  dynamicVar = "Now I'm a string"
+  Println("Dynamic var (string):", dynamicVar)
+
+  dynamicVar = true
+  Println("Dynamic var (bool):", dynamicVar)
+
+  // let: Type-inferred variables
+  // The type is determined from the initial value and cannot change
+  let inferredInt = 100
+  let inferredString = "Hello"
+  let inferredBool = false
+  let inferredFloat = 3.14
+
+  Println("Inferred int:", inferredInt)
+  Println("Inferred string:", inferredString)
+  Println("Inferred bool:", inferredBool)
+  Println("Inferred float:", inferredFloat)
+
+  // Explicit typing: Type is specified and enforced
+  int explicitInt = 200
+  string explicitString = "Explicitly typed"
+  bool explicitBool = true
+  float explicitFloat = 2.718
+
+  Println("Explicit int:", explicitInt)
+  Println("Explicit string:", explicitString)
+  Println("Explicit bool:", explicitBool)
+  Println("Explicit float:", explicitFloat)
+
+  // Note: Using the wrong type will cause a compile error
+  // This would fail: let x = 10; x = "string" (type mismatch)
+}

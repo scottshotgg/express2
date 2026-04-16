@@ -1,0 +1,26 @@
+// 09-pointers.expr
+// =================
+// Demonstrates pointers in Express:
+// - Taking the address of a variable (&)
+// - Dereferencing pointers (*)
+// - Modifying values through pointers
+
+func main() {
+  int value = 42
+  Println("Original value:", value)
+
+  int* ptr = &value
+  Println("Value via pointer:", *ptr)
+
+  *ptr = 100
+  Println("After modifying via pointer:", value)
+
+  int x = 5
+  int y = 10
+  int* px = &x
+  int* py = &y
+  int temp = *px
+  *px = *py
+  *py = temp
+  Println("After swap: x =", x, "y =", y)
+}

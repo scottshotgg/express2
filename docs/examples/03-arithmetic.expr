@@ -1,0 +1,29 @@
+// 03-arithmetic.expr
+// ==================
+// Demonstrates basic arithmetic operators: +, -, *, /, %
+// and increment/decrement: ++, --
+
+func main() {
+  int a = 10
+  int b = 3
+
+  int sum = a + b
+  int difference = a - b
+  int product = a * b
+  int quotient = a / b
+  int remainder = a % b
+
+  Println("a =", a)
+  Println("b =", b)
+  Println("sum =", sum)
+  Println("difference =", difference)
+  Println("product =", product)
+  Println("quotient =", quotient)
+  Println("remainder =", remainder)
+
+  int counter = 0
+  counter++
+  counter++
+  counter--
+  Println("counter =", counter)
+}

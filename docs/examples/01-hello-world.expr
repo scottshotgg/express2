@@ -1,0 +1,21 @@
+// 01-hello-world.expr
+// ===================
+// This example demonstrates the most basic Express program:
+// - A main function (entry point)
+// - Using Println to output text to the console
+//
+// In Express, every program starts with a main() function,
+// and you can use Println() to print values to standard output.
+
+func main() {
+  // Print a simple string
+  Println("Hello, World!")
+
+  // Print a number
+  Println(42)
+
+  // Print multiple values (separated by spaces)
+  int x = 10
+  string name = "Express"
+  Println("The value of x is:", x, "and the language is:", name)
+}

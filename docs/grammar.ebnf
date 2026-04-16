@@ -1,0 +1,99 @@
+(* Express2 Grammar — reference for implemented + planned constructs *)
+(* Planned but not yet parsed constructs are marked with [PLANNED] *)
+
+program        = { statement } ;
+
+statement      = package_stmt | import_stmt | include_stmt | launch_stmt
+               | defer_stmt | enum_stmt | map_stmt | typedef_stmt
+               | struct_stmt | let_stmt | function_stmt | if_stmt
+               | for_stmt | return_stmt | literal_stmt | ident_stmt
+               | block_stmt | deref_stmt
+               | onexit_stmt | onreturn_stmt | onleave_stmt ;   (* [PLANNED] *)
+
+(* Expressions — Pratt precedence from lowest to highest *)
+
+expression     = equality ;
+
+equality       = comparison { "==" comparison } ;
+
+comparison     = addition { ( "<" | ">" | "<=" | ">=" ) addition } ;
+
+addition       = multiplication { ( "+" | "-" ) multiplication } ;
+
+multiplication = unary_prefix { ( "*" | "/" | "%" | "^" ) unary_prefix } ;
+
+unary_prefix   = ( "*" | "&" | "!" ) unary_prefix | postfix ;
+
+postfix        = primary { "++" | "." IDENT | "[" expression "]" | "(" [ expr_list ] ")" } ;
+
+primary        = LITERAL | IDENT | type_expr | "(" expr_list ")" | "[" expr_list "]" | block ;
+
+expr_list      = expression { "," expression } ;
+
+(* Statements *)
+
+package_stmt   = "package" IDENT ;
+
+import_stmt    = "import" ( IDENT | STRING_LITERAL ) ;
+
+include_stmt   = "include" ( STRING_LITERAL | "(" IDENT { "," IDENT } ")" ) ;
+
+launch_stmt    = "launch" ( statement | func_expr ) ;
+
+defer_stmt     = "defer" statement ;
+
+onexit_stmt    = "onexit" statement ;     (* [PLANNED] *)
+onreturn_stmt  = "onreturn" statement ;   (* [PLANNED] *)
+onleave_stmt   = "onleave" statement ;    (* [PLANNED] *)
+
+enum_stmt      = "enum" [ IDENT ] "=" "{" { enum_member } "}" ;
+enum_member    = IDENT [ "=" expression ] ;
+
+map_stmt       = "map" IDENT [ "=" "{" { map_entry } "}" ] ;
+map_entry      = expression ":" expression ;
+
+typedef_stmt   = "type" IDENT "=" type_expr ;
+
+struct_stmt    = "struct" IDENT "=" "{" { struct_field } "}" ;
+struct_field   = type_expr IDENT [ "=" expression ] ;
+
+let_stmt       = "let" IDENT [ "," IDENT ] "=" expression ;   (* multiple return [PLANNED] *)
+
+function_stmt  = "func" IDENT "(" [ param_list ] ")" [ type_expr ] block ;
+
+param_list     = type_expr IDENT { "," type_expr IDENT } ;
+
+if_stmt        = "if" expression block [ "else" ( if_stmt | block ) ] ;
+
+for_stmt       = "for" ( for_std | for_in | for_of | for_over ) ;
+for_std        = type_expr IDENT "=" expression ";" expression ";" expression block ;
+for_in         = IDENT "in" expression block ;
+for_of         = IDENT "of" expression block ;
+for_over       = IDENT [ "," IDENT ] "over" expression block ;   (* [PLANNED] *)
+
+return_stmt    = "return" [ expression ] ;
+
+block          = "{" { statement } "}" ;
+
+(* Key-value pair — used inside map literals and object-like blocks *)
+literal_stmt   = expression ( "=" expression | ":" expression ) ;
+
+ident_stmt     = expression [ type_expr IDENT [ "=" expression ]
+               | IDENT [ "=" expression ]
+               | "=" expression
+               | ":" expression ] ;
+
+deref_stmt     = "*" expression [ "=" expression ] ;
+
+(* Type expressions *)
+
+type_expr      = TYPE [ "*" ] [ "[" [ expression ] "]" ] ;
+
+(* Terminals *)
+
+LITERAL        = INT | FLOAT | STRING | CHAR | BOOL ;
+IDENT          = letter { letter | digit | "_" } ;
+TYPE           = "int" | "float" | "bool" | "char" | "byte" | "string"
+               | "var" | "struct" | "map" ;
+
+(* Planned types: chan, tuple, union, interface, val *)

@@ -1,0 +1,74 @@
+// 10-complex.expr
+// ===============
+// Demonstrates combining multiple Express features:
+// - Type aliases
+// - Structs with type alias fields
+// - Functions with struct parameters
+// - Control flow with struct field access
+// - Arrays and for-in loops
+// - Pointers to primitive fields
+
+type Score = int
+
+struct Student = {
+  string name = ""
+  Score grade = 0
+  bool passing = false
+}
+
+func printStudent(Student s) {
+  Println("Name:", s.name, "Grade:", s.grade, "Passing:", s.passing)
+}
+
+func isPassing(Score grade) bool {
+  if grade >= 60 {
+    return true
+  }
+  return false
+}
+
+func main() {
+  Student alice = {
+    name = "Alice"
+    grade = 92
+    passing = false
+  }
+
+  Student bob = {
+    name = "Bob"
+    grade = 55
+    passing = false
+  }
+
+  Student carol = {
+    name = "Carol"
+    grade = 78
+    passing = false
+  }
+
+  alice.passing = isPassing(alice.grade)
+  bob.passing = isPassing(bob.grade)
+  carol.passing = isPassing(carol.grade)
+
+  printStudent(alice)
+  printStudent(bob)
+  printStudent(carol)
+
+  if alice.passing {
+    Println(alice.name, "passed!")
+  }
+
+  if !bob.passing {
+    Println(bob.name, "did not pass.")
+  }
+
+  int[] scores = [92, 55, 78]
+  int total = 0
+  for i in scores {
+    total = total + scores[i]
+  }
+  Println("Total score:", total)
+
+  int* gptr = &alice.grade
+  Println("Alice grade via pointer:", *gptr)
+}
