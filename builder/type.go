@@ -7,14 +7,6 @@ import (
 	token "github.com/scottshotgg/express-token"
 )
 
-// func (b *Builder) AddType(key, value *Node) error {
-// 	switch key.Type {
-// 	case "switch":
-// 	}
-
-// 	// b.TypeMap[key] =
-// }
-
 func (b *Builder) AddPrimitive(key string, value *Node) (*TypeValue, error) {
 	// Check the value to make sure it is: int, char, byte, string, bool, float
 
@@ -232,6 +224,32 @@ func (b *Builder) ParseType(typeHint *TypeValue) (*Node, error) {
 		case token.PriOp:
 			node, err = b.ParsePointerType(node)
 			b.Index++
+
+		// Map type annotation (type -> type)
+		// The -> is tokenized as two separate tokens: SecOp (-) and GThan (>)
+		case token.SecOp:
+			// Check if this is a -> pattern (SecOp followed by GThan)
+			if b.Index+2 < len(b.Tokens) && b.Tokens[b.Index+2].Type == token.GThan {
+				// Skip over SecOp and GThan tokens
+				b.Index += 2
+				// Parse the type after ->
+				rightType, err := b.ParseType(typeHint)
+				if err != nil {
+					return nil, err
+				}
+				// Create a node representing the map type annotation
+				node = &Node{
+					Type:  "type",
+					Kind:  "map_annotation",
+					Value: "map_annotation",
+					Left:  node,
+					Right: rightType,
+				}
+			} else {
+				// Not a map annotation, just a subtraction operator in expression context
+				// Return the node as is
+				return node, nil
+			}
 
 		// TODO: reworking typing from a more expression oriented architecture
 		// almost as if they were expressions

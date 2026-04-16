@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"runtime"
 	"sync"
 
 	"github.com/pkg/errors"
@@ -97,6 +98,14 @@ func NewScopeTree() *ScopeTree {
 
 // NewChild enumerates a new child scope
 // func (st *ScopeTree) NewChild(node *Node) *ScopeTree {
+func getKeys(m map[string]*ScopeTree) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	return keys
+}
+
 func (st *ScopeTree) NewChildScope(name string) (*ScopeTree, error) {
 	// On a new child, it might be needed, we could either COPY everything from the other scope ...
 	// 	OR
@@ -104,6 +113,11 @@ func (st *ScopeTree) NewChildScope(name string) (*ScopeTree, error) {
 
 	// Check for a child with the same name already
 	if st.Children[name] != nil {
+		// DEBUG: print what children exist and the stack trace
+		fmt.Printf("DEBUG: scopeTree.Children already has '%s', existing keys: %v\n", name, getKeys(st.Children))
+		buf := make([]byte, 4096)
+		n := runtime.Stack(buf, false)
+		fmt.Printf("Stack trace:\n%s\n", buf[:n])
 		return nil, errors.Errorf("There is already a scope with that name; %s", name)
 	}
 
@@ -165,10 +179,7 @@ func (st *ScopeTree) Leave() (*ScopeTree, error) {
 }
 
 func (st *ScopeTree) Declare(ref *Node) error {
-	var (
-		refName string
-		ok      bool
-	)
+	var refName string
 
 	switch ref.Type {
 	case "function":
@@ -176,6 +187,17 @@ func (st *ScopeTree) Declare(ref *Node) error {
 
 	case "decl":
 		// ref.Left.Value should be the name of the ident
+		var ok bool
+		refName, ok = ref.Left.Value.(string)
+		if !ok {
+			blob, _ := json.Marshal(ref)
+			fmt.Println("blobberino:", string(blob))
+			return errors.Errorf("Node value was not a string %+v", ref)
+		}
+
+	case "let":
+		// ref.Left.Value should be the name of the ident
+		var ok bool
 		refName, ok = ref.Left.Value.(string)
 		if !ok {
 			blob, _ := json.Marshal(ref)

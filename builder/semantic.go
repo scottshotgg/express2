@@ -103,6 +103,12 @@ func NewTypeResolver() *TypeResolver {
 	}
 }
 
+func NewTypeResolverWithScope(scopeTree *ScopeTree) *TypeResolver {
+	return &TypeResolver{
+		scopeTree: scopeTree,
+	}
+}
+
 func (t *TypeResolver) Check(n *Node) (bool, error) {
 	// Look for anything with a body
 	fmt.Printf("node_me %+v", *n)
@@ -110,7 +116,25 @@ func (t *TypeResolver) Check(n *Node) (bool, error) {
 	case "call":
 	case "selection":
 	case "assignment":
+	case "inc":
+	case "dec":
+	case "if":
+	case "for":
+	case "forin":
+	case "forof":
+	case "binop":
+	case "comp":
+	case "deref":
+	case "ref":
+	case "index":
+	case "ident":
+	case "type":
 	case "return":
+	case "struct":
+	case "while":
+	case "kv":
+	case "map":
+	case "not":
 		// later on when we return structs, user-defined types, and object
 		// then we can do that
 		// Nothing needs to be done RIGHT NOW in this case for a return
@@ -130,6 +154,10 @@ func (t *TypeResolver) Check(n *Node) (bool, error) {
 				Kind: tv.Kind,
 			}
 		}
+
+	case "literal":
+		// Literals are already typed, no processing needed
+		return false, nil
 
 	case "sgroup":
 		// For the sgroup, this represents function arguments, so just
@@ -248,6 +276,75 @@ func (t *TypeResolver) Check(n *Node) (bool, error) {
 			var node = n.Value.(*Node)
 			node.Type = "type"
 			n.Value = node
+		}
+
+	case "let":
+		// For let statements, we infer the type from the right-hand side expression
+		// First, check the right-hand side to resolve any types
+		_, err := t.Check(n.Right)
+		if err != nil {
+			return false, err
+		}
+
+		// Now we need to create a type node from the right-hand side
+		// and attach it to the declaration for type checking
+		var typeNode *Node
+
+		switch n.Right.Type {
+		case "literal":
+			// Get the type from the literal's Kind field
+			typeNode = &Node{
+				Type: "type",
+				Kind: n.Right.Kind,
+			}
+
+		case "ident":
+			// This could be a reference to a type or another variable
+			// For now, try to look it up as a type
+			tv := t.scopeTree.GetType(n.Right.Value.(string))
+			if tv != nil {
+				typeNode = &Node{
+					Type: "type",
+					Kind: tv.Kind,
+				}
+			} else {
+				// Not a type, it's a variable reference
+				// Look up the variable to get its type
+				decl := t.scopeTree.Get(n.Right.Value.(string))
+				if decl != nil && decl.Type == "decl" && decl.Value != nil {
+					typeNode = decl.Value.(*Node)
+				} else {
+					return false, errors.Errorf("could not infer type for let variable: %s", n.Left.Value.(string))
+				}
+			}
+
+		case "call":
+			// Function call - look up the return type
+			// For now, we need to resolve the function call first
+			typeNode = &Node{
+				Type: "type",
+				Kind: "unknown",
+			}
+
+		case "type":
+			// Already a type node
+			typeNode = n.Right
+
+		default:
+			// Try to look up as a type first
+			typeNode = &Node{
+				Type: "type",
+				Kind: "unknown",
+			}
+		}
+
+		// Set the type on the let node's value
+		n.Value = typeNode
+
+		// Now declare the variable
+		err = t.scopeTree.Declare(n)
+		if err != nil {
+			return false, err
 		}
 
 	case "function":

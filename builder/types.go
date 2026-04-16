@@ -3,8 +3,6 @@ package builder
 import token "github.com/scottshotgg/express-token"
 
 type (
-	opCallbackFn func(n *Node) (*Node, error)
-
 	Index struct {
 		Type  string      `json:",omitempty"`
 		Value interface{} `json:",omitempty"`
@@ -38,10 +36,12 @@ type (
 	Builder struct {
 		Tokens []token.Token `json:",omitempty"`
 		Index  int           `json:",omitempty"`
-		// [op_tier][op] -> func
-		OpFuncMap []map[string]opCallbackFn `json:",omitempty"`
 
-		ScopeTree *ScopeTree
+		prefixParseFns map[string]prefixParseFn
+		infixParseFns  map[string]infixParseFn
+
+		ScopeTree     *ScopeTree
+		BlockCounter  int
 	}
 )
 
