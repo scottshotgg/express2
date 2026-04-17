@@ -29,8 +29,7 @@ func Noop() Logger { return noop{} }
 type stdLogger struct{ w io.Writer }
 
 func (l *stdLogger) Debug(args ...interface{}) {
-	fmt.Fprint(l.w, args...)
-	fmt.Fprintln(l.w)
+	fmt.Fprintln(l.w, args...)
 }
 
 func (l *stdLogger) Debugf(format string, args ...interface{}) {
@@ -39,8 +38,7 @@ func (l *stdLogger) Debugf(format string, args ...interface{}) {
 
 func (l *stdLogger) Warn(args ...interface{}) {
 	fmt.Fprint(l.w, "WARN: ")
-	fmt.Fprint(l.w, args...)
-	fmt.Fprintln(l.w)
+	fmt.Fprintln(l.w, args...)
 }
 
 func (l *stdLogger) Warnf(format string, args ...interface{}) {

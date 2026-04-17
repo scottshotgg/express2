@@ -1,5 +1,0 @@
-import c
-
-func main() {
-  *int i = 7
-}

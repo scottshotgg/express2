@@ -1,5 +1,0 @@
-package something
-
-func echo(string name) string {
-  return "hello, " + name + "!"
-}

@@ -9,7 +9,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/pkg/errors"
@@ -224,7 +223,7 @@ func (c *Compiler) CompileFile(filename string) error {
 	}
 
 	var (
-		rawPath      = strings.Trim(filename, ".expr")
+		rawPath      = strings.TrimSuffix(filename, ".expr")
 		rawPathSplit = strings.Split(rawPath, "/")
 	)
 
@@ -241,7 +240,6 @@ func (c *Compiler) compileFile(filename string) error {
 	var (
 		start       = time.Now()
 		rawFilename = strings.TrimSuffix(filename, ".expr")
-		wg          sync.WaitGroup
 	)
 
 	c.PipelineTimes["read"] = time.Since(start).String()
@@ -314,8 +312,6 @@ func (c *Compiler) compileFile(filename string) error {
 	if err != nil {
 		return err
 	}
-
-	wg.Wait()
 
 	c.log.Debug("Finished!")
 

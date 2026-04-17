@@ -44,25 +44,9 @@ type Transpiler struct {
 	IncludeChan  chan *builder.Node
 	PackageChan  chan *builder.Node
 	ImportChan   chan *builder.Node
-	AppendChan   chan string
-	log          logger.Logger
+	log logger.Logger
 }
 
-func (t *Transpiler) emit(line string) {
-	t.AppendChan <- line
-}
-
-func (t *Transpiler) appendWorker() {
-	defer t.Wg1.Done()
-
-	var totalFile string
-
-	for a := range t.AppendChan {
-		totalFile += a
-	}
-
-	t.log.Debug("totalFile", totalFile)
-}
 
 func (t *Transpiler) functionWorker() {
 	defer t.Wg1.Done()
@@ -115,7 +99,6 @@ func New(ast *builder.Node, b *builder.Builder, name, libBase string, log ...log
 		IncludeChan: make(chan *builder.Node, 100),
 		PackageChan: make(chan *builder.Node, 100),
 		ImportChan:  make(chan *builder.Node, 100),
-		AppendChan:  make(chan string, 5),
 		Wg:          &sync.WaitGroup{},
 		Wg1:         &sync.WaitGroup{},
 		log:         l,
@@ -2537,8 +2520,6 @@ func GenerateLengthCall(n *builder.Node) *builder.Node {
 }
 
 func TransformExpressionToDeclaration(n *builder.Node) *builder.Node {
-	log.Println("n", n)
-
 	// TODO: Type checker would give type here; use auto for now
 	return &builder.Node{
 		Type: "decl",

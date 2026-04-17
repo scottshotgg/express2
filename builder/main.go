@@ -1,7 +1,6 @@
 package builder
 
 import (
-	ast "github.com/scottshotgg/express-ast"
 	token "github.com/scottshotgg/express-token"
 
 	"github.com/pkg/errors"
@@ -90,7 +89,3 @@ func (b *Builder) ProcessTypeDeclaration(decl *Node) error {
 	return b.ScopeTree.NewType(aliasName, tv)
 }
 
-// CompressTokens is a convenience wrapper around the ast package function.
-func CompressTokens(tokens []token.Token) ([]token.Token, error) {
-	return ast.CompressTokens(tokens)
-}

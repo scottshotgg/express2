@@ -65,6 +65,10 @@ var exampleTests = []exampleTest{
 //
 // NOTE: tests run sequentially because the builder uses package-level globals
 // (scopeTree, currentTree) that are not safe for concurrent use.
+//
+// NOTE: the compiler always places the binary next to the source file
+// (c.path is set but unused). The test cleans up the produced binary and
+// .cpp file after each sub-test.
 func TestExamples(t *testing.T) {
 	if os.Getenv("EXPRPATH") == "" {
 		t.Skip("EXPRPATH not set — skipping integration tests")
@@ -76,13 +80,14 @@ func TestExamples(t *testing.T) {
 	}
 
 	for _, tt := range exampleTests {
-		tt := tt
 		t.Run(tt.file, func(t *testing.T) {
 			// NOT t.Parallel() — builder has package-level globals
 
 			srcPath := filepath.Join(examplesDir, tt.file)
+			// The compiler always writes the binary next to the source file.
 			binPath := strings.TrimSuffix(srcPath, ".expr")
 
+			// Clean up the produced artifacts after this sub-test.
 			t.Cleanup(func() {
 				os.Remove(binPath)
 				os.Remove(binPath + ".cpp")
