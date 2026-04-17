@@ -4,14 +4,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-var baseTypes = map[string]struct{}{
-	"int":    {},
-	"char":   {},
-	"bool":   {},
-	"string": {},
-	"float":  {},
-}
-
 type Checker struct {
 	ps        []Pass
 	ast       *Node
@@ -118,9 +110,17 @@ func (t *TypeResolver) Check(n *Node) (bool, error) {
 		// egroup has to be here for function returns
 		// In this case it is just a list of idents that are actually types
 		for i, returnType := range n.Value.([]*Node) {
-			tv := t.scopeTree.GetType(returnType.Value.(string))
+			// Skip nodes that are already resolved to a type.
+			if returnType.Type == "type" {
+				continue
+			}
+			name, ok := returnType.Value.(string)
+			if !ok {
+				return false, errors.Errorf("egroup return type node has non-string Value: %T", returnType.Value)
+			}
+			tv := t.scopeTree.GetType(name)
 			if tv == nil {
-				return false, errors.Errorf("could not alias to unfound type: %s", n.Left.Value.(string))
+				return false, errors.Errorf("could not alias to unfound type: %s", name)
 			}
 
 			n.Value.([]*Node)[i] = &Node{
@@ -164,7 +164,7 @@ func (t *TypeResolver) Check(n *Node) (bool, error) {
 			)
 
 			tv := t.scopeTree.GetImportedType(packageName, typeName)
-			if tv != nil {
+			if tv == nil {
 				return false, errors.Errorf("could not find type %s from package %s", typeName, packageName)
 			}
 
@@ -205,6 +205,9 @@ func (t *TypeResolver) Check(n *Node) (bool, error) {
 				n.Value = shouldBeType.Right
 			} else {
 				var tv = t.scopeTree.GetImportedType(packageOf, typeOf)
+				if tv == nil {
+					return false, errors.Errorf("could not find imported type %s.%s", packageOf, typeOf)
+				}
 				shouldBeType.Type = tv.Kind
 				n.Value = &Node{
 					Type:  "type",

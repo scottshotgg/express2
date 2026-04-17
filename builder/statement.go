@@ -1114,8 +1114,10 @@ func (b *Builder) ParseIdentStatement() (*Node, error) {
 
 		b.log.Debug("node.Left", node.Left)
 
+		// NOTE: this condition is always false in practice (b.Index is a valid
+		// position at this point), making this block dead code. The real guard
+		// is at the explicit checks below after b.Index++.
 		if b.Index > len(b.Tokens)-1 && b.Tokens[b.Index+1].Type != token.Assign {
-			b.log.Debug("b.Tokens[b.Index+1]", b.Tokens[b.Index+1])
 			return node, nil
 		}
 

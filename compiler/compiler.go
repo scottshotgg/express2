@@ -53,7 +53,8 @@ func New(output string, log ...logger.Logger) (*Compiler, error) {
 		return nil, errors.New("`EXPRPATH` is not set; set this to the root of your Express installation")
 	}
 
-	var _, err = filepath.Abs(libpath)
+	var err error
+	libpath, err = filepath.Abs(libpath)
 	if err != nil {
 		return nil, err
 	}
@@ -237,15 +238,11 @@ func (c *Compiler) compileFile(filename string) error {
 
 	c.log.Debug("Reading input file ...")
 
-	var (
-		start       = time.Now()
-		rawFilename = strings.TrimSuffix(filename, ".expr")
-	)
-
-	c.PipelineTimes["read"] = time.Since(start).String()
+	var rawFilename = strings.TrimSuffix(filename, ".expr")
 
 	c.log.Debug("Tokenizing source ...")
 
+	start := time.Now()
 	l, err := lex.NewFromFile(filename)
 	if err != nil {
 		return err
@@ -255,6 +252,7 @@ func (c *Compiler) compileFile(filename string) error {
 	if err != nil {
 		return err
 	}
+	c.PipelineTimes["read"] = time.Since(start).String()
 
 	c.setOutput("lex", tokens)
 

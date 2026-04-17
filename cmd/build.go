@@ -115,7 +115,7 @@ to quickly create a Cobra application.`,
 				os.Exit(9)
 			}
 		} else {
-			abs, err = filepath.Abs(stat.Name())
+			abs, err = filepath.Abs(filenameArg)
 			if err != nil {
 				fmt.Println("err", err)
 				os.Exit(9)
