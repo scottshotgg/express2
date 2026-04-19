@@ -19,3 +19,24 @@ logger_cov.out
 # compiled example binaries and generated C++
 docs/examples/*.cpp
 docs/examples/[0-9][0-9]-*[^.][^e][^x][^p][^r]
+
+# compiled Go binaries
+main
+express2
+
+# build dist/backup artifacts
+build/dist/
+build/backups/
+
+# debugger artifacts
+compiler/__debug_bin*
+
+# libmill compiled artifacts
+lib/libmill/.libs/
+lib/libmill/autom4te.cache/
+lib/libmill/**/*.o
+lib/libmill/**/*.lo
+lib/libmill/**/*.la
+lib/libmill/**/*.a
+lib/libmill/**/*.so
+lib/libmill/**/*.so.*
