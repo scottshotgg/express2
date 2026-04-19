@@ -63,5 +63,3 @@ steps:
     commands:
       - go build -o express2 ./...
 
-volumes:
-  - woodpecker-cache-go:/root/go
