@@ -1,0 +1,9 @@
+func main() {
+  map[string, string -> int] scores
+  scores["alice"]["math"] = 95
+  scores["alice"]["science"] = 88
+  scores["bob"]["math"] = 77
+  Println(scores["alice"]["math"])
+  Println(scores["alice"]["science"])
+  Println(scores["bob"]["math"])
+}

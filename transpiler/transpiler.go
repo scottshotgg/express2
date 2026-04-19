@@ -3,12 +3,9 @@ package transpiler
 import (
 	"encoding/json"
 	"fmt"
-	"log"
-	"os"
 	"path/filepath"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/pkg/errors"
 	token "github.com/scottshotgg/express-token"
@@ -23,28 +20,34 @@ type WithPriority struct {
 }
 
 type Transpiler struct {
-	LibBase      string
-	Name         string
-	Builder      *builder.Builder
-	AST          *builder.Node
-	ASTCloneJSON []byte
-	Extra        []string
-	Functions    map[string]string
-	Imports      map[string]string
-	Includes     map[string]string
-	Packages     map[string]string
-	Types        map[string]string
-	Structs      map[string]WithPriority
-	GenerateMain bool
-	Wg           *sync.WaitGroup
-	Wg1          *sync.WaitGroup
-	FuncChan     chan *builder.Node
-	TypeChan     chan *builder.Node
-	StructChan   chan *builder.Node
-	IncludeChan  chan *builder.Node
-	PackageChan  chan *builder.Node
-	ImportChan   chan *builder.Node
-	log logger.Logger
+	LibBase         string
+	Name            string
+	Builder         *builder.Builder
+	AST             *builder.Node
+	ASTCloneJSON    []byte
+	Extra           []string
+	Functions       map[string]string
+	Imports         map[string]string
+	Includes        map[string]string
+	Packages        map[string]string
+	Types           map[string]string
+	Structs         map[string]WithPriority
+	Methods         map[string][]string // receiver → list of transpiled method strings
+	CurrentReceiver string      // set while transpiling a method body; protected by funcMu
+	funcMu          sync.Mutex // serializes TranspileFunctionStatement across concurrent workers
+	GenerateMain    bool
+	workerErr       error
+	workerErrOnce   sync.Once
+	includesMu      sync.Mutex // protects concurrent writes to Includes
+	Wg              *sync.WaitGroup // importWorker
+	Wg1             *sync.WaitGroup // functionWorker
+	Wg2             *sync.WaitGroup // packageWorker, typeWorker, structWorker
+	FuncChan        chan *builder.Node
+	TypeChan        chan *builder.Node
+	StructChan      chan *builder.Node
+	PackageChan     chan *builder.Node
+	ImportChan      chan *builder.Node
+	log             logger.Logger
 }
 
 
@@ -60,16 +63,35 @@ func (t *Transpiler) functionWorker() {
 	for f := range t.FuncChan {
 		functionName = f.Kind
 
+		// Hold funcMu for the entire transpilation of this function to prevent
+		// data races on CurrentReceiver and inParamContext with packageWorker.
+		t.funcMu.Lock()
+
+		// Method declaration: func Receiver.Method() — transpile into t.Methods
+		if receiver, ok := f.Metadata["receiver"].(string); ok && receiver != "" {
+			t.CurrentReceiver = receiver
+			function, err = t.TranspileFunctionStatement(f)
+			t.CurrentReceiver = ""
+			t.funcMu.Unlock()
+			if err != nil {
+				t.setWorkerErr(errors.Wrapf(err, "transpiling method %q.%q", receiver, functionName))
+				continue
+			}
+			t.Methods[receiver] = append(t.Methods[receiver], *function)
+			continue
+		}
+
 		if t.Functions[functionName] != "" {
-			// FIXME: this is an error
-			log.Printf("Function already declared: %+v\n", f)
-			os.Exit(9)
+			t.funcMu.Unlock()
+			t.setWorkerErr(errors.Errorf("function already declared: %s", functionName))
+			continue
 		}
 
 		function, err = t.TranspileFunctionStatement(f)
+		t.funcMu.Unlock()
 		if err != nil {
-			log.Printf("Function error: %+v %+v\n", f, err)
-			os.Exit(9)
+			t.setWorkerErr(errors.Wrapf(err, "transpiling function %q", functionName))
+			continue
 		}
 
 		t.Functions[functionName] = *function
@@ -93,14 +115,15 @@ func New(ast *builder.Node, b *builder.Builder, name, libBase string, log ...log
 		Includes:    map[string]string{},
 		Structs:     map[string]WithPriority{},
 		Types:       map[string]string{},
+		Methods:     map[string][]string{},
 		FuncChan:    make(chan *builder.Node, 100),
 		TypeChan:    make(chan *builder.Node, 100),
 		StructChan:  make(chan *builder.Node, 100),
-		IncludeChan: make(chan *builder.Node, 100),
 		PackageChan: make(chan *builder.Node, 100),
 		ImportChan:  make(chan *builder.Node, 100),
 		Wg:          &sync.WaitGroup{},
 		Wg1:         &sync.WaitGroup{},
+		Wg2:         &sync.WaitGroup{},
 		log:         l,
 	}
 
@@ -109,6 +132,10 @@ func New(ast *builder.Node, b *builder.Builder, name, libBase string, log ...log
 	t.ASTCloneJSON, _ = json.Marshal(ast)
 
 	return &t
+}
+
+func (t *Transpiler) setWorkerErr(err error) {
+	t.workerErrOnce.Do(func() { t.workerErr = err })
 }
 
 /*
@@ -134,29 +161,32 @@ func (t *Transpiler) Transpile() error {
 	t.Wg1.Add(1)
 	go t.functionWorker()
 
-	t.Wg1.Add(1)
+	t.Wg2.Add(1)
 	go t.typeWorker()
 
-	t.Wg1.Add(1)
+	t.Wg2.Add(1)
 	go t.structWorker()
 
-	t.Wg1.Add(1)
+	t.Wg2.Add(1)
 	go t.packageWorker()
-
-	t.Wg.Add(1)
-	go t.includeWorker()
 
 	t.Wg.Add(1)
 	go t.importWorker()
 
-	// Flatten the tree
+	// Flatten the tree — include nodes from the flattener are registered directly.
 	includes, err := tree_flattener.New().Flatten(t.AST)
 	if err != nil {
 		return err
 	}
 
 	for i := range includes {
-		t.IncludeChan <- includes[i]
+		s, serr := t.TranspileIncludeStatement(includes[i])
+		if serr != nil {
+			return errors.Wrapf(serr, "transpiling include from tree_flattener")
+		}
+		t.includesMu.Lock()
+		t.Includes[includes[i].Left.Value.(string)] = *s
+		t.includesMu.Unlock()
 	}
 
 	for i := range nodes {
@@ -181,14 +211,19 @@ func (t *Transpiler) Transpile() error {
 			t.ImportChan <- nodes[i]
 
 		case "include":
-			t.IncludeChan <- nodes[i]
+			s, serr := t.TranspileIncludeStatement(nodes[i])
+			if serr != nil {
+				return errors.Wrapf(serr, "transpiling include node")
+			}
+			t.includesMu.Lock()
+			t.Includes[nodes[i].Left.Value.(string)] = *s
+			t.includesMu.Unlock()
 
 		case "decl":
 			// Just transpile the statement for now
 			stringP, err := t.TranspileStatement(nodes[i])
 			if err != nil {
-				fmt.Printf("err %+v\n", err)
-				os.Exit(9)
+				return errors.Wrapf(err, "transpiling %s node", nodes[i].Type)
 			}
 
 			t.Extra = append(t.Extra, *stringP)
@@ -197,8 +232,7 @@ func (t *Transpiler) Transpile() error {
 			// Just transpile the statement for now
 			stringP, err := t.TranspileStatement(nodes[i])
 			if err != nil {
-				fmt.Printf("err %+v\n", err)
-				os.Exit(9)
+				return errors.Wrapf(err, "transpiling %s node", nodes[i].Type)
 			}
 
 			t.Extra = append(t.Extra, *stringP)
@@ -207,8 +241,7 @@ func (t *Transpiler) Transpile() error {
 			// Just transpile the statement for now
 			stringP, err := t.TranspileStatement(nodes[i])
 			if err != nil {
-				fmt.Printf("err %+v\n", err)
-				os.Exit(9)
+				return errors.Wrapf(err, "transpiling %s node", nodes[i].Type)
 			}
 
 			t.Extra = append(t.Extra, *stringP)
@@ -220,48 +253,39 @@ func (t *Transpiler) Transpile() error {
 			return errors.Errorf("Node was not categorized properly: %+v\n", nodes[i])
 		}
 
-		// // Just transpile the statement for now
-		// stringP, err := t.TranspileStatement(nodes[i])
-		// if err != nil {
-		// 	fmt.Printf("err %+v\n", err)
-		// 	os.Exit(9)
-		// 	// return "", err
-		// }
-
-		// t.Extra = append(t.Extra, *stringP)
 	}
 
-	// Just a fucking dirty ass hackerino
-	time.Sleep(1 * time.Second)
-
-	// These are over used. Really the only reason that the function, struct, and type
-	// chans were here in the first place was to capture all of the stuff to put it at the top
-	// but tbh this should be a semantic parser step before it even gets to the AST
-
-	// Close the channel and alert the worker that we are done
+	// Close producer channels (package/type/struct workers may send to FuncChan).
 	close(t.PackageChan)
-	close(t.FuncChan)
 	close(t.TypeChan)
 	close(t.StructChan)
 
-	// Wait for everything to be transpiled
+	// Wait for Wg2 workers (package/type/struct) to finish before closing FuncChan,
+	// since packageWorker may call TranspileStatement which sends to FuncChan.
+	t.Wg2.Wait()
+	close(t.FuncChan)
+
+	// Wait for functionWorker to drain FuncChan.
 	t.Wg1.Wait()
 
 	close(t.ImportChan)
-	close(t.IncludeChan)
 
-	// Wait for everything to be transpiled
+	// Wait for the import worker to finish
 	t.Wg.Wait()
 
-	if t.Functions["main"] == "" {
-		// return "", errors.New("No main function declared")
+	if t.Functions["main"] != "" {
+		t.GenerateMain = true
+	}
+
+	if t.workerErr != nil {
+		return t.workerErr
 	}
 
 	return nil
 }
 
 func (t *Transpiler) typeWorker() {
-	defer t.Wg1.Done()
+	defer t.Wg2.Done()
 
 	var (
 		stringP *string
@@ -271,9 +295,8 @@ func (t *Transpiler) typeWorker() {
 	for node := range t.TypeChan {
 		stringP, err = t.TranspileStatement(node)
 		if err != nil {
-			fmt.Printf("err %+v\n", err)
-			os.Exit(9)
-			// return "", err
+			t.setWorkerErr(errors.Wrapf(err, "transpiling type %q", node.Left.Value.(string)))
+			continue
 		}
 
 		t.Types[node.Left.Value.(string)] = *stringP
@@ -281,7 +304,7 @@ func (t *Transpiler) typeWorker() {
 }
 
 func (t *Transpiler) structWorker() {
-	defer t.Wg1.Done()
+	defer t.Wg2.Done()
 
 	var (
 		stringP *string
@@ -292,8 +315,8 @@ func (t *Transpiler) structWorker() {
 	for node := range t.StructChan {
 		stringP, err = t.TranspileStatement(node)
 		if err != nil {
-			fmt.Printf("err %+v\n", err)
-			os.Exit(9)
+			t.setWorkerErr(errors.Wrapf(err, "transpiling struct %q", node.Left.Value.(string)))
+			continue
 		}
 
 		t.Structs[node.Left.Value.(string)] = WithPriority{
@@ -306,7 +329,7 @@ func (t *Transpiler) structWorker() {
 }
 
 func (t *Transpiler) packageWorker() {
-	defer t.Wg1.Done()
+	defer t.Wg2.Done()
 
 	var (
 		stringP *string
@@ -317,40 +340,13 @@ func (t *Transpiler) packageWorker() {
 	for node := range t.PackageChan {
 		stringP, err = t.TranspileStatement(node)
 		if err != nil {
-			fmt.Printf("err %+v\n", err)
-			os.Exit(9)
+			t.setWorkerErr(errors.Wrapf(err, "transpiling package %q", node.Left.Value.(string)))
+			continue
 		}
 
 		t.Packages[node.Left.Value.(string)] = *stringP
 
 		i++
-	}
-}
-
-func (t *Transpiler) includeWorker() {
-	defer t.Wg.Done()
-
-	var (
-		includeStringP *string
-		// Why does this shadow ...
-		// Is the gofunc "capturing" variables that aren't passed?
-		ierr error
-	)
-
-	for node := range t.IncludeChan {
-		// Might want to make this go through the entire pipeline ...
-		includeStringP, ierr = t.TranspileIncludeStatement(node)
-		if ierr != nil {
-			log.Printf("Error transpiling include statement: %+v\n", ierr)
-
-			// Exit if there is a problem transpiling the import statement
-			// and we'll deal with it later
-			os.Exit(9)
-		}
-
-		// TODO: should really check the deref on all of these, but the usage/running
-		// is pretty predictable right now
-		t.Includes[node.Left.Value.(string)] = *includeStringP
 	}
 }
 
@@ -368,11 +364,8 @@ func (t *Transpiler) importWorker() {
 		// Might want to make this go through the entire pipeline ...
 		importStringP, ierr = t.TranspileImportStatement(node)
 		if ierr != nil {
-			log.Printf("Error transpiling import statement: %+v\n", ierr)
-
-			// Exit if there is a problem transpiling the import statement
-			// and we'll deal with it later
-			os.Exit(9)
+			t.setWorkerErr(errors.Wrapf(ierr, "transpiling import %q", node.Left.Value.(string)))
+			continue
 		}
 
 		if importStringP == nil {
@@ -464,8 +457,17 @@ func (t *Transpiler) generateTypes() string {
 	}
 
 	var structs = make([]string, len(t.Structs))
-	for _, t := range t.Structs {
-		structs[t.Priority] = t.Value
+	for name, s := range t.Structs {
+		value := s.Value
+		// Inject methods into struct definition (C++ requires methods inside struct)
+		if methods, ok := t.Methods[name]; ok && len(methods) > 0 {
+			methodsStr := "\n" + strings.Join(methods, "\n") + "\n"
+			// Insert before the closing };
+			if idx := strings.LastIndex(value, "};"); idx >= 0 {
+				value = value[:idx] + methodsStr + "};"
+			}
+		}
+		structs[s.Priority] = value
 	}
 
 	var structsString = "\n\n// Structs:\n"
@@ -640,6 +642,40 @@ func (t *Transpiler) TranspileIncludeStatement(n *builder.Node) (*string, error)
 	return lhs, nil
 }
 
+// requireStdInclude registers a system header include, e.g. requireStdInclude("string")
+// emits #include<string>. Idempotent and concurrent-safe.
+func (t *Transpiler) requireStdInclude(header string) {
+	t.includesMu.Lock()
+	t.Includes[header] = "#include<" + header + ">"
+	t.includesMu.Unlock()
+}
+
+// requirePathInclude registers a path-based include, e.g. requirePathInclude("/path/to/var.cpp")
+// emits #include "/abs/path/to/var.cpp". Idempotent and concurrent-safe.
+func (t *Transpiler) requirePathInclude(path string) {
+	abs, _ := filepath.Abs(path)
+	t.includesMu.Lock()
+	t.Includes[path] = `#include "` + abs + `"`
+	t.includesMu.Unlock()
+}
+
+// requireType maps an Express type name to its C++ equivalent and registers any
+// required includes. Returns the C++ type string.
+func (t *Transpiler) requireType(exprType string) string {
+	switch exprType {
+	case "string":
+		t.requireStdInclude("string")
+		return "std::string"
+	case "int", "float", "bool", "char":
+		return exprType
+	case "var":
+		t.requirePathInclude(t.LibBase + "var.cpp")
+		return "var"
+	default:
+		return exprType // user-defined struct types pass through unchanged
+	}
+}
+
 func (t *Transpiler) TranspileUseStatement(n *builder.Node) (*string, error) {
 	if n.Type != "use" {
 		return nil, errors.New("Node is not a use")
@@ -679,8 +715,11 @@ func (t *Transpiler) TranspileImportStatement(n *builder.Node) (*string, error) 
 		return nil, errors.New("Node is not an import")
 	}
 
-	// If it is the import for libc
+	// If it is the import for libc — register the standard C headers.
 	if n.Kind == "c" {
+		for _, hdr := range []string{"stdio.h", "stdlib.h", "string.h", "unistd.h", "libgen.h", "math.h"} {
+			t.requireStdInclude(hdr)
+		}
 		return nil, nil
 	}
 
@@ -714,7 +753,15 @@ func (t *Transpiler) TranspileImportStatement(n *builder.Node) (*string, error) 
 
 	tt.Includes = nil
 
-	t.Packages[n.Left.Value.(string)] = fmt.Sprintf("namespace %s {\n %s\n }\n", "__"+n.Left.Value.(string), tt.ToCpp())
+	packageName := n.Left.Value.(string)
+	// If the imported file had a `package` declaration it already produced
+	// a namespace __name { ... } block via TranspilePackageStatement.
+	// In that case, don't wrap again — just use the inner ToCpp() directly.
+	if _, hasNamespace := tt.Packages[packageName]; hasNamespace {
+		t.Packages[packageName] = tt.ToCpp()
+	} else {
+		t.Packages[packageName] = fmt.Sprintf("namespace __%s {\n %s\n }\n", packageName, tt.ToCpp())
+	}
 	// t.IncludeChan <- &builder.Node{
 	// 	Type: "include",
 	// 	Left: &builder.Node{
@@ -805,6 +852,31 @@ func (t *Transpiler) TranspileSelectExpression(n *builder.Node) (*string, error)
 	rhs, err := t.TranspileExpression(n.Right)
 	if err != nil {
 		return nil, err
+	}
+
+	// c namespace: strip the c. prefix entirely.
+	// After #include<stdio.h> etc., all C symbols are in global scope in C++.
+	// c.fopen(...) → fopen(...)   c.SEEK_SET → SEEK_SET
+	if n.Left.Type == "ident" && n.Left.Value.(string) == "c" {
+		return rhs, nil
+	}
+
+	// Inside a method body: Receiver.field → field (C++ member access).
+	// Left may be "ident" or "type" (since the receiver name is a registered type).
+	if t.CurrentReceiver != "" {
+		if name, ok := n.Left.Value.(string); ok && name == t.CurrentReceiver {
+			return rhs, nil
+		}
+	}
+
+	// Imported package namespace: file.X → __file::X
+	if n.Left.Type == "ident" {
+		if name, ok := n.Left.Value.(string); ok {
+			if _, isPackage := t.Packages[name]; isPackage {
+				result := "__" + name + "::" + *rhs
+				return &result, nil
+			}
+		}
 	}
 
 	var selector = "."
@@ -942,6 +1014,28 @@ func (t *Transpiler) TranspilePackageExpression(n *builder.Node) (*string, error
 	return &value, nil
 }
 
+// transpileMapTypeStr converts a type node (or nested map type node) to a C++ type string.
+func (t *Transpiler) transpileMapTypeStr(n *builder.Node) (string, error) {
+	if n.Kind == "map" {
+		kn, ok1 := n.Metadata["key_node"].(*builder.Node)
+		vn, ok2 := n.Metadata["value_node"].(*builder.Node)
+		if !ok1 || !ok2 {
+			return "", errors.New("transpileMapTypeStr: map node missing key_node/value_node")
+		}
+		k, err := t.transpileMapTypeStr(kn)
+		if err != nil {
+			return "", err
+		}
+		v, err := t.transpileMapTypeStr(vn)
+		if err != nil {
+			return "", err
+		}
+		t.requireStdInclude("map")
+		return fmt.Sprintf("std::map<%s, %s>", k, v), nil
+	}
+	return t.requireType(n.Kind), nil
+}
+
 func (t *Transpiler) TranspileMapStatement(n *builder.Node) (*string, error) {
 	if n.Type != "map" {
 		return nil, errors.New("Node is not a map")
@@ -953,22 +1047,39 @@ func (t *Transpiler) TranspileMapStatement(n *builder.Node) (*string, error) {
 		return nil, err
 	}
 
-	// Could just have it add `struct` here but this will show us changes
-	var nString = "std::map<std::string, std::string>" + " " + *vString + "= "
+	// Determine K/V types — use explicit annotation if present, else default.
+	// requireType registers necessary includes automatically.
+	keyType := t.requireType("string") // "std::string", registers <string>
+	valueType := t.requireType("var")  // "var", registers var.cpp
+	if n.Metadata != nil {
+		if kn, ok := n.Metadata["key_node"].(*builder.Node); ok {
+			var err2 error
+			keyType, err2 = t.transpileMapTypeStr(kn)
+			if err2 != nil {
+				return nil, err2
+			}
+			valueType, err2 = t.transpileMapTypeStr(n.Metadata["value_node"].(*builder.Node))
+			if err2 != nil {
+				return nil, err2
+			}
+		}
+	}
+
+	// std::map is always required for map statements
+	t.requireStdInclude("map")
+
+	// Handle zero-init (no body)
+	if n.Right == nil {
+		nString := fmt.Sprintf("std::map<%s, %s> %s;", keyType, valueType, *vString)
+		return &nString, nil
+	}
+
+	var nString = fmt.Sprintf("std::map<%s, %s> %s = ", keyType, valueType, *vString)
 
 	// Transpile the block for the value
 	vString, err = t.TranspileMapBlockStatement(n.Right)
 	if err != nil {
 		return nil, err
-	}
-
-	// Include std::map from C++
-	t.IncludeChan <- &builder.Node{
-		Type: "include",
-		Left: &builder.Node{
-			Type:  "literal",
-			Value: "map",
-		},
 	}
 
 	nString += *vString + ";"
@@ -994,23 +1105,7 @@ func (t *Transpiler) TranspileLaunchStatement(n *builder.Node) (*string, error) 
 	}
 
 	// Include libmill for coroutines
-	t.IncludeChan <- &builder.Node{
-		Type: "include",
-		Kind: "path",
-		Left: &builder.Node{
-			Type:  "literal",
-			Value: t.LibBase + "libmill/libmill.h",
-		},
-	}
-
-	// includeChan <- &builder.Node{
-	// 	Type: "include",
-	// 	// This is not supposed to be a `path` import; it is a library feature, stop re-adding that shit
-	// 	Left: &builder.Node{
-	// 		Type:  "literal",
-	// 		Value: "libmill.h",
-	// 	},
-	// }
+	t.requirePathInclude(t.LibBase + "libmill/libmill.h")
 
 	// This has a lambda in it since you can launch any statement ...
 	var nString = "go([=](...){" + *vString + "}());"
@@ -1093,7 +1188,7 @@ func (t *Transpiler) TranspileDeferStatement(n *builder.Node) (*string, error) {
 	//		[&] - reference
 
 	// TODO: only onReturn is supported for now
-	var nString = "onReturn.deferStack.push([=](...){" + *stmt + "});"
+	var nString = "onReturn.deferStack.push([&](...){" + *stmt + "});"
 
 	return &nString, nil
 }
@@ -1101,6 +1196,19 @@ func (t *Transpiler) TranspileDeferStatement(n *builder.Node) (*string, error) {
 func (t *Transpiler) TranspileStatement(n *builder.Node) (*string, error) {
 	t.log.Debug("wtf3333", n.Type)
 	switch n.Type {
+
+	case "c":
+		// Direct C/C++ code injection — emit the raw captured source verbatim.
+		nString := n.Value.(string)
+		return &nString, nil
+
+	case "break":
+		s := "break;"
+		return &s, nil
+
+	case "continue":
+		s := "continue;"
+		return &s, nil
 
 	case "if":
 		return t.TranspileIfStatement(n)
@@ -1183,11 +1291,7 @@ func (t *Transpiler) TranspileStatement(n *builder.Node) (*string, error) {
 
 	case "function":
 		t.FuncChan <- n
-		// Right now just grab the name from the string
-		// Later on we can issue new function names for lambdas
-		// var name = n.Kind
-		// return &name, nil
-		// return t.TranspileFunctionStatement(n)
+		return nil, nil
 
 	case "return":
 		return t.TranspileReturnStatement(n)
@@ -1235,27 +1339,82 @@ func (t *Transpiler) TranspilePackageStatement(n *builder.Node) (*string, error)
 		return nil, errors.New("Node is not a package statement")
 	}
 
-	var (
-		nString      = "namespace "
-		vString, err = t.TranspileExpression(n.Left)
-	)
-
+	pkgNameP, err := t.TranspileExpression(n.Left)
 	if err != nil {
 		return nil, err
 	}
-
-	nString += " " + *vString
-
-	// Get all of the statements inside the package
+	pkgName := *pkgNameP
 
 	t.log.Debug("STMTS LEN", len(n.Right.Value.([]*builder.Node)))
 
-	vString, err = t.TranspileBlockStatement(n.Right)
-	if err != nil {
-		return nil, err
+	stmts := n.Right.Value.([]*builder.Node)
+
+	// Process the package body in two passes:
+	// 1. Non-function statements (imports, struct declarations, etc.) inline
+	// 2. Functions (regular and method) — transpiled directly and placed inside namespace
+
+	var (
+		blockContent string
+		methods      = map[string][]string{} // receiver → method strings
+		pkgFuncs     []string
+	)
+
+	for _, stmt := range stmts {
+		if stmt.Type == "function" {
+			// Transpile directly, bypassing FuncChan, so we can place inside namespace.
+			// Hold funcMu to prevent races on CurrentReceiver/inParamContext with functionWorker.
+			receiver, _ := stmt.Metadata["receiver"].(string)
+			t.funcMu.Lock()
+			t.CurrentReceiver = receiver
+			fStr, ferr := t.TranspileFunctionStatement(stmt)
+			t.CurrentReceiver = ""
+			t.funcMu.Unlock()
+			if ferr != nil {
+				return nil, errors.Wrapf(ferr, "transpiling package function %q", stmt.Kind)
+			}
+			if receiver != "" {
+				methods[receiver] = append(methods[receiver], *fStr)
+			} else {
+				pkgFuncs = append(pkgFuncs, *fStr)
+			}
+			continue
+		}
+
+		vStr, serr := t.TranspileStatement(stmt)
+		if serr != nil {
+			return nil, serr
+		}
+		if vStr != nil {
+			blockContent += *vStr
+		}
 	}
 
-	nString += *vString
+	// Inject methods into the struct definition in blockContent.
+	// blockContent contains "struct Foo { ... };" — find the right struct.
+	for receiver, methodList := range methods {
+		target := "struct " + receiver
+		idx := strings.Index(blockContent, target)
+		if idx < 0 {
+			// Struct not found in this package block — skip (shouldn't happen normally)
+			continue
+		}
+		// Find the closing "};" for this struct
+		closeIdx := strings.Index(blockContent[idx:], "};")
+		if closeIdx < 0 {
+			continue
+		}
+		closeIdx += idx
+		methodsStr := "\n" + strings.Join(methodList, "\n") + "\n"
+		blockContent = blockContent[:closeIdx] + methodsStr + blockContent[closeIdx:]
+	}
+
+	// Assemble namespace block: {non-func content + pkg-level functions}
+	var funcStr string
+	for _, f := range pkgFuncs {
+		funcStr += "\n" + f
+	}
+
+	nString := "namespace __" + pkgName + "{" + blockContent + funcStr + "}"
 
 	t.log.Debug("NSTRING", nString)
 
@@ -1293,15 +1452,8 @@ func (t *Transpiler) TranspileFunctionStatement(n *builder.Node) (*string, error
 		return nil, errors.New("Node is not an function")
 	}
 
-	// Include std::map from C++
-	t.IncludeChan <- &builder.Node{
-		Type: "include",
-		Kind: "path",
-		Left: &builder.Node{
-			Type:  "literal",
-			Value: t.LibBase + "defer.cpp",
-		},
-	}
+	// Every function needs defer.cpp for the onReturn/onExit defer mechanism
+	t.requirePathInclude(t.LibBase + "defer.cpp")
 
 	/*
 		A map with keys for `returns` and `args` will be egroups in the Metadata
@@ -1391,6 +1543,11 @@ func (t *Transpiler) TranspileIdentExpression(n *builder.Node) (*string, error) 
 		return nil, errors.Errorf("Node value was not a string; %v", n)
 	}
 
+	// nil is C++'s nullptr
+	if nString == "nil" {
+		nString = "nullptr"
+	}
+
 	return &nString, nil
 }
 
@@ -1414,68 +1571,58 @@ func (t *Transpiler) TranspileType(n *builder.Node) (*string, error) {
 
 	switch nString {
 	case "var":
-		// var is the dynamic type class
-		// Include var.cpp and use the var class
-		t.IncludeChan <- &builder.Node{
-			Type: "include",
-			Left: &builder.Node{
-				Type:  "literal",
-				Value: t.LibBase + "var.cpp",
-			},
-		}
+		t.requirePathInclude(t.LibBase + "var.cpp")
 
 	case "string":
 		nString = "std::" + nString
-
-		// TODO: switch this to just use a damn string later
-		t.IncludeChan <- &builder.Node{
-			Type: "include",
-			Left: &builder.Node{
-				Type:  "literal",
-				Value: "string",
-			},
-		}
+		t.requireStdInclude("string")
 
 	case "map":
 		nString = "map"
-
-		t.IncludeChan <- &builder.Node{
-			Type: "include",
-			Left: &builder.Node{
-				Type:  "literal",
-				Value: "map",
-			},
-		}
-
-		t.IncludeChan <- &builder.Node{
-			Type: "include",
-			Kind: "path",
-			Left: &builder.Node{
-				Type:  "literal",
-				Value: t.LibBase + "var.cpp",
-			},
-		}
+		t.requireStdInclude("map")
+		t.requirePathInclude(t.LibBase + "var.cpp")
 
 	// TODO(scottshotgg): for now every array will just be a list
 	case "array":
-		t.IncludeChan <- &builder.Node{
-			Type: "include",
-			Left: &builder.Node{
-				Type:  "literal",
-				Value: "vector",
-			},
+		t.requireStdInclude("vector")
+
+		elemKind := n.Kind
+		if elemKind == "map" {
+			// map[] → std::vector<std::map<std::string, var>>
+			elemKind = "std::map<std::string, var>"
+			t.requireStdInclude("map")
+			t.requirePathInclude(t.LibBase + "var.cpp")
 		}
 
-		nString = "std::vector<" + n.Kind + ">"
+		nString = "std::vector<" + elemKind + ">"
+
+		// Handle nested vectors: int[][] has dim=[{none,-1},{none,-1}] → std::vector<std::vector<int>>
+		if dims, ok2 := n.Metadata["dim"].([]*builder.Index); ok2 && len(dims) > 1 {
+			for i := 1; i < len(dims); i++ {
+				nString = "std::vector<" + nString + ">"
+			}
+		}
 
 	case "pointer":
 		nString = "*"
-		var typeStringP, err = t.TranspileType(n.Left)
-		if err != nil {
-			return nil, err
+		if n.Left != nil && n.Left.Type == "selection" {
+			// c.TYPE* pattern: Left is a selection node like c.FILE
+			// Emit the C type name directly (e.g. FILE*)
+			var typeName string
+			if n.Left.Right != nil {
+				typeName, _ = n.Left.Right.Value.(string)
+			}
+			if typeName == "" {
+				return nil, errors.New("c.TYPE* selection: could not get type name")
+			}
+			nString = typeName + nString
+		} else {
+			var typeStringP, err = t.TranspileType(n.Left)
+			if err != nil {
+				return nil, err
+			}
+			nString = *typeStringP + nString
 		}
-
-		nString = *typeStringP + nString
 	}
 
 	// Check if the type is imported or not
@@ -1488,14 +1635,20 @@ func (t *Transpiler) TranspileType(n *builder.Node) (*string, error) {
 		} else {
 			typeName = n.Kind
 		}
-		nString = packageName + "::" + typeName
+		if packageName == "c" {
+			// C types are global after #include — no namespace prefix needed.
+			// c.FILE → FILE   c.DIR → DIR
+			nString = typeName
+		} else {
+			nString = packageName + "::" + typeName
+		}
 	}
 
 	return &nString, nil
 }
 
 // This changes an Express literal to be formatted the way C++ expects
-func (t *Transpiler) prepLiteral(n *builder.Node, cpp string) *string {
+func (t *Transpiler) prepLiteral(n *builder.Node, cpp string) (*string, error) {
 	switch n.Kind {
 	case "string":
 		cpp = "\"" + cpp + "\""
@@ -1507,16 +1660,15 @@ func (t *Transpiler) prepLiteral(n *builder.Node, cpp string) *string {
 		// Transpile the block for the value
 		vString, err := t.TranspileBlockExpression(n.Right)
 		if err != nil {
-			t.log.Warnf("err: %v", err)
-			os.Exit(9)
+			return nil, errors.Wrap(err, "prepLiteral struct")
 		}
 
 		*vString = n.Value.(string) + *vString
 
-		return vString
+		return vString, nil
 	}
 
-	return &cpp
+	return &cpp, nil
 }
 
 func (t *Transpiler) TranspileLiteralExpression(n *builder.Node) (*string, error) {
@@ -1527,7 +1679,7 @@ func (t *Transpiler) TranspileLiteralExpression(n *builder.Node) (*string, error
 	blob, _ := json.Marshal(n)
 	t.log.Debug("its me again: n:", string(blob))
 
-	return t.prepLiteral(n, fmt.Sprintf("%v", n.Value)), nil
+	return t.prepLiteral(n, fmt.Sprintf("%v", n.Value))
 }
 
 func (t *Transpiler) TranspileArrayExpression(n *builder.Node) (*string, error) {
@@ -1597,12 +1749,10 @@ func (t *Transpiler) TranspileAssignmentStatement(n *builder.Node) (*string, err
 	return &nString, nil
 }
 
-func (t *Transpiler) TranspileDeclarationStatement(n *builder.Node) (*string, error) {
+func (t *Transpiler) TranspileDeclarationStatement(n *builder.Node, inParamCtx ...bool) (*string, error) {
 	if n.Type != "decl" {
 		return nil, errors.New("Node is not an declaration")
 	}
-
-	t.Builder.ScopeTree.Declare(n)
 
 	var (
 		nString = ""
@@ -1616,14 +1766,60 @@ func (t *Transpiler) TranspileDeclarationStatement(n *builder.Node) (*string, er
 	var tt = ""
 	var typeOf = &tt
 	var err error
+	var constPrefix string
 
 	if n.Left.Type != "deref" {
+		typeNode, typeOk := n.Value.(*builder.Node)
+
+		// C-style array declaration: char[dim] varName → char varName[dim] = {};
+		// Fires for both `int[5] a` (no initializer) and `int[5] a = {}` (explicit empty init).
+		isEmptyInit := n.Right != nil &&
+			(n.Right.Type == "block" || n.Right.Type == "array") &&
+			func() bool {
+				nodes, ok := n.Right.Value.([]*builder.Node)
+				return ok && len(nodes) == 0
+			}()
+		if typeOk && typeNode.Value == "array" && typeNode.Kind != "var" && (n.Right == nil || isEmptyInit) {
+			if dims, ok2 := typeNode.Metadata["dim"].([]*builder.Index); ok2 && len(dims) > 0 && dims[0].Type != "none" {
+				elemType := typeNode.Kind
+				if elemType == "string" {
+					elemType = "std::string"
+				}
+				varNameP, varErr := t.TranspileExpression(n.Left)
+				if varErr != nil {
+					return nil, varErr
+				}
+				var dimStr string
+				d := dims[0]
+				switch d.Type {
+				case "ident":
+					dimStr = d.Value.(string)
+				case token.IntType:
+					dimStr = fmt.Sprintf("%d", d.Value.(int))
+				}
+				nString = elemType + " " + *varNameP + "[" + dimStr + "] = {};"
+				return &nString, nil
+			}
+		}
+
 		typeOf, err = t.TranspileExpression(n.Value.(*builder.Node))
 		if err != nil {
 			return nil, err
 		}
 
 		t.log.Debug("TYPE", *typeOf, n.Left)
+
+		// Prepend const for immutable bindings (not params, not pointers, not dynamic var, not mutable, not struct fields)
+		if typeOk {
+			inParam := len(inParamCtx) > 0 && inParamCtx[0]
+			isPtr := typeNode.Kind == "pointer"
+			isDynVar := typeNode.Kind == "var"
+			isMut, _ := n.Metadata["mutable"].(bool)
+			isField, _ := n.Metadata["is_field"].(bool)
+			if !inParam && !isPtr && !isDynVar && !isMut && !isField {
+				constPrefix = "const "
+			}
+		}
 	}
 
 	// Don't add the type yet
@@ -1641,21 +1837,72 @@ func (t *Transpiler) TranspileDeclarationStatement(n *builder.Node) (*string, er
 
 	nString += *vString
 
+	// DESIGN DECISION: Auto-zero-initialization of uninitialized declarations
+	//
+	// Express auto-zero-initializes declarations without explicit initializers.
+	// e.g., `int x` emits `int x = 0;` in C++, NOT `int x;` (which is UB in C++).
+	//
+	// Zero values by type:
+	//   int, float  → 0
+	//   bool        → false
+	//   char        → '\0'
+	//   pointer     → nullptr
+	//   string      → "" (std::string default-constructs to empty)
+	//   struct      → = {} (aggregate init, all fields recursively zeroed)
+	//   var         → null (var class default-constructs to nullType)
+	//   map         → {} (std::map default-constructs to empty)
+	//   array       → = {} (int[5] — C-style, aggregate-init to all zeros)
+	//   vector      → [] (int[] — std::vector default-constructs to empty)
+	//
+	// Alternatives considered:
+	//   Option 1 (rejected): Leave uninitialized — causes undefined behavior in C++.
+	//   Option 2 (deferred): Require explicit initializer at parse time (reject `int x`).
+	//     Pros: forces documentation of intent. Cons: breaks declare-then-branch
+	//     patterns without definite-assignment analysis (a future enhancement).
+	//   Option 3 (chosen): Auto-zero-initialize at transpile time.
+	//     Pros: eliminates UB, matches Go's zero-value philosophy, simple to implement.
+	//     Cons: can hide "forgot to set a meaningful value" bugs (manifests as wrong
+	//     result, not a crash). Acceptable tradeoff.
+	//
+	// If definite-assignment analysis is added later, Option 2 could replace this.
+	// See also: `let` already requires an initializer; `var` has runtime nullType default.
+
 	// RHS is allowed to be nil to support declarations without values like `string s`
 	if n.Right == nil {
-		// If the declaration is a struct, then give it the default init if no expression is provided
-		if n.Value.(*builder.Node).Kind == "struct" {
-			nString += "= {}"
+		typeNode := n.Value.(*builder.Node)
+
+		// Do not zero-initialize function parameters — they receive their values from callers.
+		inParam := len(inParamCtx) > 0 && inParamCtx[0]
+		if !inParam {
+			switch {
+			case typeNode.Kind == "struct":
+				nString += " = {}"
+			case typeNode.Value == "int" || typeNode.Value == "float":
+				nString += " = 0"
+			case typeNode.Value == "bool":
+				nString += " = false"
+			case typeNode.Value == "char":
+				nString += ` = '\0'`
+			case typeNode.Kind == "pointer":
+				nString += " = nullptr"
+			default:
+				// User-defined struct types (e.g. `S s`): the typeNode has Value="S"
+				// and Kind="" at parse time. Look up the scope tree to detect composite types
+				// and emit `= {}` so their fields are recursively zeroed.
+				if typeName, ok := typeNode.Value.(string); ok {
+					if tv := t.Builder.ScopeTree.GetType(typeName); tv != nil && tv.Composite {
+						nString += " = {}"
+					}
+				}
+			}
 		}
 
 		if *typeOf == "map" {
-			var t = "std::map<var, var>"
+			var t = "std::map<std::string, var>"
 			typeOf = &t
 		}
 
-		// log.Printf("HEY ITS ME %+v\n", n.Value.(*builder.Node))
-
-		nString = *typeOf + " " + nString + ";"
+		nString = constPrefix + *typeOf + " " + nString + ";"
 		return &nString, nil
 	}
 
@@ -1698,10 +1945,28 @@ func (t *Transpiler) TranspileDeclarationStatement(n *builder.Node) (*string, er
 			t.log.Debug("kvblob:", string(blob))
 		}
 
-		nString = fmt.Sprintf("std::map<%s, %s> %s", *keyType, *valueType, nString)
+		nString = constPrefix + fmt.Sprintf("std::map<%s, %s> %s", *keyType, *valueType, nString)
 
 	default:
-		nString = *typeOf + " " + nString
+		nString = constPrefix + *typeOf + " " + nString
+		// For vector declarations with an empty `[]` initializer (e.g. `int[] v = []`),
+		// the std::vector default constructor already produces an empty vector.
+		// Emitting `= []` would produce malformed C++, so we just declare without an initializer.
+		// Note: n.Right.Value is a nil []*builder.Node stored as interface{}, so == nil is false;
+		// we check len == 0 instead.
+		// Only applies to vectors (dim type == "none"), NOT to fixed-size arrays (int[4]).
+		if typeNode, ok := n.Value.(*builder.Node); ok && typeNode.Value == "array" {
+			isVector := false
+			if dims, ok2 := typeNode.Metadata["dim"].([]*builder.Index); ok2 && len(dims) > 0 {
+				isVector = dims[0].Type == "none"
+			}
+			if isVector {
+				if nodes, ok2 := n.Right.Value.([]*builder.Node); ok2 && len(nodes) == 0 {
+					nString += ";"
+					return &nString, nil
+				}
+			}
+		}
 		vString, err = t.TranspileExpression(n.Right)
 	}
 
@@ -1751,13 +2016,7 @@ func (t *Transpiler) TranspileLetStatement(n *builder.Node) (*string, error) {
 			typeString = "float"
 		case "string":
 			typeString = "std::string"
-			t.IncludeChan <- &builder.Node{
-				Type: "include",
-				Left: &builder.Node{
-					Type:  "literal",
-					Value: "string",
-				},
-			}
+			t.requireStdInclude("string")
 		case "bool":
 			typeString = "bool"
 		case "char":
@@ -1776,7 +2035,7 @@ func (t *Transpiler) TranspileLetStatement(n *builder.Node) (*string, error) {
 		return nil, err
 	}
 
-	nString = typeString + " " + nString + " = " + *vString + ";"
+	nString = "const " + typeString + " " + nString + " = " + *vString + ";"
 
 	// fmt.Println("nString", nString)
 
@@ -1820,8 +2079,7 @@ func (t *Transpiler) resolveType(n *builder.Node) (*string, error) {
 		return &t, nil
 
 	case "block":
-		t.log.Debug("I AM HERE")
-		os.Exit(9)
+		return nil, errors.New("resolveType: cannot resolve type from a block node")
 	}
 
 	return nil, errors.New("unknown node type to resolveType: " + n.Type)
@@ -1926,10 +2184,6 @@ func (t *Transpiler) TranspileBlockStatement(n *builder.Node) (*string, error) {
 	)
 
 	for _, stmt := range n.Value.([]*builder.Node) {
-		// Skip struct declarations - they're handled at global scope
-		if stmt.Type == "struct" {
-			continue
-		}
 		// Skip typedef declarations - they're handled at global scope
 		if stmt.Type == "typedef" {
 			continue
@@ -1938,6 +2192,10 @@ func (t *Transpiler) TranspileBlockStatement(n *builder.Node) (*string, error) {
 		vString, err = t.TranspileStatement(stmt)
 		if err != nil {
 			return nil, err
+		}
+
+		if vString == nil {
+			continue
 		}
 
 		t.log.Debug("vString", *vString)
@@ -2043,9 +2301,33 @@ func (t *Transpiler) TranspileBlockExpression(n *builder.Node) (*string, error) 
 		err     error
 	)
 
+	stmts := n.Value.([]*builder.Node)
+
+	// If the block contains kv pairs it's a map literal — emit var{k1, v1, k2, v2, ...}
+	// using the var(initializer_list<var>) constructor in var.cpp.
+	if len(stmts) > 0 && stmts[0].Type == "kv" {
+		t.requireStdInclude("map")
+		t.requirePathInclude(t.LibBase + "var.cpp")
+
+		var parts []string
+		for _, kv := range stmts {
+			k, err := t.TranspileExpression(kv.Left)
+			if err != nil {
+				return nil, err
+			}
+			v, err := t.TranspileExpression(kv.Right)
+			if err != nil {
+				return nil, err
+			}
+			parts = append(parts, *k, *v)
+		}
+		nString = "var{" + strings.Join(parts, ", ") + "}"
+		return &nString, nil
+	}
+
 	// TODO: don't have a type checker so for right now
 	// just type check in here
-	for _, stmt := range n.Value.([]*builder.Node) {
+	for _, stmt := range stmts {
 		vString, err = t.TranspileStatement(stmt)
 		if err != nil {
 			return nil, err
@@ -2128,30 +2410,16 @@ func (t *Transpiler) TranspileSGroup(n *builder.Node) (*string, error) {
 		err      error
 	)
 
+	// Transpile each parameter declaration directly (inParamCtx=true) so that
+	// parameter declarations are not zero-initialized — they receive values from callers.
+	// Using the parameter directly avoids the shared t.inParamContext field race.
 	for i, s := range n.Value.([]*builder.Node) {
-		vString, err = t.TranspileStatement(s)
+		vString, err = t.TranspileDeclarationStatement(s, true)
 		if err != nil {
 			return nil, err
 		}
 
-		// `
-		// {
-		// 	"Type": "decl",
-		// 	"Value": {
-		// 		"Type": "type",
-		// 		"Kind": "map",
-		// 		"Value": "map"
-		// 	},
-		// 	"Left": {
-		// 		"Type": "ident",
-		// 		"Value": "m"
-		// 	}
-		// },
-		// `
-
-		// if s.
-
-		// Shave off the semicolon since we don't need it
+		// Shave off the semicolon since we don't need it in a parameter list
 		var vvString = *vString
 		if vvString[len(vvString)-1] == ';' {
 			vvString = (vvString)[:len(vvString)-1]
@@ -2202,16 +2470,21 @@ func (t *Transpiler) TranspileCallExpression(n *builder.Node) (*string, error) {
 	funcName, ok := n.Value.(*builder.Node).Value.(string)
 	if ok {
 		if cFuncs[n.Value.(*builder.Node).Value.(string)] {
-			t.IncludeChan <- &builder.Node{
-				Type: "include",
-				Left: &builder.Node{
-					Type:  "literal",
-					Value: "stdio.h",
-				},
-			}
+			t.requireStdInclude("stdio.h")
 		}
 
-		if funcName == "Println" {
+		if funcName == "len" {
+			// len(x) → (x).size()
+			// Works for: vectors (int[], var[], etc.) and strings.
+			// NOT supported for arrays (int[5]) — size is a compile-time constant.
+			argString, err := t.TranspileEGroup(args.(*builder.Node))
+			if err != nil {
+				return nil, err
+			}
+			inner := (*argString)[1 : len(*argString)-1] // strip outer parens
+			nString = "(" + inner + ").size()"
+			return &nString, nil
+		} else if funcName == "Println" {
 			var argString, err = t.TranspileStreamEGroup(args.(*builder.Node))
 			if err != nil {
 				return nil, err
@@ -2227,13 +2500,7 @@ func (t *Transpiler) TranspileCallExpression(n *builder.Node) (*string, error) {
 
 			return &nString, nil
 		} else if funcName == "sleep" {
-			t.IncludeChan <- &builder.Node{
-				Type: "include",
-				Left: &builder.Node{
-					Type:  "literal",
-					Value: "unistd.h",
-				},
-			}
+			t.requireStdInclude("unistd.h")
 		}
 	}
 
@@ -2541,8 +2808,10 @@ func TransformIdentToDefaultDeclaration(n *builder.Node) *builder.Node {
 		Value: &builder.Node{
 			Type:  "type",
 			Value: "int",
+			Kind:  "int",
 		},
-		Left: n,
+		Left:     n,
+		Metadata: map[string]interface{}{"mutable": true},
 		Right: &builder.Node{
 			Type:  "literal",
 			Value: 0,

@@ -89,6 +89,8 @@ func (t *TypeResolver) Check(n *Node) (bool, error) {
 	case "for":
 	case "forin":
 	case "forof":
+	case "forover":
+	case "forstd":
 	case "binop":
 	case "comp":
 	case "deref":
@@ -102,6 +104,8 @@ func (t *TypeResolver) Check(n *Node) (bool, error) {
 	case "kv":
 	case "map":
 	case "not":
+	case "enum":
+	case "defer":
 		// later on when we return structs, user-defined types, and object
 		// then we can do that
 		// Nothing needs to be done RIGHT NOW in this case for a return
@@ -218,6 +222,20 @@ func (t *TypeResolver) Check(n *Node) (bool, error) {
 				var err = t.scopeTree.Declare(n)
 				if err != nil {
 					return false, err
+				}
+			}
+
+		case "pointer":
+			inner := shouldBeType.Left
+			if inner != nil && inner.Type == "selection" {
+				if innerLeft, ok := inner.Left.Value.(string); ok && innerLeft == "c" {
+					typeName := inner.Right.Value.(string)
+					n.Value = &Node{
+						Type:  "type",
+						Kind:  "pointer",
+						Value: "pointer",
+						Left:  &Node{Type: "type", Kind: typeName, Value: typeName},
+					}
 				}
 			}
 
@@ -372,6 +390,10 @@ func (t *TypeResolver) Check(n *Node) (bool, error) {
 		if err != nil {
 			return changed, err
 		}
+
+	case "c":
+		// C block injection is verbatim C code — nothing to type-check.
+		return false, nil
 
 	default:
 		return false, errors.Errorf("type not implemented in %s: %+v", t.Name(), *n)

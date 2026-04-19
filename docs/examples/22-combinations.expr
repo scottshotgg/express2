@@ -1,0 +1,130 @@
+// 22-combinations.expr — collection × element-type combination matrix
+// Each section exercises a different outer container with each inner type.
+// Sections that fail to compile are commented out with a NOTE.
+
+struct Point = {
+  int x = 0
+  int y = 0
+}
+
+struct WithVec = {
+  string label = ""
+  int[] items = []
+}
+
+struct WithArr = {
+  string name = ""
+  int[4] buf = {}
+}
+
+struct WithMap = {
+  string label = ""
+  map data = {}
+}
+
+func main() {
+  // ── Section 1: Vector of every primitive type ──────────────────────────────
+  var int[] iv
+  float[] fv
+  bool[] bv
+  var string[] sv
+  char[] cv
+  Println("int[] len:", len(iv))
+  Println("float[] len:", len(fv))
+  Println("bool[] len:", len(bv))
+  Println("string[] len:", len(sv))
+  Println("char[] len:", len(cv))
+  iv.push_back(7)
+  sv.push_back("hello")
+  Println("int[] after push:", iv[0])
+  Println("string[] after push:", sv[0])
+
+  // ── Section 2: Array of every primitive type ───────────────────────────────
+  float[3] fa
+  bool[2] ba
+  string[2] sa
+  Println("float arr[0]:", fa[0])
+  Println("bool arr[0]:", ba[0])
+  Println("string arr[0]:", sa[0])
+  fa[0] = 1.5
+  ba[0] = true
+  sa[0] = "test"
+  Println("float arr[0] after:", fa[0])
+  Println("bool arr[0] after:", ba[0])
+  Println("string arr[0] after:", sa[0])
+
+  // ── Section 3: Vector of structs ───────────────────────────────────────────
+  var Point[] points
+  Println("struct[] len:", len(points))
+  Point p = { x = 3  y = 4 }
+  points.push_back(p)
+  Println("struct[] len after push:", len(points))
+  Println("points[0].x:", points[0].x)
+  Println("points[0].y:", points[0].y)
+
+  // ── Section 4: Array of structs ────────────────────────────────────────────
+  Point[2] parr
+  Println("struct arr[0].x:", parr[0].x)
+  parr[0].x = 10
+  Println("struct arr[0].x after:", parr[0].x)
+
+  // ── Section 5: Struct with vector field ───────────────────────────────────
+  var WithVec wv
+  Println("withvec.label:", wv.label)
+  Println("withvec.items len:", len(wv.items))
+  wv.label = "data"
+  wv.items.push_back(99)
+  Println("withvec.label after:", wv.label)
+  Println("withvec.items[0]:", wv.items[0])
+
+  // ── Section 6: Struct with array field ────────────────────────────────────
+  var WithArr wa
+  Println("witharr.name:", wa.name)
+  Println("witharr.buf[0]:", wa.buf[0])
+  wa.buf[0] = 55
+  Println("witharr.buf[0] after:", wa.buf[0])
+
+  // ── Section 7: Struct with map field ──────────────────────────────────────
+  var WithMap wm
+  Println("withmap.label:", wm.label)
+  wm.data["key"] = "value"
+  Println("withmap.data[key]:", wm.data["key"])
+
+  // ── Section 8: Map with struct values ─────────────────────────────────────
+  // NOTE: var class does not have operator= for user-defined struct types.
+  // Storing a struct in a map<string,var> fails to compile.
+  // map sm
+  // Point origin = { x = 0  y = 0 }
+  // sm["origin"] = origin
+
+  // ── Section 9: Map with vector values ─────────────────────────────────────
+  var map mv
+  int[] nums = [1, 2, 3]
+  mv["nums"] = nums
+  Println("map vector set: ok")
+
+  // ── Section 10: Map with array values ─────────────────────────────────────
+  // NOTE: storing a fixed C-style array in a map is not supported — var cannot
+  // hold a C-style array (arrays are not first-class objects in C++).
+  // int[3] fixedArr = {}
+  // map ma
+  // ma["arr"] = fixedArr
+
+  // ── Section 11: Map with map values (nested map) ──────────────────────────
+  var map outer
+  var map inner
+  inner["a"] = "inner_val"
+  outer["nested"] = inner
+  Println("nested map set: ok")
+
+  // ── Section 12: Vector of maps ────────────────────────────────────────────
+  var map[] mv2
+  var map entry
+  entry["k"] = "v"
+  mv2.push_back(entry)
+  Println("map[] len:", len(mv2))
+
+  // ── Section 13: Vector of vectors ─────────────────────────────────────────
+  // NOTE: int[][] (vector of vectors) syntax is not yet implemented.
+  // int[][] nested
+}

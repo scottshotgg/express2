@@ -1,0 +1,16 @@
+// 18-strings.expr
+// ================
+// Demonstrates string operations in Express:
+// - String concatenation with +
+// - Strings in variables and Println
+
+func main() {
+  string first = "Hello"
+  string second = "World"
+  string greeting = first + ", " + second + "!"
+  Println(greeting)
+  string repeated = greeting + " " + greeting
+  Println("Length check:", repeated)
+  int x = 42
+  Println("The answer is:", x)
+}

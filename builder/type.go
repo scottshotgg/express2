@@ -47,10 +47,6 @@ func (b *Builder) AddPrimitive(key string, value *Node) (*TypeValue, error) {
 	return v, b.ScopeTree.NewType(key, v)
 }
 
-func (b *Builder) AddRepeated(key string, value *Node) (*TypeValue, error) {
-	return nil, errors.New("Not implemented: AddRepeated")
-}
-
 func (b *Builder) AddStructured(key string, value *Node) (*TypeValue, error) {
 	if value.Type != "block" {
 		return nil, errors.Errorf("Value of type is not a block: %s", value.Kind)
@@ -82,14 +78,27 @@ func (b *Builder) extractPropsFromStruct(n *Node) (map[string]*TypeValue, error)
 	)
 
 	for _, prop := range propsRaw {
+		if prop.Value == nil {
+			continue
+		}
+
 		var pv = prop.Value.(*Node)
 
 		// Need to check the type that we extract from here as well
 		// make a function for that
 
-		var propType = b.ScopeTree.GetType(pv.Value.(string))
-		if propType == nil {
-			return nil, errors.Errorf("Type not defined: %s, %+v", pv.Value.(string), pv)
+		var propType *TypeValue
+		if pv.Kind == "pointer" {
+			// Pointer types are not in the scope tree; synthesize a TypeValue for them.
+			propType = &TypeValue{
+				Type: PrimitiveValue,
+				Kind: "pointer",
+			}
+		} else {
+			propType = b.ScopeTree.GetType(pv.Value.(string))
+			if propType == nil {
+				return nil, errors.Errorf("Type not defined: %s, %+v", pv.Value.(string), pv)
+			}
 		}
 
 		propMap[prop.Left.Value.(string)] = propType
@@ -223,30 +232,22 @@ func (b *Builder) ParseType(typeHint *TypeValue) (*Node, error) {
 			node, err = b.ParsePointerType(node)
 			b.Index++
 
-		// Map type annotation (type -> type)
-		// The -> is tokenized as two separate tokens: SecOp (-) and GThan (>)
-		case token.SecOp:
-			// Check if this is a -> pattern (SecOp followed by GThan)
-			if b.Index+2 < len(b.Tokens) && b.Tokens[b.Index+2].Type == token.GThan {
-				// Skip over SecOp and GThan tokens
-				b.Index += 2
-				// Parse the type after ->
-				rightType, err := b.ParseType(typeHint)
-				if err != nil {
-					return nil, err
-				}
-				// Create a node representing the map type annotation
-				node = &Node{
-					Type:  "type",
-					Kind:  "map_annotation",
-					Value: "map_annotation",
-					Left:  node,
-					Right: rightType,
-				}
-			} else {
-				// Not a map annotation, just a subtraction operator in expression context
-				// Return the node as is
-				return node, nil
+		// Map type annotation (type -> type) — Arrow token emitted by lexer
+		case token.Arrow:
+			// Skip the Arrow token (at b.Index+1), advance so b.Index points at the right-hand type.
+			b.Index += 2
+			// Parse the type after ->
+			rightType, err := b.ParseType(typeHint)
+			if err != nil {
+				return nil, err
+			}
+			// Create a node representing the map type annotation
+			node = &Node{
+				Type:  "type",
+				Kind:  "map_annotation",
+				Value: "map_annotation",
+				Left:  node,
+				Right: rightType,
 			}
 
 		// TODO: reworking typing from a more expression oriented architecture
@@ -428,10 +429,17 @@ func (b *Builder) ParseArrayType(typeOf string) (*Node, error) {
 		switch len(nodesAssert) {
 
 		case 1:
-			dimValue.Type = nodesAssert[0].Kind
-			dimValue.Value, ok = nodesAssert[0].Value.(int)
-			if !ok {
-				return nil, errors.Errorf("Could not assert array value to int; %+v", nodesAssert[0].Value)
+			node := nodesAssert[0]
+			if intVal, isInt := node.Value.(int); isInt {
+				// Literal integer dimension: char[100] buff
+				dimValue.Type = node.Kind
+				dimValue.Value = intVal
+			} else if strVal, isStr := node.Value.(string); isStr {
+				// Variable dimension: char[amount] buff
+				dimValue.Type = "ident"
+				dimValue.Value = strVal
+			} else {
+				return nil, errors.Errorf("Could not assert array value to int or string; %+v", node.Value)
 			}
 
 		case 0:

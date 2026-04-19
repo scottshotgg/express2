@@ -1,0 +1,10 @@
+// math provides basic math functions wrapping the C math library.
+package math
+
+import c
+
+func Sqrt(float x) float { return c.sqrt(x) }
+func Abs(float x) float  { return c.fabs(x) }
+func Pow(float x, float y) float { return c.pow(x, y) }
+func Floor(float x) float { return c.floor(x) }
+func Ceil(float x) float  { return c.ceil(x) }

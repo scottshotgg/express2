@@ -50,13 +50,10 @@ var KeywordMap = map[string]Token{
 		},
 	},
 
-	// "c": {
-	// 	Type: C,
-	// 	Value: Value{
-	// 		Type:   "keyword",
-	// 		String: "c",
-	// 	},
-	// },
+	// "c" is intentionally not a lexer keyword — it would split identifiers
+	// containing the letter c (e.g. func, struct, object, launch).
+	// C blocks are recognised in ParseStatement by checking for an ident
+	// whose value is "c" followed by an LBrace.
 
 	"use": {
 		Type: Use,
@@ -250,6 +247,32 @@ var KeywordMap = map[string]Token{
 			Type: "keyword", // TODO: what to put here?
 			// String: Defer,
 			String: "defer",
+		},
+	},
+
+	"while": {
+		Type: Loop,
+		Value: Value{
+			Type:   "keyword",
+			String: "while",
+		},
+	},
+
+	"break": {
+		ID:   9,
+		Type: Break,
+		Value: Value{
+			Type:   "keyword",
+			String: "break",
+		},
+	},
+
+	"continue": {
+		ID:   9,
+		Type: Continue,
+		Value: Value{
+			Type:   "keyword",
+			String: "continue",
 		},
 	},
 }

@@ -1,0 +1,17 @@
+// 24-for-over.expr
+// =================
+// Demonstrates for-over loops in Express:
+// - Single-variable form (index only)
+// - Two-variable form (index and value)
+
+func main() {
+  int[] nums = [10, 20, 30]
+
+  for i over nums {
+    Println(i)
+  }
+
+  for i, v over nums {
+    Println(i, v)
+  }
+}

@@ -2,8 +2,6 @@ package compiler
 
 import (
 	"encoding/json"
-	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -14,7 +12,6 @@ import (
 	"github.com/pkg/errors"
 	ast "github.com/scottshotgg/express-ast"
 	lex "github.com/scottshotgg/express-lex"
-	token "github.com/scottshotgg/express-token"
 	"github.com/scottshotgg/express2/builder"
 	"github.com/scottshotgg/express2/pkg/logger"
 	"github.com/scottshotgg/express2/transpiler"
@@ -73,50 +70,10 @@ func New(output string, log ...logger.Logger) (*Compiler, error) {
 		Flags: []string{
 			stdCppVersion,
 			"-Ofast",
+			"-D_GNU_SOURCE",
 		},
 		log: l,
 	}, nil
-}
-
-func getTokensFromString(s string) ([]token.Token, error) {
-	tokens, err := lex.New(s).Lex()
-	if err != nil {
-		return nil, err
-	}
-
-	return ast.CompressTokens(tokens)
-}
-
-func getBuilderFromString(test string) (*builder.Builder, error) {
-	var tokens, err = getTokensFromString(test)
-	if err != nil {
-		return nil, err
-	}
-
-	return builder.New(tokens, logger.Noop()), nil
-}
-
-func getASTFromString(test string) (*builder.Node, error) {
-	b, err := getBuilderFromString(test)
-	if err != nil {
-		return nil, err
-	}
-
-	return b.BuildAST()
-}
-
-func getTranspilerFromString(test, name string) (*transpiler.Transpiler, error) {
-	b, err := getBuilderFromString(test)
-	if err != nil {
-		return nil, err
-	}
-
-	ast, err := b.BuildAST()
-	if err != nil {
-		return nil, err
-	}
-
-	return transpiler.New(ast, b, name, "idk"), nil
 }
 
 func (c *Compiler) timeTrack(start time.Time, name string) {
@@ -148,7 +105,7 @@ func (c *Compiler) writeAndFormat(source, output string) (string, error) {
 	return string(outputB), nil
 }
 
-func (c *Compiler) generateBinary(source, outputName string) error {
+func (c *Compiler) generateBinary(outputName string) error {
 	defer c.timeTrack(time.Now(), "clang")
 
 	c.log.Debug("Using Clang to create binary ...")
@@ -160,17 +117,11 @@ func (c *Compiler) generateBinary(source, outputName string) error {
 
 	output, err := clangCmd.CombinedOutput()
 	if err != nil {
-		fmt.Println("\nClang error:\n" + string(output))
+		c.log.Errorf("Clang error:\n%s", string(output))
 		return err
 	}
 
 	return nil
-}
-
-// copyToPipe copies from out to in, closing in when done.
-func copyToPipe(in io.WriteCloser, out io.Reader) (int64, error) {
-	defer in.Close()
-	return io.Copy(in, out)
 }
 
 func (c *Compiler) setOutput(name string, output interface{}) error {
@@ -303,12 +254,15 @@ func (c *Compiler) compileFile(filename string) error {
 
 	result, err := c.writeAndFormat(cpp, rawFilename+".cpp")
 	if err != nil {
-		fmt.Printf("There was an error writing C++ file; this does NOT inherently affect binary generation: %s : %+v\n", result, err)
+		c.log.Warnf("Error writing C++ file; this does NOT inherently affect binary generation: %s : %+v", result, err)
 	}
 
-	err = c.generateBinary(cpp, rawFilename)
-	if err != nil {
-		return err
+	// Only link a binary if there is a main function (library files have none)
+	if tr.GenerateMain {
+		err = c.generateBinary(rawFilename)
+		if err != nil {
+			return err
+		}
 	}
 
 	c.log.Debug("Finished!")

@@ -12,6 +12,8 @@ type Logger interface {
 	Debugf(format string, args ...interface{})
 	Warn(args ...interface{})
 	Warnf(format string, args ...interface{})
+	Error(args ...interface{})
+	Errorf(format string, args ...interface{})
 }
 
 // New returns a Logger that emits debug output only when debug=true.
@@ -45,6 +47,15 @@ func (l *stdLogger) Warnf(format string, args ...interface{}) {
 	fmt.Fprintf(l.w, "WARN: "+format+"\n", args...)
 }
 
+func (l *stdLogger) Error(args ...interface{}) {
+	fmt.Fprint(l.w, "ERROR: ")
+	fmt.Fprintln(l.w, args...)
+}
+
+func (l *stdLogger) Errorf(format string, args ...interface{}) {
+	fmt.Fprintf(l.w, "ERROR: "+format+"\n", args...)
+}
+
 // noop discards everything.
 type noop struct{}
 
@@ -52,3 +63,5 @@ func (noop) Debug(args ...interface{})            {}
 func (noop) Debugf(string, ...interface{})        {}
 func (noop) Warn(args ...interface{})             {}
 func (noop) Warnf(string, ...interface{})         {}
+func (noop) Error(args ...interface{})            {}
+func (noop) Errorf(string, ...interface{})        {}

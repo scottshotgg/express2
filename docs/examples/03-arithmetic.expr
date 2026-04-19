@@ -21,7 +21,7 @@ func main() {
   Println("quotient =", quotient)
   Println("remainder =", remainder)
 
-  int counter = 0
+  var int counter = 0
   counter++
   counter++
   counter--

@@ -1,0 +1,39 @@
+struct Inner = {
+  int value = 0
+}
+
+struct Outer = {
+  string name = ""
+  int count = 0
+  Inner inner = {}
+}
+
+func main() {
+  var int i
+  float f
+  bool b
+  var string s
+  Println("int:", i)
+  Println("float:", f)
+  Println("bool:", b)
+  Println("string:", s)
+
+  var Outer o
+  Println("outer.name:", o.name)
+  Println("outer.count:", o.count)
+  Println("outer.inner.value:", o.inner.value)
+
+  int[3] arr
+  Println("arr[0]:", arr[0])
+  Println("arr[2]:", arr[2])
+
+  int[] vec
+  Println("vec len:", len(vec))
+
+  i = 42
+  s = "hello"
+  o.name = "Express"
+  Println("after int:", i)
+  Println("after str:", s)
+  Println("after name:", o.name)
+}

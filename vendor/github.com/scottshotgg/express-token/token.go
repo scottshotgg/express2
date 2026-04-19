@@ -96,6 +96,7 @@ const (
 	QuestionMark = "QM"
 	Accessor     = "ACCESSOR"
 	IsEqual      = "IS_EQUAL"
+	NotEqual     = "NOT_EQUAL"
 	EqOrGThan    = "EQ_OR_GT"
 	EqOrLThan    = "EQ_OR_LT"
 	Increment    = "INCREMENT"
@@ -129,10 +130,20 @@ const (
 	PublicAccessType  = "public"
 	PrivateAccessType = "private"
 
-	Loop = "LOOP"
-	For  = "FOR"
-	If   = "IF"
-	Else = "ELSE"
+	Loop     = "LOOP"
+	For      = "FOR"
+	If       = "IF"
+	Else     = "ELSE"
+	Break    = "BREAK"
+	Continue = "CONTINUE"
+	Arrow    = "ARROW"
+
+	AddAssign  = "ADD_ASSIGN"
+	SubAssign  = "SUB_ASSIGN"
+	MulAssign  = "MUL_ASSIGN"
+	DivAssign  = "DIV_ASSIGN"
+	LogicalAnd = "LOGICAL_AND"
+	LogicalOr  = "LOGICAL_OR"
 )
 
 func init() {

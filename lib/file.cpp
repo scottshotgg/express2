@@ -1,257 +1,145 @@
-#include <string>
+// Includes:
+// none
+
+// Imports:
+#include "/home/scottshotgg/Development/go/src/github.com/scottshotgg/express2/lib/defer.cpp"
+#include <iostream>
 #include <libgen.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <string>
+#include <unistd.h>
 
-using namespace std;
-
-class File {
-  public:
-    // Constructors
-    File() {}
-    File(FILE* fp, string mode) : file(fp), mode(mode) {}
-    File(FILE* fp, string mode, string filename, string filepath, bool open) :
-      file(fp), mode(mode), filename(filename), filepath(filepath), open(open) {}
-
-    // TODO: Need to make destructors
-
-    // Getters
-    bool IsOpen();
-
-    // Close file pointer
-    void Close();
-
-    // Utility functions
-    bool AtEOF();
-    bool AtEOL();
-    int  CurrentPosition();
-    int  SeekToPosition(int);
-    void ResetPosition();
-    int  Length();
-    int  Rename(string);
-    int  Move(string);
-    int  Delete(string);
-
-    // Read functions
-    std::string Read(int);
-    std::string ReadNextChar();
-    std::string ReadUntilNext(char);
-    std::string ReadLine();
-
-    // Write functions
-    void Write(string);
-    void WriteLine(string);
-
-  private:
-    FILE* file = nullptr;
-    string mode = "r";
-    string filename;
-    string filepath;
-    bool open = false;
-
-    // All variables preceded with _ are experimental
-    bool _eof = false;
-    bool _eol = false;
-
-    // Assume that files are ascii encoded by default
-    string _charset = "ascii";
-};
-
-bool File::IsOpen() {
-  return open;
-}
-
-// TODO: Need to put a status here
-void File::Close() {
-  open = false;
-  fclose(this->file);
-}
-
-// TODO: could change this to use file._eof
-bool File::AtEOF() {
-  return feof(this->file);
-}
-
-// TODO: could change this to use file._eol
-bool File::AtEOL() {
-  bool eol = false;
-  int c = fgetc(this->file);
-
-  if (c != EOF && c == '\n') {
-    eol = true;
+// Namespaces:
+namespace __file {
+struct File {
+  FILE *fp = nullptr;
+  std::string mode = "";
+  std::string name = "";
+  std::string path = "";
+  bool open = false;
+  bool IsOpen() {
+    defer onReturn, onExit;
+    open = true;
+    return open;
   }
-
-  fseek(this->file, 1, SEEK_CUR);
-  return eol;
-}
-
-// TODO: could change this to use the 
-int File::CurrentPosition() {
-  return ftell(this->file);
-}
-
-int File::SeekToPosition(int position) {
-  return fseek(this->file, position, SEEK_SET);
-}
-
-void File::ResetPosition() {
-  return rewind(this->file);
-  // return fseek(this->file, 0, SEEK_SET);
-}
-
-// TODO: this could probably be something
-// that we do when the file is opened
-int File::Length() {
-  int curr = CurrentPosition();
-
-  fseek(this->file, 0, SEEK_END);
-  int sz = CurrentPosition();
-
-  SeekToPosition(curr);
-
-  return sz;
-}
-
-int File::Rename(string newFilename) {
-  return Move(filepath+"/"+newFilename);
-}
-
-int File::Move(string newFilepath) {
-  return rename((filepath+"/"+filename).c_str(), (newFilepath).c_str());
-}
-
-int File::Delete(string newFilepath) {
-  return remove((filepath+"/"+filename).c_str());
-}
-
-// int File::ChangeName(string newFilename) {
-//   return Move(filepath+"/"+newFilename);
-// }
-
-// int File::ChangeLocation(string newFilepath) {
-//   return rename((filepath+"/"+filename).c_str(), (newFilepath).c_str());
-// }
-
-// int File::Delete(string newFilepath) {
-//   return remove((filepath+"/"+filename).c_str());
-// }
-
-string File::Read(int numOfChars) {
-  string entireLine;
-  int c = fgetc(this->file);
-  int count = 0;
- 
-  while(!feof(this->file) && count < numOfChars) {
-    count++;
-    entireLine += c;
-    c = fgetc(this->file);
+  int Close() {
+    defer onReturn, onExit;
+    open = false;
+    return fclose(fp);
   }
-
-  return entireLine;
-}
-
-string File::ReadNextChar() {
-  // TODO: is this safe?
-  if (!feof(this->file)) {
-    int c = fgetc(this->file);
-    return (char*)&c;
+  int CurrentPostition() {
+    defer onReturn, onExit;
+    return ftell(fp);
   }
-
-  return "";
-}
-
-// TODO: try using stdio.h::getdelim
-// TODO: this needs to also return a bool/error indicating
-//  whether or not it found the char
-// Maybe return nothing and move the seek pointer back if nothing found
-string File::ReadUntilNext(char lookingFor) {
-  string entireLine;
-  entireLine += fgetc(this->file);
-  int c = fgetc(this->file);
-
-  while(!feof(this->file)) {
-    if (c != lookingFor) {
-      entireLine += c;
-      c = fgetc(this->file);
-      continue;
-    } else {
-      // fseek(this->file, 1, SEEK_CUR);
-      ungetc(c, this->file);
+  int SeekPosition(int pos) {
+    defer onReturn, onExit;
+    return fseek(fp, pos, SEEK_SET);
+  }
+  int Length() {
+    defer onReturn, onExit;
+    onReturn.deferStack.push([&](...) { SeekPosition(CurrentPostition()); });
+    fseek(fp, 0, SEEK_END);
+    return CurrentPostition();
+  }
+  int Rename(std::string name) {
+    defer onReturn, onExit;
+    std::string newName = path + "/" + name;
+    return Move(newName.c_str());
+  }
+  int Move(std::string name) {
+    defer onReturn, onExit;
+    std::string oldName = path + "/" + name;
+    return rename(oldName.c_str(), name.c_str());
+  }
+  int Delete() {
+    defer onReturn, onExit;
+    std::string loc = path + "/" + name;
+    return remove(loc.c_str());
+  }
+  std::string Read(int num) {
+    defer onReturn, onExit;
+    std::string line;
+    int count = 0;
+    char ch = fgetc(fp);
+    while (!feof(fp) && count < num) {
+      (count)++;
+      line = line + ch;
+      ch = fgetc(fp);
     }
-
-    break;
+    return line;
   }
-
-  return entireLine;
-}
-
-// TODO: try using stdio.h::getline
-string File::ReadLine() {
-  string entireLine;
-  int c = fgetc(this->file);
-
-  while(!feof(this->file) && c != '\n') {
-    entireLine += c;
-    c = fgetc(this->file);
+  char ReadNextChar() {
+    defer onReturn, onExit;
+    if (!feof(fp)) {
+      return fgetc(fp);
+    }
+    return '\0';
   }
-
-  return entireLine;
-}
-
-void File::Write(string text) {
-  // do something with the status?
-  fputs(text.c_str(), this->file);
-}
-
-void File::WriteLine(string text) {
-  Write(text + "\n");
-}
-
-// FIXME: All functions below this will later be moved to their own package
-// Some of these operations will benefit from directly using the file stream
-File Open(string filepath, string mode) {
-  char* filepathCString = (char*)filepath.c_str();
-
-  return File {
-    fopen(filepathCString, mode.c_str()),
-    mode.c_str(),
-    basename(filepathCString),
-    dirname(filepathCString),
-    true
+  std::string ReadLine() {
+    defer onReturn, onExit;
+    std::string line;
+    char ch = fgetc(fp);
+    while (!feof(fp) && ch != '\n') {
+      line = line + ch;
+      ch = fgetc(fp);
+    }
+    return line;
+  }
+  int Write(std::string text) {
+    defer onReturn, onExit;
+    return fputs(text.c_str(), fp);
+  }
+  int WriteLine(std::string text) {
+    defer onReturn, onExit;
+    return Write(text + "\n");
+  }
+};
+File Open(std::string loc, std::string mode) {
+  defer onReturn, onExit;
+  return File{
+      .fp = fopen(loc.c_str(), mode.c_str()),
+      .mode = mode,
+      .name = loc,
+      .path = loc,
+      .open = true,
   };
 }
-
-string ReadFile(string filepath) {
-  FILE* file = fopen(filepath.c_str(), "r");
-  if (file == nullptr) {
-    fclose(file);
-    return "";
+std::string ReadFile(std::string loc) {
+  defer onReturn, onExit;
+  File f = Open(loc, "r");
+  onReturn.deferStack.push([&](...) { f.Close(); });
+  std::string contents;
+  int amount = 100;
+  char buff[amount];
+  while (fgets(buff, amount, f.fp)) {
+    contents = contents + std::string(buff);
   }
- 
-  string entireFile;
-  int buffAmount = 100;
-  char readBuff[buffAmount];
-  while(fgets(readBuff, buffAmount, file)) {
-      entireFile += readBuff;
+  return contents;
+}
+void WriteFile(std::string loc, std::string contents, bool overwrite) {
+  defer onReturn, onExit;
+  File f = Open(loc, "w");
+  onReturn.deferStack.push([&](...) { f.Close(); });
+  if (f.fp == nullptr || overwrite) {
+    f.Write(contents);
   }
-
-  fclose(file);
-  return entireFile;
 }
-
-void WriteFile(string filepath, string contents, bool overwrite) {
-  FILE* file = fopen(filepath.c_str(), "w");
-  if (file != nullptr) {
-    if (!overwrite) {
-      // TODO: need to return an error or
-      // something here
-      fclose(file);
-    }
-  }
-
-  fputs(contents.c_str(), file);
-  fclose(file);
+void CopyFile(std::string from, std::string to, bool overwrite) {
+  defer onReturn, onExit;
+  WriteFile(to, ReadFile(from), overwrite);
 }
+} // namespace __file
 
-// TODO: this needs to return a status/error/something
-void CopyFile(string fromPath, string toPath, bool overwrite) {
-  WriteFile(toPath, ReadFile(fromPath), overwrite);
-}
+// Types:
+// none
+
+// Structs:
+
+// Prototypes:
+// none
+
+// Functions:// none
+// Main:
+// generated: false

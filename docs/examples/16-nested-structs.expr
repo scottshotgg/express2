@@ -1,0 +1,32 @@
+// 16-nested-structs.expr
+// =======================
+// Demonstrates nested structs in Express:
+// - Struct with another struct as a field
+// - Nested struct literals
+// - Accessing nested fields
+
+struct Address = {
+  string city = ""
+  string country = ""
+}
+
+struct Person = {
+  string name = ""
+  int age = 0
+  Address addr = {}
+}
+
+func main() {
+  Person p = {
+    name = "Alice"
+    age = 30
+    addr = {
+      city = "Portland"
+      country = "USA"
+    }
+  }
+  Println("Name:", p.name)
+  Println("Age:", p.age)
+  Println("City:", p.addr.city)
+  Println("Country:", p.addr.country)
+}

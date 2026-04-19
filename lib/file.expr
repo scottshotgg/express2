@@ -4,23 +4,13 @@ package file
 // We only need the libc functions to implement this
 import c
 
-// Enumerate the allowed modes; this may vary from one OS to another
-enum Mode {
-  r
-  w
-  a
-  r+
-  w+
-  a+
-}
-
 // File represents a file object; this is akin to a file pointer in libc
-struct File {
-  c.FILE* fp
-  Mode mode
-  string name
-  string path
-  bool open
+struct File = {
+  c.FILE* fp = nil
+  string mode = ""
+  string name = ""
+  string path = ""
+  bool open = false
 }
 
 func File.IsOpen() bool {
@@ -66,16 +56,16 @@ func File.Move(string name) int {
 
 // Delete will immediately remove the file
 func File.Delete() int {
-  string loc = File.path + "/" + file.name
+  string loc = File.path + "/" + File.name
 
   return c.remove(loc.c_str())
 }
 
 // Read will read the directed amount of characters
-func File.Read(int num) {
+func File.Read(int num) string {
   string line
-  int count
-  int ch = c.fgetc(File.fp)
+  int count = 0
+  char ch = c.fgetc(File.fp)
 
   while !c.feof(File.fp) && count < num {
     count++
@@ -92,13 +82,13 @@ func File.ReadNextChar() char {
     return c.fgetc(File.fp)
   }
 
-  return '';
+  return '\0';
 }
 
 // ReadLine will read up until the next newline
 func File.ReadLine() string {
   string line
-  int ch = c.fgetc(File.fp)
+  char ch = c.fgetc(File.fp)
 
   while !c.feof(File.fp) && ch != '\n' {
     line += ch
@@ -118,26 +108,26 @@ func File.WriteLine(string text) int {
 }
 
 // Open is the package accessor for the File type
-func Open(string loc, Mode mode) File {
+func Open(string loc, string mode) File {
   return File {
-    fp = fopen(loc.c_str(), mode.c_str())
+    fp = c.fopen(loc.c_str(), mode.c_str())
     mode = mode
-    path = c.basename(loc.c_str()
-    name = c.dirname(loc.c_str())
+    name = loc
+    path = loc
     open = true
   }
 }
 
 // ReadFile is a simplified method for obtaining a files contents
 func ReadFile(string loc) string {
-  File f = Open(loc, r)
+  File f = Open(loc, "r")
   defer f.Close()
 
   string contents
   int amount = 100
   char[amount] buff
 
-  while c.fgets(buff, amount, f) {
+  while c.fgets(buff, amount, f.fp) {
     contents += string(buff)
   }
 
@@ -146,10 +136,10 @@ func ReadFile(string loc) string {
 
 // WriteFile is a simplified method for writing file contents
 func WriteFile(string loc, string contents, bool overwrite) {
-  File f = Open(loc, w)
+  File f = Open(loc, "w")
   defer f.Close()
 
-  if f == nil || overwrite { 
+  if f.fp == nil || overwrite {
     f.Write(contents) 
   }
 }

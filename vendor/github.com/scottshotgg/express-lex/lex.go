@@ -235,7 +235,7 @@ func (meta *Lexer) Lex() ([]token.Token, error) {
 			continue
 
 		case "add":
-			// Check if next char is also + (increment)
+			// Check if next char is also + (increment) or = (+=)
 			if index+1 < len(meta.source) && string(meta.source[index+1]) == "+" {
 				index++
 				if meta.Accumulator != "" {
@@ -248,12 +248,38 @@ func (meta *Lexer) Lex() ([]token.Token, error) {
 				}
 				meta.Tokens = append(meta.Tokens, token.TokenMap["++"])
 				continue
+			} else if index+1 < len(meta.source) && string(meta.source[index+1]) == "=" {
+				index++
+				if meta.Accumulator != "" {
+					ts, err := meta.LexLiteral()
+					if err != nil {
+						return nil, err
+					}
+					meta.Tokens = append(meta.Tokens, ts)
+					meta.Accumulator = ""
+				}
+				meta.Tokens = append(meta.Tokens, token.TokenMap["+="])
+				continue
 			}
 			meta.Tokens = append(meta.Tokens, lexemeToken)
 			continue
 
 		case "sub":
-			// Check if next char is also - (decrement)
+			// Check if next char is > (arrow ->)
+			if index+1 < len(meta.source) && string(meta.source[index+1]) == ">" {
+				index++
+				if meta.Accumulator != "" {
+					ts, err := meta.LexLiteral()
+					if err != nil {
+						return nil, err
+					}
+					meta.Tokens = append(meta.Tokens, ts)
+					meta.Accumulator = ""
+				}
+				meta.Tokens = append(meta.Tokens, token.TokenMap["->"])
+				continue
+			}
+			// Check if next char is also - (decrement) or = (-=)
 			if index+1 < len(meta.source) && string(meta.source[index+1]) == "-" {
 				index++
 				if meta.Accumulator != "" {
@@ -265,6 +291,63 @@ func (meta *Lexer) Lex() ([]token.Token, error) {
 					meta.Accumulator = ""
 				}
 				meta.Tokens = append(meta.Tokens, token.TokenMap["--"])
+				continue
+			} else if index+1 < len(meta.source) && string(meta.source[index+1]) == "=" {
+				index++
+				if meta.Accumulator != "" {
+					ts, err := meta.LexLiteral()
+					if err != nil {
+						return nil, err
+					}
+					meta.Tokens = append(meta.Tokens, ts)
+					meta.Accumulator = ""
+				}
+				meta.Tokens = append(meta.Tokens, token.TokenMap["-="])
+				continue
+			}
+			meta.Tokens = append(meta.Tokens, lexemeToken)
+			continue
+
+		case "mult":
+			// Check if next char is = (*=)
+			if index+1 < len(meta.source) && string(meta.source[index+1]) == "=" {
+				index++
+				if meta.Accumulator != "" {
+					ts, err := meta.LexLiteral()
+					if err != nil {
+						return nil, err
+					}
+					meta.Tokens = append(meta.Tokens, ts)
+					meta.Accumulator = ""
+				}
+				meta.Tokens = append(meta.Tokens, token.TokenMap["*="])
+				continue
+			}
+			// Plain *: flush accumulator first (preserves int* → TYPE(*) token order)
+			if meta.Accumulator != "" {
+				ts, err := meta.LexLiteral()
+				if err != nil {
+					return nil, err
+				}
+				meta.Tokens = append(meta.Tokens, ts)
+				meta.Accumulator = ""
+			}
+			meta.Tokens = append(meta.Tokens, lexemeToken)
+			continue
+
+		case "bang":
+			// Check if next char is = (not-equal)
+			if index+1 < len(meta.source) && string(meta.source[index+1]) == "=" {
+				index++
+				if meta.Accumulator != "" {
+					ts, err := meta.LexLiteral()
+					if err != nil {
+						return nil, err
+					}
+					meta.Tokens = append(meta.Tokens, ts)
+					meta.Accumulator = ""
+				}
+				meta.Tokens = append(meta.Tokens, token.TokenMap["!="])
 				continue
 			}
 			meta.Tokens = append(meta.Tokens, lexemeToken)
@@ -323,6 +406,7 @@ func (meta *Lexer) Lex() ([]token.Token, error) {
 				// If there is an escaping backslash in the string then just increment over
 				// it so that the next accumulate and increment will pickup the next char naturally
 				if string(meta.source[index]) == "\\" {
+					stringLiteral += "\\"
 					index++
 				}
 
@@ -335,7 +419,10 @@ func (meta *Lexer) Lex() ([]token.Token, error) {
 			stringType := token.StringType
 			if lexemeToken.Value.Type == "squote" {
 				if len(stringLiteral) > 1 {
-					return []token.Token{}, errors.Errorf("Too many values in character literal declaration: %s", stringLiteral)
+					// Allow single escape sequences like \n, \0, \t, \r, \\, \'
+					if len(stringLiteral) != 2 || stringLiteral[0] != '\\' {
+						return []token.Token{}, errors.Errorf("Too many values in character literal declaration: %s", stringLiteral)
+					}
 				}
 
 				stringType = token.CharType
@@ -352,6 +439,37 @@ func (meta *Lexer) Lex() ([]token.Token, error) {
 			})
 
 			continue
+
+		case "op_3":
+			// Handle && and || (logical operators)
+			if index+1 < len(meta.source) {
+				if char == "&" && string(meta.source[index+1]) == "&" {
+					index++
+					if meta.Accumulator != "" {
+						ts, err := meta.LexLiteral()
+						if err != nil {
+							return nil, err
+						}
+						meta.Tokens = append(meta.Tokens, ts)
+						meta.Accumulator = ""
+					}
+					meta.Tokens = append(meta.Tokens, token.TokenMap["&&"])
+					continue
+				}
+				if char == "|" && string(meta.source[index+1]) == "|" {
+					index++
+					if meta.Accumulator != "" {
+						ts, err := meta.LexLiteral()
+						if err != nil {
+							return nil, err
+						}
+						meta.Tokens = append(meta.Tokens, ts)
+						meta.Accumulator = ""
+					}
+					meta.Tokens = append(meta.Tokens, token.TokenMap["||"])
+					continue
+				}
+			}
 
 		case "period":
 			// For now just accumulate the period and evaluate it later during parsing

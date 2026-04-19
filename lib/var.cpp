@@ -30,7 +30,7 @@ private:
   int precision;
 
 public:
-  std::string to_string() {
+  std::string to_string() const {
     std::ostringstream stream;
 
     switch (type) {
@@ -228,6 +228,14 @@ public:
     // data = new map<var,var>(propMap);
   }
 
+  // Implicit conversion from std::map<std::string, var> — enables
+  // `outer["nested"] = inner` where inner is a std::map<std::string, var>.
+  var(map<string, var> propMap) : type(objectType), data(nullptr) {
+    auto* m = new map<var, var>();
+    for (auto& kv : propMap) { (*m)[var(kv.first)] = kv.second; }
+    data = m;
+  }
+
   var(std::vector<int, std::allocator<int>> value) : type(intAType), data(new std::vector<int, std::allocator<int>>(value)) {
     // cout << "object cons; Type: " << type << " Value: \""
     //    << "\" Pointer: " << data << endl;
@@ -391,7 +399,7 @@ public:
       type = intAType;
     }
 
-    data = &right;
+    data = new std::vector<int>(right);
   }
 
   // void operator=(const var *right) {
@@ -572,19 +580,27 @@ var operator+(const var &left, const char *right) {
   return var(*(string *)left.Value() + right);
 }
 
-// TODO: this is not done
-int operator+(const var &left, const var &right) {
+var operator+(const var &left, const var &right) {
+  // If either side is a string, concatenate as strings
+  if (left.Type() == stringType || right.Type() == stringType) {
+    auto left_str = (left.Type() == stringType)
+        ? *(string*)left.Value()
+        : left.to_string();
+    auto right_str = (right.Type() == stringType)
+        ? *(string*)right.Value()
+        : right.to_string();
+    return var(left_str + right_str);
+  }
+
   if (left.Value() == nullptr) {
-    return 0 + right;
+    return var(*(int*)right.Value());
   }
 
   if (right.Value() == nullptr) {
-    return 0 + left;
+    return var(*(int*)left.Value());
   }
 
-    // TODO(scottshotgg): this should do a switch for each side AND THEN add them together
-    // printf("hey its me")
-  return *(int*)left.Value() + *(int*)right.Value();
+  return var(*(int*)left.Value() + *(int*)right.Value());
 }
 
 // // Generic constructor for right side value

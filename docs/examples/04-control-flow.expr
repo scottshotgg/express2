@@ -18,7 +18,47 @@ func main() {
     Println("x is exactly 10")
   }
 
+  // Nested if/else
+  int age = 25
+  bool hasLicense = true
+  if age >= 18 {
+    if hasLicense {
+      Println("You can drive legally.")
+    } else {
+      Println("You are old enough but need a license.")
+    }
+  } else {
+    Println("You are not old enough to drive.")
+  }
+
+  // for-in (index iteration)
   for i in [10, 20, 30] {
     Println("Index:", i)
+  }
+
+  // for-of (value iteration) with a named array
+  int[] vals = [10, 20, 30]
+  for value of vals {
+    Println("Value:", value)
+  }
+
+  // Nested loops
+  for i in [1, 2] {
+    for j in [1, 2] {
+      Println("(", i, ",", j, ")")
+    }
+  }
+
+  // break
+  int[] nums = [1, 2, 3, 4, 5]
+  for n of nums {
+    if n == 3 { break }
+    Println(n)
+  }
+
+  // continue
+  for n of nums {
+    if n == 3 { continue }
+    Println(n)
   }
 }

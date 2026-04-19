@@ -1,0 +1,16 @@
+// 13-type-aliases.expr
+// ====================
+// Demonstrates type aliases (typedef) in Express:
+// - Defining type aliases for primitive types
+// - Using aliases in declarations
+
+type myInt = int
+type myStr = string
+
+func main() {
+  myInt x = 10
+  myStr greeting = "Hello"
+  Println("x:", x)
+  Println("greeting:", greeting)
+  Println("sum:", x + 5)
+}

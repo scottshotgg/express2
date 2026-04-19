@@ -4,7 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -142,6 +143,7 @@ func (b *Builder) ParseForPrepositionStatement() (*Node, error) {
 	if err != nil {
 		return nil, err
 	}
+	b.Index++ // step past `}`
 
 	metadata := map[string]interface{}{
 		"start": ident,
@@ -218,8 +220,37 @@ func (b *Builder) ParseForStdStatement() (*Node, error) {
 	if err != nil {
 		return nil, err
 	}
+	b.Index++ // step past `}`
 
 	return &node, nil
+}
+
+func (b *Builder) ParseWhileStatement() (*Node, error) {
+	if b.Tokens[b.Index].Type != token.Loop {
+		return nil, b.AppendTokenToError("Could not get while token")
+	}
+
+	// Skip 'while'
+	b.Index++
+
+	cond, err := b.ParseExpression()
+	if err != nil {
+		return nil, err
+	}
+
+	b.Index++
+
+	body, err := b.ParseBlockStatement()
+	if err != nil {
+		return nil, err
+	}
+	b.Index++ // step past `}`
+
+	return &Node{
+		Type:  "while",
+		Left:  cond,
+		Value: body,
+	}, nil
 }
 
 func (b *Builder) ParseForStatement() (*Node, error) {
@@ -274,6 +305,7 @@ func (b *Builder) ParseIfStatement() (*Node, error) {
 	if err != nil {
 		return nil, err
 	}
+	b.Index++ // step past `}`
 
 	if b.Index < len(b.Tokens)-1 && b.Tokens[b.Index].Type == token.Else {
 		// Step over the else token
@@ -290,6 +322,7 @@ func (b *Builder) ParseIfStatement() (*Node, error) {
 			if err != nil {
 				return nil, err
 			}
+			b.Index++ // step past `}`
 		}
 	}
 
@@ -479,6 +512,14 @@ func (b *Builder) ParseBlockStatement() (*Node, error) {
 
 	for b.Index < len(b.Tokens) &&
 		b.Tokens[b.Index].Type != token.RBrace {
+		// Skip statement separators (; and ,) between statements
+		if b.Tokens[b.Index].Type == token.EOS ||
+			b.Tokens[b.Index].Type == token.Separator ||
+			b.Tokens[b.Index].Type == token.Comma {
+			b.Index++
+			continue
+		}
+
 		stmt, err2 = b.ParseStatement()
 		if err2 != nil {
 			return nil, err2
@@ -489,10 +530,7 @@ func (b *Builder) ParseBlockStatement() (*Node, error) {
 		stmts = append(stmts, stmt)
 	}
 
-	// Step over the right brace token
-	b.Index++
-
-	// Leave the block scope
+	// Leave the block scope (b.Index is ON the closing `}` — Pratt invariant)
 	b.ScopeTree, err = b.ScopeTree.Leave()
 	if err != nil {
 		return nil, err
@@ -696,23 +734,22 @@ func (b *Builder) ParseTypeDeclarationStatement() (*Node, error) {
 	}, nil
 }
 
+// ParseCBlock parses a raw C/C++ code injection block (`c { ... }`).
 // THIS SHOULD NOT BE IN THE TRANSPILER; THIS SHOULD BE TAKEN CARE OF BY THE SEMANTIC STAGE
 // BEFORE EVER REACHING THIS FAR. IT IS MERELY HERE AS A PLACEHOLDER SO I DO NOT FORGET
-// MY OWN DECISIONS BECAUSE I CANT REMEMBER THINGS
+// MY OWN DECISIONS BECAUSE I CANT REMEMBER THINGS.
+// For now the C block will be a direct injection of code into the final source.
 func (b *Builder) ParseCBlock() (*Node, error) {
-	var errStatement = "`c` blocks, as the are oh-so affectionately known within the Express community, are only implemented as a direct code injection  at time. This will take some thinking; the compiler will have to `back-compile` the C/C++ code FROM the AST output of Clang and then translate that back into Express code essentially to check it"
-	// return nil, errors.New()
-	log.Println(errStatement)
-
-	// For now the C block will be a direct injection of code into the final source. This is the best we can get at this point
-
-	// ADD THIS BACK IN
-	// // Check ourselves ...
-	// if b.Tokens[b.Index].Type != token.C {
-	// 	return nil, b.AppendTokenToError("Could not get c block")
-	// }
+	var errStatement = "`c` blocks, as the are oh-so affectionately known within the Express community, are only implemented as a direct code injection at time. This will take some thinking; the compiler will have to `back-compile` the C/C++ code FROM the AST output of Clang and then translate that back into Express code essentially to check it"
+	b.log.Warn(errStatement)
 
 	// Skip over the `c` token
+	b.Index++
+
+	// Skip the opening brace
+	if b.Index >= len(b.Tokens) || b.Tokens[b.Index].Type != token.LBrace {
+		return nil, errors.New("Expected `{` after `c`")
+	}
 	b.Index++
 
 	var (
@@ -720,17 +757,46 @@ func (b *Builder) ParseCBlock() (*Node, error) {
 		found bool
 	)
 
-	// Gobble up all the code until the next left brace; use a simple array as a stack to know when we are done
+	// Gobble up all the code until the matching right brace; track nesting depth
+	depth := 0
 	for _, t := range b.Tokens[b.Index:] {
 		b.log.Debug("t", t)
 
-		if t.Type == token.RBrace {
-			found = true
-			break
+		if t.Type == token.LBrace {
+			depth++
+			total = append(total, "{")
+			b.Index++
+			continue
 		}
 
-		// Append the string value of the token
-		total = append(total, t.Value.String)
+		if t.Type == token.RBrace {
+			if depth == 0 {
+				found = true
+				break
+			}
+			depth--
+			total = append(total, "}")
+			b.Index++
+			continue
+		}
+
+		// Reconstruct the token as it appeared in source.
+		// The lexer strips quotes from string/char literals, so we add them back.
+		var raw string
+		if t.Type == token.Literal {
+			switch t.Value.Type {
+			case token.StringType:
+				raw = `"` + t.Value.String + `"`
+			case token.CharType:
+				raw = `'` + t.Value.String + `'`
+			default:
+				raw = t.Value.String
+			}
+		} else {
+			raw = t.Value.String
+		}
+
+		total = append(total, raw)
 
 		// Increment the index so that the gobbling reflects when we jump out of scope
 		b.Index++
@@ -786,6 +852,7 @@ func (b *Builder) ParseObjectStatement() (*Node, error) {
 	if err != nil {
 		return nil, err
 	}
+	b.Index++ // step past `}`
 
 	body.Kind = "object"
 
@@ -864,8 +931,21 @@ func (b *Builder) ParseStructStatement() (*Node, error) {
 	if err != nil {
 		return nil, err
 	}
+	b.Index++ // step past `}`
 
 	body.Kind = "struct"
+
+	// Tag field declarations so the transpiler skips the const qualifier
+	if children, ok := body.Value.([]*Node); ok {
+		for _, child := range children {
+			if child.Type == "decl" {
+				if child.Metadata == nil {
+					child.Metadata = map[string]interface{}{}
+				}
+				child.Metadata["is_field"] = true
+			}
+		}
+	}
 
 	// _, err = b.AddStructured(ident.Value.(string), body)
 	// if err != nil {
@@ -918,6 +998,16 @@ func (b *Builder) ParseMapStatement() (*Node, error) {
 
 	b.log.Debugf("After map, Index=%d", b.Index)
 
+	// Optional [K -> V] or [K, K -> V] type annotation
+	var keyNode, valueNode *Node
+	if b.Tokens[b.Index].Type == token.LBracket {
+		var err2 error
+		keyNode, valueNode, err2 = b.parseMapTypeAnnotation()
+		if err2 != nil {
+			return nil, err2
+		}
+	}
+
 	// Create the ident
 	ident, err := b.ParseExpression()
 	if err != nil {
@@ -936,7 +1026,19 @@ func (b *Builder) ParseMapStatement() (*Node, error) {
 	}
 
 	// Check for the equals token
-	if b.Tokens[b.Index].Type != token.Assign {
+	if b.Index >= len(b.Tokens) || b.Tokens[b.Index].Type != token.Assign {
+		if keyNode != nil {
+			// zero-init typed map declaration: map[string -> int] m
+			b.ScopeTree, err = b.ScopeTree.Leave()
+			if err != nil {
+				return nil, err
+			}
+			return &Node{
+				Type:     "map",
+				Left:     ident,
+				Metadata: map[string]interface{}{"key_node": keyNode, "value_node": valueNode},
+			}, nil
+		}
 		return nil, b.AppendTokenToError("No equals found after ident in map declaration")
 	}
 
@@ -959,15 +1061,114 @@ func (b *Builder) ParseMapStatement() (*Node, error) {
 		return nil, err
 	}
 
-	return &Node{
+	node := &Node{
 		Type:  "map",
 		Left:  ident,
 		Right: body,
-	}, nil
+	}
+	if keyNode != nil {
+		node.Metadata = map[string]interface{}{"key_node": keyNode, "value_node": valueNode}
+	}
+	return node, nil
 }
 
-func (b *Builder) ParseStructDeclarationStatement() (*Node, error) {
-	return nil, errors.New("Not implemented: ParseStructDeclarationStatement")
+// parseMapTypeAnnotation parses the [K -> V] or [K, K -> V] type annotation.
+// Returns the first key type node and the value type node (or a nested map node
+// for multi-dimensional maps).  After return b.Index is one past the closing ].
+func (b *Builder) parseMapTypeAnnotation() (keyNode, valueNode *Node, err error) {
+	// consume [
+	b.Index++
+
+	// Collect key dimension types until we hit ->
+	var keyNodes []*Node
+	for {
+		if b.Tokens[b.Index].Type != token.Type {
+			return nil, nil, b.AppendTokenToError("expected type for map key in [K -> V]")
+		}
+		keyNodes = append(keyNodes, &Node{
+			Type:  "type",
+			Kind:  b.Tokens[b.Index].Value.Type,
+			Value: b.Tokens[b.Index].Value.Type,
+		})
+		b.Index++
+
+		switch {
+		case b.Tokens[b.Index].Type == token.Separator && b.Tokens[b.Index].Value.Type == "comma":
+			// Another key dimension: consume , and continue
+			b.Index++
+		case b.Tokens[b.Index].Type == token.Arrow:
+			// Found the -> separator: consume and parse value
+			b.Index++
+			goto parseValue
+		default:
+			return nil, nil, b.AppendTokenToError("expected ',' or '->' in map type annotation")
+		}
+	}
+
+parseValue:
+	// Parse the value type
+	valueNode, err = b.parseMapValueType()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if b.Tokens[b.Index].Type != token.RBracket {
+		return nil, nil, b.AppendTokenToError("expected ] after map type annotation")
+	}
+	b.Index++ // consume ]
+
+	// Right-fold extra key dimensions into nested map type nodes
+	// e.g. keys=[string, string], value=int → key=string, value=map{string->int}
+	for i := len(keyNodes) - 1; i >= 1; i-- {
+		valueNode = &Node{
+			Type: "type",
+			Kind: "map",
+			Metadata: map[string]interface{}{
+				"key_node":   keyNodes[i],
+				"value_node": valueNode,
+			},
+		}
+	}
+
+	return keyNodes[0], valueNode, nil
+}
+
+// parseMapValueType parses the value type in a map annotation.
+// Handles plain types (token.Type) and nested map types (token.Map).
+// After return b.Index is one past the last consumed value-type token.
+func (b *Builder) parseMapValueType() (*Node, error) {
+	switch b.Tokens[b.Index].Type {
+	case token.Type:
+		n := &Node{
+			Type:  "type",
+			Kind:  b.Tokens[b.Index].Value.Type,
+			Value: b.Tokens[b.Index].Value.Type,
+		}
+		b.Index++
+		return n, nil
+
+	case token.Map:
+		// nested map: map[K -> V]
+		b.Index++ // consume map
+		if b.Tokens[b.Index].Type != token.LBracket {
+			return nil, b.AppendTokenToError("expected [ after nested map in map type annotation")
+		}
+		kn, vn, err := b.parseMapTypeAnnotation()
+		if err != nil {
+			return nil, err
+		}
+		return &Node{
+			Type: "type",
+			Kind: "map",
+			Metadata: map[string]interface{}{
+				"key_node":   kn,
+				"value_node": vn,
+			},
+		}, nil
+
+	default:
+		return nil, b.AppendTokenToError("expected type for map value in map annotation")
+	}
 }
 
 func (b *Builder) ParseLetStatement() (*Node, error) {
@@ -1013,6 +1214,7 @@ func (b *Builder) ParseLetStatement() (*Node, error) {
 		Right: expr,
 	}, nil
 }
+
 
 func (b *Builder) ParseLiteralStatement() (*Node, error) {
 	b.log.Debug("=== ParseLiteralStatement called ===")
@@ -1093,7 +1295,84 @@ func (b *Builder) ParseIdentStatement() (*Node, error) {
 	b.log.Debug("identOrType, err", identOrType, err, b.Tokens[b.Index].Type)
 
 	switch b.Tokens[b.Index].Type {
+	case token.Type:
+		// var <primitive-type> <ident> = <expr> pattern (e.g. `var int x = 5`)
+		if identOrType.Kind != "var" {
+			return nil, b.AppendTokenToError("unexpected type after non-var type")
+		}
+		node.Type = "decl"
+		actualType, err := b.ParseExpression()
+		if err != nil {
+			return nil, err
+		}
+		node.Value = actualType
+		if node.Metadata == nil {
+			node.Metadata = map[string]interface{}{}
+		}
+		node.Metadata["mutable"] = true
+		b.Index++
+		if b.Index > len(b.Tokens)-1 {
+			return nil, b.AppendTokenToError("expected identifier after type in var declaration")
+		}
+		if b.Tokens[b.Index].Type != token.Ident {
+			return nil, b.AppendTokenToError("expected identifier after type in var declaration")
+		}
+		node.Left, err = b.ParseExpression()
+		if err != nil {
+			return nil, err
+		}
+		b.Index++
+		if b.Index > len(b.Tokens)-1 || b.Tokens[b.Index].Type != token.Assign {
+			return node, nil
+		}
+		b.Index++ // step over =
+		node.Right, err = b.ParseExpression()
+		if err != nil {
+			return nil, err
+		}
+		b.Index++
+		return node, nil
+
 	case token.Ident:
+		// var <UserType> <ident> = <expr> pattern (e.g. `var Person alice = { ... }`)
+		if identOrType.Kind == "var" {
+			typeName := b.Tokens[b.Index].Value.String
+			if b.ScopeTree.GetType(typeName) != nil {
+				node.Type = "decl"
+				actualType, err := b.ParseExpression()
+				if err != nil {
+					return nil, err
+				}
+				node.Value = actualType
+				if node.Metadata == nil {
+					node.Metadata = map[string]interface{}{}
+				}
+				node.Metadata["mutable"] = true
+				b.Index++
+				if b.Index > len(b.Tokens)-1 {
+					return nil, b.AppendTokenToError("expected identifier after type in var declaration")
+				}
+				if b.Tokens[b.Index].Type != token.Ident {
+					return nil, b.AppendTokenToError("expected identifier after type in var declaration")
+				}
+				node.Left, err = b.ParseExpression()
+				if err != nil {
+					return nil, err
+				}
+				b.Index++
+				if b.Index > len(b.Tokens)-1 || b.Tokens[b.Index].Type != token.Assign {
+					return node, nil
+				}
+				b.Index++ // step over =
+				node.Right, err = b.ParseExpression()
+				if err != nil {
+					return nil, err
+				}
+				b.Index++
+				return node, nil
+			}
+		}
+
 		/*
 			In this case, we have two idents back to back which leads us
 			to make the only informed decision we can; that the first ident
@@ -1113,13 +1392,6 @@ func (b *Builder) ParseIdentStatement() (*Node, error) {
 		}
 
 		b.log.Debug("node.Left", node.Left)
-
-		// NOTE: this condition is always false in practice (b.Index is a valid
-		// position at this point), making this block dead code. The real guard
-		// is at the explicit checks below after b.Index++.
-		if b.Index > len(b.Tokens)-1 && b.Tokens[b.Index+1].Type != token.Assign {
-			return node, nil
-		}
 
 		// Step over the real ident
 		b.Index++
@@ -1199,64 +1471,41 @@ func (b *Builder) ParseIdentStatement() (*Node, error) {
 
 		return node, nil
 
+	case token.AddAssign, token.SubAssign, token.MulAssign, token.DivAssign:
+		// Desugar x += y  →  x = x + y
+		opMap := map[string]string{
+			token.AddAssign: "+",
+			token.SubAssign: "-",
+			token.MulAssign: "*",
+			token.DivAssign: "/",
+		}
+		op := opMap[b.Tokens[b.Index].Type]
+
+		// Skip the compound operator
+		b.Index++
+
+		rhs, err := b.ParseExpression()
+		if err != nil {
+			return nil, err
+		}
+
+		b.Index++
+
+		node.Type = "assignment"
+		node.Left = identOrType
+		node.Right = &Node{
+			Type:  "binop",
+			Value: op,
+			Left:  identOrType,
+			Right: rhs,
+		}
+		return node, nil
+
 	// Just return the ident if you don't know what to do
 	// this will defer the judgement to the next statement up
 	default:
 		return identOrType, nil
 	}
-
-	// 	// If there is an ident after the ident, then we have what should be a type
-	// 	// If there is assignment, then we have an assign statement
-
-	// 	// Increment over the ident token
-	// 	b.Index++
-
-	// 	if b.Index > len(b.Tokens)-1 {
-	// 		return ident, nil
-	// 	}
-
-	// 	if b.Tokens[b.Index].Type == token.Set {
-	// 		return b.ParseSet(ident)
-	// 	}
-
-	// 	// Check for the equals token
-	// 	if b.Tokens[b.Index].Type != token.Assign {
-	// 		if ident.Type == "call" {
-	// 			return ident, nil
-	// 		}
-
-	// 		// TODO: this is where we need to check for `:`
-
-	// 		// return nil, b.AppendTokenToError(fmt.Sprintf("No equals found after ident in assignment: %+v", b.Tokens[b.Index]))
-	// 		// This need to return the token in case the parse needs to be recovered! Look at ParseEnumBlock for an example of parse recovery
-	// 		return ident, ErrNoEqualsFoundAfterIdent
-	// 	}
-
-	// 	// Increment over the equals
-	// 	b.Index++
-
-	// 	// Parse the right hand side
-	// 	expr, err := b.ParseExpression()
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-
-	// 	// Increment over the first part of the expression
-	// 	b.Index++
-
-	// 	var node = &Node{
-	// 		Type:  "assignment",
-	// 		Left:  ident,
-	// 		Right: expr,
-	// 	}
-
-	// 	// Do one pass for declarations, and check that the assignments
-	// 	// and usages corraborate in the type checker
-	// 	// return node, b.ScopeTree.Assign(node)
-	// 	return node, nil
-	// }
-
-	return nil, errors.Errorf("could not parse ident statement: %+v", b.Tokens[b.Index])
 }
 
 func (b *Builder) ParsePackageStatement() (*Node, error) {
@@ -1311,15 +1560,10 @@ func (b *Builder) ParsePackageStatement() (*Node, error) {
 	}, nil
 }
 
+// ParseUseStatement parses a `use "path" as alias` statement.
+// TODO: add this back in to ParseStatement once the `as` keyword and aliasing semantics are defined.
 func (b *Builder) ParseUseStatement() (*Node, error) {
-
-	// TODO: add this back in
-	// Check ourselves ...
-	// if b.Tokens[b.Index].Type != token.Use {
-	// 	return nil, b.AppendTokenToError("Could not get use statement")
-	// }
-
-	// Step over the import token
+	// Step over the use token
 	b.Index++
 
 	// This expression takes the same rules as import/include with quotes and no quotes
@@ -1339,7 +1583,6 @@ func (b *Builder) ParseUseStatement() (*Node, error) {
 	}
 
 	if expr1.Type != "ident" {
-		// Just print out the entire expression for now
 		return nil, errors.Errorf("Expecting \"as\" keyword after use expression, found: %+v", expr)
 	}
 
@@ -1347,15 +1590,13 @@ func (b *Builder) ParseUseStatement() (*Node, error) {
 	b.Index++
 
 	// Next up: we are expecting an _ident_; parse it as an expression so operation rules will apply
-	// Not sure if that is needed (operation rules), but we'll see; could be a fun/fucky experiment
 	expr1, err = b.ParseExpression()
 	if err != nil {
 		return nil, err
 	}
 
-	// May have to mangle the names for this ;_; noooooo
+	// May have to mangle the names for this ;_;
 	if expr1.Type != "ident" {
-		// Just print out the entire expression for now
 		return nil, errors.Errorf("Expecting ident expression after as keyword, found: %+v", expr)
 	}
 
@@ -1370,14 +1611,16 @@ func (b *Builder) ParseUseStatement() (*Node, error) {
 }
 
 func (b *Builder) parseFileImport(filename string) (*Node, *ScopeTree, error) {
-	// var path, err = os.Getwd()
-	// if err != nil {
-	// 	return nil, err
-	// }
-
 	source, err := ioutil.ReadFile(filename)
 	if err != nil {
-		return nil, nil, err
+		// Fall back to $EXPRPATH/lib/<name>.expr for stdlib packages
+		if libpath := os.Getenv("EXPRPATH"); libpath != "" {
+			libFile := filepath.Join(libpath, "lib", filename+".expr")
+			source, err = ioutil.ReadFile(libFile)
+		}
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 
 	b.log.Debug("source", string(source))
@@ -1416,6 +1659,17 @@ func (b *Builder) ParseImportStatement() (*Node, error) {
 	// Step over the import token
 	b.Index++
 
+	// Special case: `import c` means "import standard C library headers"
+	// It's handled before ParseExpression because `c` is a keyword token
+	// and the Pratt parser doesn't know how to handle keywords as expressions.
+	if b.Index < len(b.Tokens) && b.Tokens[b.Index].Type == token.C {
+		b.Index++
+		return &Node{
+			Type: "import",
+			Kind: "c",
+		}, nil
+	}
+
 	expr, err := b.ParseExpression()
 	if err != nil {
 		return nil, err
@@ -1446,7 +1700,7 @@ func (b *Builder) ParseImportStatement() (*Node, error) {
 	var split = strings.Split(expr.Value.(string), "/")
 	var namespace = split[len(split)-1]
 
-	if namespace[len(namespace)-5:] == ".expr" {
+	if strings.HasSuffix(namespace, ".expr") {
 		expr.Value = namespace[:len(namespace)-5]
 	}
 
@@ -1536,6 +1790,17 @@ func (b *Builder) ParseFunctionStatement() (*Node, error) {
 	// Step over the ident token
 	b.Index++
 
+	// Method declaration: func Receiver.MethodName(...)
+	if b.Tokens[b.Index].Type == token.Accessor {
+		b.Index++ // skip '.'
+		if b.Tokens[b.Index].Type != token.Ident {
+			return nil, b.AppendTokenToError("expected method name after '.'")
+		}
+		node.Metadata["receiver"] = node.Kind
+		node.Kind = b.Tokens[b.Index].Value.String
+		b.Index++
+	}
+
 	if b.Tokens[b.Index].Type != token.LParen {
 		return nil, b.AppendTokenToError("Could not get left paren")
 	}
@@ -1600,6 +1865,7 @@ func (b *Builder) ParseFunctionStatement() (*Node, error) {
 	if err != nil {
 		return nil, err
 	}
+	b.Index++ // step past `}`
 
 	// Leave the function argument scope
 	b.ScopeTree, err = b.ScopeTree.Leave()
@@ -1685,9 +1951,6 @@ func (b *Builder) ParseStatement() (*Node, error) {
 	case token.Launch:
 		return b.ParseLaunchStatement()
 
-	case token.Defer:
-		return b.ParseDeferStatement()
-
 	case token.Enum:
 		return b.ParseEnumBlockStatement()
 
@@ -1721,6 +1984,15 @@ func (b *Builder) ParseStatement() (*Node, error) {
 		return b.ParseLiteralStatement()
 
 	case token.Ident:
+		// `c` is not a lexer keyword (it would split identifiers containing the
+		// letter c).  Detect a c block by looking for an ident whose value is
+		// "c" followed by an LBrace.
+		if b.Tokens[b.Index].Value.String == "c" &&
+			b.Index+1 < len(b.Tokens) &&
+			b.Tokens[b.Index+1].Type == token.LBrace {
+			return b.ParseCBlock()
+		}
+
 		if cFuncs[b.Tokens[b.Index].Value.String] {
 			var value = b.Tokens[b.Index].Value.String
 			b.Index++
@@ -1832,6 +2104,12 @@ func (b *Builder) ParseStatement() (*Node, error) {
 					}
 				}
 			}
+
+			// Handle map[K, V] typed map syntax: next token is LBracket followed by a type keyword
+			if b.Tokens[b.Index].Value.Type == "map" && nextToken.Type == token.LBracket &&
+				b.Index+2 < len(b.Tokens) && b.peekAt(2).Type == token.Type {
+				return b.ParseMapStatement()
+			}
 		}
 
 		var n, err = b.ParseIdentStatement()
@@ -1846,24 +2124,14 @@ func (b *Builder) ParseStatement() (*Node, error) {
 
 		return n, nil
 
-	case token.Function:
-		return b.ParseFunctionStatement()
-
-	case token.LBrace:
-		return b.ParseBlockStatement()
-
-	case token.Let:
-		return b.ParseLetStatement()
-
-	case token.If:
-		return b.ParseIfStatement()
-
-	case token.For:
-		return b.ParseForStatement()
-
-	case token.Return:
-		return b.ParseReturnStatement()
 	}
 
-	return nil, b.AppendTokenToError(fmt.Sprintf("Could not create statement from: %+v", b.Tokens[b.Index].Type))
+	// Everything else — if, let, for, while, func, blocks, defer, return — flows through Pratt.
+	// prattParse uses the Pratt invariant (ON last token); convert to statement contract (one past).
+	n, err := b.prattParse(PrecNone)
+	if err != nil {
+		return nil, err
+	}
+	b.Index++ // Pratt invariant → statement contract
+	return n, nil
 }

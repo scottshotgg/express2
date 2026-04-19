@@ -140,8 +140,12 @@ func TestIfElseStatement(t *testing.T) {
 		t.Errorf(errFormatString, err)
 	}
 
-	nodeJSON, _ = json.Marshal(node)
-	fmt.Printf(jsonFormatString, nodeJSON)
+	if node.Type != "if" {
+		t.Errorf("expected node.Type == 'if', got %q", node.Type)
+	}
+	if node.Left == nil {
+		t.Error("expected node.Left (condition) to be non-nil")
+	}
 }
 
 func TestParseGroupOfStatements(t *testing.T) {
@@ -170,8 +174,12 @@ func TestParseFunctionStatement(t *testing.T) {
 		t.Errorf(errFormatString, err)
 	}
 
-	nodeJSON, _ = json.Marshal(node)
-	fmt.Printf(jsonFormatString, nodeJSON)
+	if node.Type != "function" {
+		t.Errorf("expected node.Type == 'function', got %q", node.Type)
+	}
+	if node.Value == nil {
+		t.Error("expected node.Value (func name) to be non-nil")
+	}
 }
 
 var testt = `
@@ -385,8 +393,12 @@ func TestParseForStdStatement(t *testing.T) {
 		t.Errorf(errFormatString, err)
 	}
 
-	nodeJSON, _ = json.Marshal(node)
-	fmt.Printf(jsonFormatString, nodeJSON)
+	if node.Type != "forstd" {
+		t.Errorf("expected node.Type == 'forstd', got %q", node.Type)
+	}
+	if node.Value == nil {
+		t.Error("expected node.Value (body) to be non-nil")
+	}
 }
 
 // func TestParseArrayDeclaration(t *testing.T) {
@@ -507,9 +519,12 @@ func TestParseTypeDeclarationStatement(t *testing.T) {
 		t.Errorf(errFormatString, err)
 	}
 
-	// Remember: The left always provides the value...
-	nodeJSON, _ = json.Marshal(node)
-	fmt.Printf(jsonFormatString, nodeJSON)
+	if node.Type != "typedef" {
+		t.Errorf("expected node.Type == 'typedef', got %q", node.Type)
+	}
+	if node.Left == nil || node.Right == nil {
+		t.Error("expected node.Left (alias name) and node.Right (base type) to be non-nil")
+	}
 }
 
 func TestParseReturnStatement(t *testing.T) {
@@ -523,10 +538,14 @@ func TestParseReturnStatement(t *testing.T) {
 		t.Errorf(errFormatString, err)
 	}
 
-	// Remember: The left always provides the value...
-	nodeJSON, _ = json.Marshal(node)
-	fmt.Printf(jsonFormatString, nodeJSON)
+	if node.Type != "return" {
+		t.Errorf("expected node.Type == 'return', got %q", node.Type)
+	}
+	if node.Left == nil {
+		t.Error("expected node.Left (return expression) to be non-nil")
+	}
 }
+
 
 func TestParseStructStatement(t *testing.T) {
 	b, err = getBuilderFromString(test.Tests[test.StatementTest]["struct"])
@@ -539,30 +558,15 @@ func TestParseStructStatement(t *testing.T) {
 		t.Errorf(errFormatString, err)
 	}
 
-	// Remember: The left always provides the value...
-	nodeJSON, _ = json.Marshal(node)
-	fmt.Printf(jsonFormatString, nodeJSON)
-
-	nodeJSON, _ = json.Marshal(b.ScopeTree)
-	fmt.Printf(jsonFormatString, nodeJSON)
-}
-
-func TestParseStructDeclarationStatement(t *testing.T) {
-	t.Skip("ParseStructDeclarationStatement not yet implemented")
-
-	b, err = getBuilderFromString(test.Tests[test.StatementTest]["struct"])
-	if err != nil {
-		t.Errorf(errFormatString, err)
+	if node.Type != "struct" {
+		t.Errorf("expected node.Type == 'struct', got %q", node.Type)
 	}
-
-	node, err = b.ParseStructDeclarationStatement()
-	if err != nil {
-		t.Errorf(errFormatString, err)
+	if node.Left == nil {
+		t.Error("expected node.Left (struct name) to be non-nil")
 	}
-
-	// Remember: The left always provides the value...
-	nodeJSON, _ = json.Marshal(node)
-	fmt.Printf(jsonFormatString, nodeJSON)
+	if b.ScopeTree == nil {
+		t.Error("expected ScopeTree to be non-nil after struct parse")
+	}
 }
 
 func TestParseLetStatement(t *testing.T) {
@@ -576,7 +580,10 @@ func TestParseLetStatement(t *testing.T) {
 		t.Errorf(errFormatString, err)
 	}
 
-	// Remember: The left always provides the value...
-	nodeJSON, _ = json.Marshal(node)
-	fmt.Printf(jsonFormatString, nodeJSON)
+	if node.Type != "let" {
+		t.Errorf("expected node.Type == 'let', got %q", node.Type)
+	}
+	if node.Left == nil {
+		t.Error("expected node.Left (ident) to be non-nil")
+	}
 }

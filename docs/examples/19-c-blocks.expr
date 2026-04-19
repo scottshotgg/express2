@@ -1,0 +1,40 @@
+// 19-c-blocks.expr
+// =================
+// Demonstrates C block injection — embedding raw C/C++ code directly
+// inside Express programs. Think of it as Express's version of Cgo.
+//
+// Key concepts:
+// - `c { ... }` emits verbatim C code into the generated file
+// - `import c` makes standard C headers (stdio, stdlib, string, unistd)
+//   available to both C blocks and Express code
+// - This is where Express gets its "muscle": any existing C library
+//   is instantly accessible
+
+import c
+
+func main() {
+  // Basic C injection — pure C code, no Express
+  c {
+    printf("From C directly: %s\n", "Hello from C block!");
+  }
+
+  // C blocks run in the same scope as Express code
+  int x = 10
+  int y = 20
+
+  // C can access variables declared in Express
+  c {
+    int sum = x + y;
+    printf("x=%d, y=%d, sum=%d\n", x, y, sum);
+  }
+
+  // Using sleep from C to pause
+  Println("Going to sleep...")
+  c {
+    sleep(1);
+    printf("Woke up!\n");
+  }
+  Println("Done sleeping.")
+
+  Println("That is how you import C!")
+}

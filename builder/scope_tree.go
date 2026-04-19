@@ -2,8 +2,6 @@ package builder
 
 import (
 	"encoding/json"
-	"log"
-	"os"
 	"sync"
 
 	"github.com/pkg/errors"
@@ -94,15 +92,6 @@ func NewScopeTree() *ScopeTree {
 	return scopeTree
 }
 
-// NewChild enumerates a new child scope
-// func (st *ScopeTree) NewChild(node *Node) *ScopeTree {
-func getKeys(m map[string]*ScopeTree) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	return keys
-}
 
 func (st *ScopeTree) NewChildScope(name string) (*ScopeTree, error) {
 	// On a new child, it might be needed, we could either COPY everything from the other scope ...
@@ -141,9 +130,11 @@ func (st *ScopeTree) NewPackageScope(name string) (*ScopeTree, error) {
 	// 	OR
 	// (easier) Just defer to recursing up in the Get
 
-	// Check for a child with the same name already
-	if st.Imports[name] != nil {
-		return nil, errors.Errorf("There is already a scope with that name; %s", name)
+	// If the scope was pre-populated by the parser (e.g. via parseFileImport),
+	// reuse it but fix up the Parent pointer so Leave() can navigate back.
+	if existing := st.Imports[name]; existing != nil {
+		existing.Parent = st
+		return existing, nil
 	}
 
 	var scope = &ScopeTree{
@@ -195,7 +186,7 @@ func (st *ScopeTree) Declare(ref *Node) error {
 		}
 
 	case "package":
-		log.Fatalln("fuck you, package")
+		return errors.New("package declarations are not supported via ScopeTree.Declare")
 
 	default:
 		return errors.Errorf("Node type is not supported for declaration: %+v", ref)
@@ -262,8 +253,7 @@ func (st *ScopeTree) NewType(key string, ref *TypeValue) error {
 func (st *ScopeTree) GetImportedType(packageName, name string) *TypeValue {
 	// If st is nil then we have a problem
 	if st == nil {
-		log.Printf("Current scope was nil ...")
-		os.Exit(9)
+		panic("ScopeTree.GetImportedType called on nil receiver")
 	}
 
 	// The Node in the current scope is not allowed to act as a ref as of right now
@@ -284,8 +274,7 @@ func (st *ScopeTree) GetImportedType(packageName, name string) *TypeValue {
 func (st *ScopeTree) GetType(name string) *TypeValue {
 	// If st is nil then we have a problem
 	if st == nil {
-		log.Printf("Current scope was nil ...")
-		os.Exit(9)
+		panic("ScopeTree.GetType called on nil receiver")
 	}
 
 	// The Node in the current scope is not allowed to act as a ref as of right now
@@ -310,8 +299,7 @@ func (st *ScopeTree) GetType(name string) *TypeValue {
 func (st *ScopeTree) Get(name string) *Node {
 	// If st is nil then we have a problem
 	if st == nil {
-		log.Printf("Current scope was nil ...")
-		os.Exit(9)
+		panic("ScopeTree.Get called on nil receiver")
 	}
 
 	// The Node in the current scope is not allowed to act as a ref as of right now
@@ -339,8 +327,7 @@ func (st *ScopeTree) Get(name string) *Node {
 func (st *ScopeTree) get(name string) *Node {
 	// If st is nil then we have a problem
 	if st == nil {
-		log.Printf("Current scope was nil ...")
-		os.Exit(9)
+		panic("ScopeTree.get called on nil receiver")
 	}
 
 	var ref = st.Vars[name]
@@ -362,8 +349,7 @@ func (st *ScopeTree) get(name string) *Node {
 func (st *ScopeTree) Local(name string) *Node {
 	// If st is nil then we have a problem
 	if st == nil {
-		log.Printf("Current scope was nil ...")
-		os.Exit(9)
+		panic("ScopeTree.Local called on nil receiver")
 	}
 
 	// The Node in the current scope is not allowed to act as a ref as of right now

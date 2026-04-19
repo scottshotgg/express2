@@ -28,19 +28,19 @@ func isPassing(Score grade) bool {
 }
 
 func main() {
-  Student alice = {
+  var Student alice = {
     name = "Alice"
     grade = 92
     passing = false
   }
 
-  Student bob = {
+  var Student bob = {
     name = "Bob"
     grade = 55
     passing = false
   }
 
-  Student carol = {
+  var Student carol = {
     name = "Carol"
     grade = 78
     passing = false
@@ -63,7 +63,7 @@ func main() {
   }
 
   int[] scores = [92, 55, 78]
-  int total = 0
+  var int total = 0
   for i in scores {
     total = total + scores[i]
   }

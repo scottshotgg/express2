@@ -1,0 +1,8 @@
+func main() {
+  map[string -> int] scores = { "Alice" : 95  "Bob" : 87 }
+  map[string -> bool] flags = {}
+  int a = scores["Alice"]
+  Println(a)
+  bool b = flags["missing"]
+  Println(b)
+}

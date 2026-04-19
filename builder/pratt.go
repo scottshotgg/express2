@@ -26,7 +26,9 @@ type (
 // appears in infix (or postfix) position.
 func precedenceOf(tok token.Token) Precedence {
 	switch tok.Type {
-	case token.IsEqual:
+	case token.LogicalAnd, token.LogicalOr:
+		return PrecEquality // lower than comparisons, higher than nothing
+	case token.IsEqual, token.NotEqual:
 		return PrecEquality
 	case token.LThan, token.GThan, token.EqOrLThan, token.EqOrGThan:
 		return PrecComparison
@@ -53,21 +55,34 @@ func (b *Builder) registerParseFns() {
 		token.LParen:    b.parsePrefixGroup,
 		token.LBracket:  b.parsePrefixArray,
 		token.LBrace:    b.parsePrefixBlock,
+		// Statement-level constructs as first-class Pratt expressions:
+		token.If:       b.parseIfExpr,
+		token.Let:      b.parseLetExpr,
+		token.For:      b.parseForExpr,
+		token.Loop:     b.parseWhileExpr,
+		token.Function: b.parseFuncExpr,
+		token.Defer:    b.parseDeferExpr,
+		token.Return:   b.parseReturnExpr,
+		token.Break:    b.parseBreakExpr,
+		token.Continue: b.parseContinueExpr,
 	}
 
 	b.infixParseFns = map[string]infixParseFn{
-		token.PriOp:     b.parseInfixMul,
-		token.SecOp:     b.parseInfixAdd,
-		token.IsEqual:   b.parseInfixComp,
-		token.LThan:     b.parseInfixComp,
-		token.GThan:     b.parseInfixComp,
-		token.EqOrLThan:   b.parseInfixComp,
-		token.EqOrGThan:   b.parseInfixComp,
-		token.Increment:   b.parsePostfixInc,
-		token.Decrement:   b.parsePostfixDec,
-		token.Accessor:    b.parseInfixSelection,
-		token.LBracket:  b.parseInfixIndex,
-		token.LParen:    b.parseInfixCall,
+		token.PriOp:      b.parseInfixMul,
+		token.SecOp:      b.parseInfixAdd,
+		token.IsEqual:    b.parseInfixComp,
+		token.NotEqual:   b.parseInfixComp,
+		token.LThan:      b.parseInfixComp,
+		token.GThan:      b.parseInfixComp,
+		token.EqOrLThan:  b.parseInfixComp,
+		token.EqOrGThan:  b.parseInfixComp,
+		token.LogicalAnd: b.parseInfixLogical,
+		token.LogicalOr:  b.parseInfixLogical,
+		token.Increment:  b.parsePostfixInc,
+		token.Decrement:  b.parsePostfixDec,
+		token.Accessor:   b.parseInfixSelection,
+		token.LBracket:   b.parseInfixIndex,
+		token.LParen:     b.parseInfixCall,
 	}
 }
 
@@ -102,6 +117,23 @@ func (b *Builder) prattParse(minPrec Precedence) (*Node, error) {
 				return nil, err
 			}
 			continue
+		}
+
+		// c.XXX* pattern: treat namespace.Type* as a pointer type node.
+		// e.g. `c.FILE*` in a field declaration → pointer-to-c.FILE type.
+		if next.Type == token.PriOp && next.Value.String == "*" && left.Type == "selection" {
+			if left.Left != nil && left.Left.Type == "ident" {
+				if name, ok := left.Left.Value.(string); ok && name == "c" {
+					b.advance() // consume the *
+					left = &Node{
+						Type:  "type",
+						Kind:  "pointer",
+						Value: "pointer",
+						Left:  left, // selection node (c.FILE)
+					}
+					continue
+				}
+			}
 		}
 
 		// Don't consume * as infix multiplication after a ref (&x) or deref (*x) expression.
@@ -264,12 +296,17 @@ func (b *Builder) parsePrefixArray() (*Node, error) {
 }
 
 func (b *Builder) parsePrefixBlock() (*Node, error) {
-	// Delegate to existing ParseBlockStatement which expects b.Index on LBrace
-	a, c := b.ParseBlockStatement()
-	// ParseBlockStatement leaves b.Index one past the RBrace.
-	// We need b.Index on the last consumed token (the RBrace), so back up.
-	b.Index--
-	return a, c
+	// Peek at b.Tokens[b.Index+2] (the second token inside the braces).
+	// If it is token.Set (:), this is a map literal { "k" : v }.
+	// Otherwise it is a struct block { field = val } or empty {}.
+	if b.Index+2 < len(b.Tokens) && b.Tokens[b.Index+2].Type == token.Set {
+		a, c := b.ParseMapBlockStatement()
+		// ParseMapBlockStatement steps one past RBrace; back up for Pratt invariant.
+		b.Index--
+		return a, c
+	}
+	// ParseBlockStatement now leaves b.Index ON the closing `}` (Pratt invariant — no adjustment needed).
+	return b.ParseBlockStatement()
 }
 
 // --- Infix parse functions ---
@@ -320,6 +357,8 @@ func (b *Builder) parseInfixComp(left *Node) (*Node, error) {
 	switch cur.Type {
 	case token.IsEqual:
 		op = "=="
+	case token.NotEqual:
+		op = "!="
 	case token.LThan:
 		op = "<"
 	case token.GThan:
@@ -382,7 +421,16 @@ func (b *Builder) parseInfixSelection(left *Node) (*Node, error) {
 }
 
 func (b *Builder) parseInfixIndex(left *Node) (*Node, error) {
-	// b.Index is on the [ token
+	// b.Index is on the [ token.
+	// If the left node is a type (user-defined or built-in), the [ is a type
+	// suffix (T[] or T[N]), not an index access.  Back up one so ParseArrayType
+	// sees the [ at b.Index+1, which is where it expects it.
+	if left.Type == "type" {
+		typeName, _ := left.Value.(string)
+		b.Index-- // un-consume the [
+		return b.ParseArrayType(typeName)
+	}
+
 	// Step over the [
 	b.advance()
 
@@ -403,6 +451,24 @@ func (b *Builder) parseInfixIndex(left *Node) (*Node, error) {
 		Type:  "index",
 		Left:  left,
 		Right: expr,
+	}, nil
+}
+
+func (b *Builder) parseInfixLogical(left *Node) (*Node, error) {
+	op := b.peek().Value.String
+
+	b.advance()
+
+	right, err := b.prattParse(PrecEquality)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Node{
+		Type:  "binop",
+		Value: op,
+		Left:  left,
+		Right: right,
 	}, nil
 }
 

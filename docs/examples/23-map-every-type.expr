@@ -1,0 +1,43 @@
+// 23-map-every-type.expr — exercises every supported value type as a map value
+
+func main() {
+  var map m
+
+  // Primitive values
+  m["int"]    = 42
+  m["float"]  = 3.14
+  m["bool"]   = true
+  m["string"] = "hello"
+  m["char"]   = 'z'
+
+  // var
+  var v = 99
+  m["var"] = v
+
+  // vector
+  int[] nums = [1, 2, 3]
+  m["vec"] = nums
+
+  // nested map — inline map literal expression
+  m["map"] = { "x" : 7 }
+
+  Println("int:",    m["int"])
+  Println("float:",  m["float"])
+  Println("bool:",   m["bool"])
+  Println("string:", m["string"])
+  Println("char:",   m["char"])
+  Println("var:",    m["var"])
+  Println("vec set: ok")
+  Println("nested map set: ok")
+
+  // struct value (known limitation — var::operator= has no overload for structs)
+  // map sm
+  // struct Point = { int x = 0  int y = 0 }
+  // Point origin = { x = 0  y = 0 }
+  // sm["struct"] = origin
+
+  // fixed array value (known limitation — C-style arrays are not first-class)
+  // int[3] fixedArr = {}
+  // map ma
+  // ma["arr"] = fixedArr
+}

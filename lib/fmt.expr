@@ -1,0 +1,11 @@
+package fmt
+
+import c
+
+func Printf(string str) {
+  c.printf(str.c_str())
+}
+
+func Println(string str) {
+  c.printf("%s\n", str.c_str())
+}

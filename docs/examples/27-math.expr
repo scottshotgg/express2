@@ -1,0 +1,10 @@
+import math
+
+func main() {
+  float a = math.Sqrt(9.0)
+  float b = math.Abs(4.0)
+  float c = math.Floor(3.9)
+  Println(a)
+  Println(b)
+  Println(c)
+}

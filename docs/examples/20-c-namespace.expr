@@ -1,0 +1,26 @@
+// 20-c-namespace.expr
+// ===================
+// Demonstrates the `c` namespace — Express's zero-overhead bridge to the
+// C standard library (and any C library).
+//
+// Key concepts:
+// - `import c` pulls in stdio.h, stdlib.h, string.h, unistd.h, libgen.h
+// - `c.func(...)` calls C functions directly — the `c.` prefix is stripped
+//   at transpile time, so c.printf(...) becomes printf(...) in C++ output
+// - `c.CONSTANT` accesses C macros/constants the same way (c.SEEK_SET → SEEK_SET)
+// - Zero overhead: no FFI layer, no binding code — pure transparency
+
+import c
+
+func main() {
+  // Call C stdlib functions directly — the c. prefix documents the FFI boundary
+  c.printf("Hello from c.printf!\n")
+
+  // C constants are accessed with the same syntax
+  int seek_start = c.SEEK_SET
+  c.printf("SEEK_SET value: %d\n", seek_start)
+
+  // String functions from string.h
+  int len = c.strlen("Express")
+  c.printf("Length of \"Express\": %d\n", len)
+}

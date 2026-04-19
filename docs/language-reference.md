@@ -64,15 +64,22 @@ var[] vv = [666, "something_here", false, 73.986622195]
 
 `var` is useful for generic containers, maps with heterogeneous values, and function parameters that accept any type.
 
-### Arrays
+### Arrays and Vectors
 
-Arrays use bracket syntax after the type. Without a size, they are dynamic (like Go slices). With a size, they are fixed.
+Express has two collection types based on whether the size is known at compile time:
+
+| Express syntax | Name       | C++ backing            | Notes                          |
+|----------------|------------|------------------------|--------------------------------|
+| `int[5] arr`   | **array**  | `int arr[5]`           | Fixed-size, stack-allocated    |
+| `int[] arr`    | **vector** | `std::vector<int>`     | Dynamic, growable              |
 
 ```
-int[] i = [1, 2, 3, 4, 5]       // dynamic int array
-int[5] fixed                      // fixed-size int array (planned)
-var[] mixed = [1, "two", false]  // dynamic array of mixed types
+int[] i = [1, 2, 3, 4, 5]       // vector — dynamic, growable
+int[5] fixed                      // array — fixed-size (5 ints, zero-initialized)
+var[] mixed = [1, "two", false]  // vector of mixed types (var elements)
 ```
+
+"Vector" is used because the dynamic form IS `std::vector` under the hood. "Array" is used for the fixed-size C-style form.
 
 ### Pointers
 
@@ -122,13 +129,34 @@ anything = "now a string"
 
 ### Uninitialized Declarations
 
-Variables can be declared without initialization:
+Variables can be declared without initialization. Express **auto-zero-initializes** all uninitialized typed declarations — there is no undefined behavior.
 
 ```
-int i
-string s
-var v
+int i       // → int i = 0;
+float f     // → float f = 0;
+bool b      // → bool b = false;
+char c      // → char c = '\0';
+string s    // → std::string s;   (default-constructs to "")
+var v       // → var v;           (default-constructs to nullType)
 ```
+
+Zero values by type:
+
+| Type     | Zero value | Notes                                      |
+|----------|------------|--------------------------------------------|
+| `int`    | `0`        |                                            |
+| `float`  | `0`        |                                            |
+| `bool`   | `false`    |                                            |
+| `char`   | `'\0'`     | Null character                             |
+| `string` | `""`       | `std::string` default-constructs to empty  |
+| `var`    | `null`     | `var` class default-constructs to nullType |
+| `map`    | `{}`       | `std::map` default-constructs to empty     |
+| `int[5]` | `= {}`     | C-style array, aggregate-init to all zeros |
+| `int[]`  | `[]`       | `std::vector` default-constructs to empty  |
+| struct   | `= {}`     | All fields recursively zeroed              |
+| pointer  | `nullptr`  |                                            |
+
+`let` always requires an initializer — `let x` is a parse error.
 
 ### Assignment Operators
 
@@ -136,8 +164,12 @@ var v
 |----------|----------------|----------------------------------|
 | `=`      | Assignment     | `int i = 10`, `i = 20`          |
 | `:`      | Key-value set  | `thing : "value"` (in maps)     |
+| `+=`     | Add-assign     | `x += 5`  → `x = x + 5`        |
+| `-=`     | Sub-assign     | `x -= 2`  → `x = x - 2`        |
+| `*=`     | Mul-assign     | `x *= 3`  → `x = x * 3`        |
+| `/=`     | Div-assign     | `x /= 4`  → `x = x / 4`        |
 
-The `=` operator is used for all variable declarations and assignments. The `:` operator creates key-value pairs and is used inside map literals.
+The `=` operator is used for all variable declarations and assignments. The `:` operator creates key-value pairs and is used inside map literals. Compound assignment operators (`+=`, `-=`, `*=`, `/=`) are desugared at parse time.
 
 ---
 
@@ -351,30 +383,55 @@ myStruct s = {
 
 ### Maps
 
-Maps use the `:` operator for key-value pairs:
+Maps use the `:` operator for key-value pairs. Keys must be strings — `map` is always `std::map<std::string, var>`:
 
 ```
 map m = {
-  thing : "thing"
-  "not_a_thing" : nothing
-  6 : true
-  false : "thing"
+  "name" : "Alice"
+  "city" : "Portland"
 }
 ```
 
-Map access uses bracket notation:
+Values in map literals must be strings (the literal form infers `std::string` for both key and value).
+For mixed-type values, use assignment form instead:
 
 ```
-var m_thing = m[thing]
-m["key"] = "value"
+map m
+m["name"]  = "Alice"
+m["score"] = 42
+m["active"] = true
 ```
 
-When the compiler cannot determine the key/value types, maps default to `<var, var>`:
+An inline map literal `{ "k" : v }` can appear in expression context:
 
 ```
-map m    // uninitialized, defaults to <var, var>
-m[x] = x * x
+map m
+m["nested"] = { "x" : 7 }
 ```
+
+Uninitialized `map m` defaults to `std::map<std::string, var>` — safe to use without an explicit initializer.
+
+#### Typed Maps
+
+Use `map[K -> V]` to specify explicit key and value types. The `->` reads as "maps to":
+
+```
+map[string -> int] scores = { "Alice" : 95  "Bob" : 87 }
+map[string -> bool] flags = {}
+```
+
+Transpiles to `std::map<std::string, int>` and `std::map<std::string, bool>` respectively.
+
+#### N-Dimensional Maps
+
+Multi-key maps use comma-separated key types followed by `->` and the value type. The last type is always the value; all preceding types are nested key dimensions, folded right-to-left:
+
+```
+map[string, string -> int] scores
+scores["alice"]["math"] = 95
+```
+
+`map[string, string -> int]` desugars to `std::map<std::string, std::map<std::string, int>>`.
 
 ### Enums
 
@@ -524,10 +581,22 @@ These provide finer-grained control than `defer`, which runs at scope exit. Curr
 
 ## Built-in Functions
 
-| Function      | Description                                    |
-|---------------|------------------------------------------------|
-| `Println(...)` | Variadic print with newline (like Go's `fmt.Println`) |
-| `sleep(n)`    | Sleep for `n` seconds                           |
+| Function       | Description                                                |
+|----------------|------------------------------------------------------------|
+| `Println(...)` | Variadic print with newline (like Go's `fmt.Println`)     |
+| `sleep(n)`     | Sleep for `n` seconds                                      |
+| `len(x)`       | Returns the number of elements in a vector or string       |
+
+`len()` works on vectors (`int[]`, `string[]`, etc.) and `std::string` values.
+It transpiles to `(x).size()`. It does **not** work on fixed-size arrays (`int[5]`) — their size is a compile-time constant.
+
+```
+int[] v = [1, 2, 3]
+Println(len(v))        // 3
+
+string s = "hello"
+Println(len(s))        // 5
+```
 
 ---
 

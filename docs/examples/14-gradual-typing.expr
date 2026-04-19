@@ -1,0 +1,19 @@
+// 14-gradual-typing.expr
+// ======================
+// Demonstrates gradual typing in Express:
+// - `var` for dynamic typing (type switches at runtime)
+// - `let` for static inference (type fixed at declaration)
+// - Contrast with explicit typed declarations
+
+func main() {
+  var x = 10
+  Println("int:", x)
+  x = "hello"
+  Println("string:", x)
+  x = true
+  Println("bool:", x)
+  let n = 42
+  Println("let int:", n)
+  let s = "world"
+  Println("let string:", s)
+}

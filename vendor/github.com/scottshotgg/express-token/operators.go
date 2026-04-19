@@ -145,6 +145,15 @@ var OperatorMap = map[string]Token{
 		},
 	},
 
+	"!=": {
+		WSNotRequired: true,
+		Type:          NotEqual,
+		Value: Value{
+			Type:   "not_equal",
+			String: "!=",
+		},
+	},
+
 	">=": {
 		WSNotRequired: true,
 		Type:          EqOrGThan,
@@ -183,6 +192,62 @@ var OperatorMap = map[string]Token{
 		},
 	},
 
+	// Logical operators
+	"&&": {
+		WSNotRequired: true,
+		Type:          LogicalAnd,
+		Value: Value{
+			Type:   "logical_and",
+			String: "&&",
+		},
+	},
+
+	"||": {
+		WSNotRequired: true,
+		Type:          LogicalOr,
+		Value: Value{
+			Type:   "logical_or",
+			String: "||",
+		},
+	},
+
+	// Compound assignment operators
+	"+=": {
+		WSNotRequired: true,
+		Type:          AddAssign,
+		Value: Value{
+			Type:   "add_assign",
+			String: "+=",
+		},
+	},
+
+	"-=": {
+		WSNotRequired: true,
+		Type:          SubAssign,
+		Value: Value{
+			Type:   "sub_assign",
+			String: "-=",
+		},
+	},
+
+	"*=": {
+		WSNotRequired: true,
+		Type:          MulAssign,
+		Value: Value{
+			Type:   "mul_assign",
+			String: "*=",
+		},
+	},
+
+	"/=": {
+		WSNotRequired: true,
+		Type:          DivAssign,
+		Value: Value{
+			Type:   "div_assign",
+			String: "/=",
+		},
+	},
+
 	// TODO: add the templated operators ability to the parser and remove the tokens completely
 	// VECTOR OPERANDS
 	".+": {
@@ -218,6 +283,15 @@ var OperatorMap = map[string]Token{
 		Value: Value{
 			Type:   "op_3",
 			String: "./",
+		},
+	},
+
+	"->": {
+		WSNotRequired: true,
+		Type:          Arrow,
+		Value: Value{
+			Type:   "arrow",
+			String: "->",
 		},
 	},
 }

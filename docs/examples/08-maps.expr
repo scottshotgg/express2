@@ -5,7 +5,7 @@
 // - Accessing values by key
 // - Updating values
 //
-// Note: untyped maps default to string -> string in the transpiler.
+// Note: untyped maps default to string -> var in the transpiler.
 
 func main() {
   map colors = {

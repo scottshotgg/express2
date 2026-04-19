@@ -1,0 +1,9 @@
+// os provides operating system interface functions.
+package os
+
+import c
+
+// Exit terminates the program with the given exit code.
+func Exit(int code) {
+  c.exit(code)
+}

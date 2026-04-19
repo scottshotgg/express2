@@ -1,0 +1,11 @@
+// 11-enum.expr
+// ============
+// Demonstrates anonymous enums in Express
+
+func main() {
+  enum { Red Green Blue }
+  int c = Red
+  Println("Red:", c)
+  Println("Green:", Green)
+  Println("Blue:", Blue)
+}

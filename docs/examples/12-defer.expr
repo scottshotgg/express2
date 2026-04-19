@@ -1,0 +1,9 @@
+// 12-defer.expr
+// =============
+// Demonstrates defer in Express: deferred calls run after the function returns
+
+func main() {
+  defer Println("deferred")
+  Println("first")
+  Println("second")
+}
