@@ -5,3 +5,17 @@
 .idea
 .vscode
 .history
+
+# generated coverage/build artifacts
+coverage.out
+cov.out
+cov_builder.out
+cov_transpiler.out
+coverage.html
+coverage_builder.out
+coverage_logger.out
+logger_cov.out
+
+# compiled example binaries and generated C++
+docs/examples/*.cpp
+docs/examples/[0-9][0-9]-*[^.][^e][^x][^p][^r]
