@@ -323,6 +323,17 @@ func (st *ScopeTree) Get(name string) *Node {
 	return nil
 }
 
+// IsMutable reports whether the declaration bound to name is mutable.
+// Returns false if the name is not declared.
+func (st *ScopeTree) IsMutable(name string) bool {
+	decl := st.Get(name)
+	if decl == nil {
+		return false
+	}
+	mutable, _ := decl.Metadata["mutable"].(bool)
+	return mutable
+}
+
 // Get will recursively search up the scope tree to verify whether that reference can be found
 func (st *ScopeTree) get(name string) *Node {
 	// If st is nil then we have a problem

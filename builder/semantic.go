@@ -81,22 +81,100 @@ func NewTypeResolverWithScope(scopeTree *ScopeTree) *TypeResolver {
 func (t *TypeResolver) Check(n *Node) (bool, error) {
 	switch n.Type {
 	case "call":
+		if n.Left != nil {
+			if _, err := t.Check(n.Left); err != nil {
+				return false, err
+			}
+		}
+		if n.Value != nil {
+			if args, ok := n.Value.([]*Node); ok {
+				for _, arg := range args {
+					if _, err := t.Check(arg); err != nil {
+						return false, err
+					}
+				}
+			}
+		}
+
 	case "selection":
+		if n.Left != nil {
+			if _, err := t.Check(n.Left); err != nil {
+				return false, err
+			}
+		}
+
 	case "assignment":
-	case "inc":
-	case "dec":
+		if n.Left != nil && n.Left.Type == "ident" {
+			if name, ok := n.Left.Value.(string); ok {
+				if t.scopeTree.Get(name) != nil && !t.scopeTree.IsMutable(name) {
+					return false, errors.Errorf("cannot reassign immutable binding %q", name)
+				}
+			}
+		}
+		if n.Right != nil {
+			if _, err := t.Check(n.Right); err != nil {
+				return false, err
+			}
+		}
+
+	case "inc", "dec":
+		if n.Left != nil && n.Left.Type == "ident" {
+			if name, ok := n.Left.Value.(string); ok {
+				if t.scopeTree.Get(name) != nil && !t.scopeTree.IsMutable(name) {
+					op := "++"
+					if n.Type == "dec" {
+						op = "--"
+					}
+					return false, errors.Errorf("cannot apply %s to immutable binding %q", op, name)
+				}
+			}
+		}
+
 	case "if":
 	case "for":
 	case "forin":
 	case "forof":
 	case "forover":
 	case "forstd":
-	case "binop":
-	case "comp":
+	case "binop", "comp":
+		if n.Left != nil {
+			if _, err := t.Check(n.Left); err != nil {
+				return false, err
+			}
+		}
+		if n.Right != nil {
+			if _, err := t.Check(n.Right); err != nil {
+				return false, err
+			}
+		}
+
 	case "deref":
 	case "ref":
+
 	case "index":
+		if n.Left != nil {
+			if _, err := t.Check(n.Left); err != nil {
+				return false, err
+			}
+		}
+		if n.Right != nil {
+			if _, err := t.Check(n.Right); err != nil {
+				return false, err
+			}
+		}
+
 	case "ident":
+		name, ok := n.Value.(string)
+		if !ok {
+			return false, nil
+		}
+		if isBuiltin(name) {
+			return false, nil
+		}
+		if t.scopeTree.Get(name) == nil && t.scopeTree.GetType(name) == nil {
+			return false, errors.Errorf("use of undeclared identifier %q", name)
+		}
+
 	case "type":
 	case "return":
 	case "struct":
@@ -248,6 +326,14 @@ func (t *TypeResolver) Check(n *Node) (bool, error) {
 			var node = n.Value.(*Node)
 			node.Type = "type"
 			n.Value = node
+			if err := t.scopeTree.Declare(n); err != nil {
+				return false, err
+			}
+
+		case "type":
+			if err := t.scopeTree.Declare(n); err != nil {
+				return false, err
+			}
 		}
 
 	case "let":
@@ -395,6 +481,29 @@ func (t *TypeResolver) Check(n *Node) (bool, error) {
 		// C block injection is verbatim C code — nothing to type-check.
 		return false, nil
 
+	case "chan_send":
+		// Channel send: check both sides.
+		if n.Left != nil {
+			if _, err := t.Check(n.Left); err != nil {
+				return false, err
+			}
+		}
+		if n.Right != nil {
+			if _, err := t.Check(n.Right); err != nil {
+				return false, err
+			}
+		}
+		return false, nil
+
+	case "chan_recv":
+		// Channel receive: check the channel expression.
+		if n.Left != nil {
+			if _, err := t.Check(n.Left); err != nil {
+				return false, err
+			}
+		}
+		return false, nil
+
 	default:
 		return false, errors.Errorf("type not implemented in %s: %+v", t.Name(), *n)
 	}
@@ -404,4 +513,13 @@ func (t *TypeResolver) Check(n *Node) (bool, error) {
 
 func (t *TypeResolver) Name() string {
 	return "type_resolver"
+}
+
+var builtins = map[string]bool{
+	"Println": true, "Printf": true, "Sprintf": true,
+	"len": true, "append": true, "make": true, "cap": true,
+}
+
+func isBuiltin(name string) bool {
+	return builtins[name]
 }

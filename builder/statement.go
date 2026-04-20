@@ -1267,6 +1267,72 @@ func (b *Builder) ParseIdentStatement() (*Node, error) {
 	// 	})
 	// }
 
+	// Early exit: var *type ptr  or  var *var type ptr
+	// Must be intercepted BEFORE ParseExpression() runs, because the Pratt infix
+	// loop treats `type *` as a suffix pointer and would greedily consume `var * type`.
+	if b.Index+1 < len(b.Tokens) &&
+		b.Tokens[b.Index].Value.String == "var" &&
+		b.Tokens[b.Index+1].Type == token.PriOp {
+
+		b.Index++ // step past var
+		b.Index++ // step past *
+
+		viewMutable := false
+		if b.Tokens[b.Index].Type == token.Type && b.Tokens[b.Index].Value.String == "var" {
+			viewMutable = true
+			b.Index++ // step past inner var
+		}
+
+		var innerType *Node
+		var err error
+		if b.Tokens[b.Index].Type == token.Type {
+			innerType, err = b.ParseType(nil)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			innerType, err = b.ParseExpression()
+			if err != nil {
+				return nil, err
+			}
+		}
+		b.Index++ // step past type token
+
+		ptrType := &Node{
+			Type:  "type",
+			Kind:  "pointer",
+			Value: "pointer",
+			Left:  innerType,
+			Metadata: map[string]interface{}{"viewMutable": viewMutable},
+		}
+
+		if b.Index > len(b.Tokens)-1 || b.Tokens[b.Index].Type != token.Ident {
+			return nil, b.AppendTokenToError("expected identifier after pointer type")
+		}
+		varName, err := b.ParseExpression()
+		if err != nil {
+			return nil, err
+		}
+		b.Index++
+
+		node := &Node{
+			Type:  "decl",
+			Value: ptrType,
+			Left:  varName,
+			Metadata: map[string]interface{}{"mutable": true},
+		}
+
+		if b.Index <= len(b.Tokens)-1 && b.Tokens[b.Index].Type == token.Assign {
+			b.Index++
+			node.Right, err = b.ParseExpression()
+			if err != nil {
+				return nil, err
+			}
+			b.Index++
+		}
+		return node, nil
+	}
+
 	// Parse the first ident; this COULD be a type
 	identOrType, err := b.ParseExpression()
 	if err != nil {
@@ -1283,6 +1349,17 @@ func (b *Builder) ParseIdentStatement() (*Node, error) {
 		return identOrType, nil
 	}
 
+	// c <- expr  →  channel send statement
+	if b.Tokens[b.Index].Type == token.LeftArrow {
+		b.Index++ // step over <-
+		rhs, err := b.ParseExpression()
+		if err != nil {
+			return nil, err
+		}
+		b.Index++
+		return &Node{Type: "chan_send", Left: identOrType, Right: rhs}, nil
+	}
+
 	// Default to assignment so that we only have to write the assignment
 	// logic once and can use a fallthrough case
 	var node = &Node{
@@ -1296,6 +1373,15 @@ func (b *Builder) ParseIdentStatement() (*Node, error) {
 
 	switch b.Tokens[b.Index].Type {
 	case token.Type:
+		// var chan <innertype> <ident>  →  mutable channel declaration
+		if identOrType.Kind == "var" && b.Tokens[b.Index].Value.String == "chan" {
+			n, err := b.ParseChanDeclStatement()
+			if err != nil {
+				return nil, err
+			}
+			n.Metadata["mutable"] = true
+			return n, nil
+		}
 		// var <primitive-type> <ident> = <expr> pattern (e.g. `var int x = 5`)
 		if identOrType.Kind != "var" {
 			return nil, b.AppendTokenToError("unexpected type after non-var type")
@@ -1383,6 +1469,14 @@ func (b *Builder) ParseIdentStatement() (*Node, error) {
 		// Set the proper node values
 		node.Type = "decl"
 		node.Value = identOrType
+
+		// var ident = expr (untyped var) — mark as mutable binding.
+		if identOrType.Kind == "var" {
+			if node.Metadata == nil {
+				node.Metadata = map[string]interface{}{}
+			}
+			node.Metadata["mutable"] = true
+		}
 
 		b.log.Debug("got another ident", b.Tokens[b.Index], node)
 
@@ -1506,6 +1600,55 @@ func (b *Builder) ParseIdentStatement() (*Node, error) {
 	default:
 		return identOrType, nil
 	}
+}
+
+func (b *Builder) ParseChanDeclStatement() (*Node, error) {
+	b.Index++ // step over chan keyword
+
+	innerType, err := b.ParseType(nil)
+	if err != nil {
+		return nil, err
+	}
+	b.Index++ // step over type token
+
+	if b.Index >= len(b.Tokens) || b.Tokens[b.Index].Type != token.Ident {
+		return nil, b.AppendTokenToError("expected identifier after chan type")
+	}
+	varName := &Node{Type: "ident", Value: b.Tokens[b.Index].Value.String}
+	b.Index++ // step over name
+
+	chanType := &Node{Type: "type", Kind: "chan", Value: "chan", Left: innerType}
+	node := &Node{
+		Type:     "decl",
+		Value:    chanType,
+		Left:     varName,
+		Metadata: map[string]interface{}{"mutable": false, "capacity": 0},
+	}
+
+	// Optional: = chan(N)
+	if b.Index < len(b.Tokens) && b.Tokens[b.Index].Type == token.Assign {
+		b.Index++ // step over =
+		if b.Index >= len(b.Tokens) || b.Tokens[b.Index].Value.String != "chan" {
+			return nil, b.AppendTokenToError("expected chan(N) after =")
+		}
+		b.Index++ // step over chan
+		if b.Index >= len(b.Tokens) || b.Tokens[b.Index].Type != token.LParen {
+			return nil, b.AppendTokenToError("expected ( after chan in initializer")
+		}
+		b.Index++ // step over (
+		capExpr, err := b.ParseExpression()
+		if err != nil {
+			return nil, err
+		}
+		b.Index++ // step over capacity literal
+		if b.Index >= len(b.Tokens) || b.Tokens[b.Index].Type != token.RParen {
+			return nil, b.AppendTokenToError("expected ) after capacity")
+		}
+		b.Index++ // step over )
+		node.Metadata["capacity"] = capExpr
+	}
+
+	return node, nil
 }
 
 func (b *Builder) ParsePackageStatement() (*Node, error) {
@@ -1891,6 +2034,78 @@ func (b *Builder) ParseFunctionStatement() (*Node, error) {
 // 	}, stmts...))
 // }
 
+// ParsePointerDeclStatement parses prefix pointer type declarations:
+//
+//	*int ptr = &val      → immutable binding, read-only view
+//	*var int ptr = &val  → immutable binding, read-write view
+//
+// The outer var (mutable binding) case is handled in ParseIdentStatement.
+func (b *Builder) ParsePointerDeclStatement() (*Node, error) {
+	// Current token is * (PriOp) — step over it
+	b.Index++
+
+	viewMutable := false
+	if b.Tokens[b.Index].Type == token.Type && b.Tokens[b.Index].Value.String == "var" {
+		viewMutable = true
+		b.Index++ // step over inner var
+	}
+
+	var (
+		innerType *Node
+		err       error
+	)
+	if b.Tokens[b.Index].Type == token.Type {
+		innerType, err = b.ParseType(nil)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		innerType, err = b.ParseExpression()
+		if err != nil {
+			return nil, err
+		}
+	}
+	b.Index++ // step over type token
+
+	ptrType := &Node{
+		Type:  "type",
+		Kind:  "pointer",
+		Value: "pointer",
+		Left:  innerType,
+		Metadata: map[string]interface{}{
+			"viewMutable": viewMutable,
+		},
+	}
+
+	if b.Index > len(b.Tokens)-1 || b.Tokens[b.Index].Type != token.Ident {
+		return nil, b.AppendTokenToError("expected identifier after pointer type")
+	}
+	varName, err := b.ParseExpression()
+	if err != nil {
+		return nil, err
+	}
+	b.Index++
+
+	node := &Node{
+		Type:  "decl",
+		Value: ptrType,
+		Left:  varName,
+		Metadata: map[string]interface{}{"mutable": false},
+	}
+
+	if b.Index <= len(b.Tokens)-1 && b.Tokens[b.Index].Type == token.Assign {
+		b.Index++ // step over =
+		rhs, err := b.ParseExpression()
+		if err != nil {
+			return nil, err
+		}
+		b.Index++
+		node.Right = rhs
+	}
+
+	return node, nil
+}
+
 func (b *Builder) ParseDerefStatement() (*Node, error) {
 	if b.Tokens[b.Index].Type != token.PriOp {
 		return nil, b.AppendTokenToError("Could not get deref statement without *")
@@ -1900,42 +2115,28 @@ func (b *Builder) ParseDerefStatement() (*Node, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	// Increment over the ident token
 	b.Index++
 
-	if b.Index > len(b.Tokens) {
+	if b.Index > len(b.Tokens)-1 {
 		return deref, nil
 	}
 
-	var t = "decl"
-
-	if deref.Kind != "type" {
-		t = "assignment"
-		// Check for the equals token
-		if b.Tokens[b.Index].Type != token.Assign {
-			if deref.Type == "call" {
-				return deref, nil
-			}
-
-			return nil, b.AppendTokenToError(fmt.Sprintf("No equals found after ident in deref: %+v", b.Tokens[b.Index]))
+	if b.Tokens[b.Index].Type != token.Assign {
+		if deref.Type == "call" {
+			return deref, nil
 		}
-
-		// Increment over the equals
-		b.Index++
+		return nil, b.AppendTokenToError(fmt.Sprintf("No equals found after deref: %+v", b.Tokens[b.Index]))
 	}
+	b.Index++ // step over =
 
-	// Parse the right hand side
 	expr, err := b.ParseExpression()
 	if err != nil {
 		return nil, err
 	}
-
-	// Increment over the first part of the expression
 	b.Index++
 
 	return &Node{
-		Type:  t,
+		Type:  "assignment",
 		Left:  deref,
 		Right: expr,
 	}, nil
@@ -1958,6 +2159,33 @@ func (b *Builder) ParseStatement() (*Node, error) {
 		return b.ParseMapStatement()
 
 	case token.PriOp:
+		if b.Index+1 < len(b.Tokens) {
+			next := b.Tokens[b.Index+1]
+			if next.Type == token.Type {
+				n, err := b.ParsePointerDeclStatement()
+				if err != nil {
+					return nil, err
+				}
+				if n.Type == "decl" {
+					if err := b.ScopeTree.Declare(n); err != nil {
+						return nil, err
+					}
+				}
+				return n, nil
+			}
+			if next.Type == token.Ident && b.ScopeTree.GetType(next.Value.String) != nil {
+				n, err := b.ParsePointerDeclStatement()
+				if err != nil {
+					return nil, err
+				}
+				if n.Type == "decl" {
+					if err := b.ScopeTree.Declare(n); err != nil {
+						return nil, err
+					}
+				}
+				return n, nil
+			}
+		}
 		return b.ParseDerefStatement()
 
 	case token.Package:
@@ -2048,7 +2276,29 @@ func (b *Builder) ParseStatement() (*Node, error) {
 
 		return n, nil
 
+	case token.LeftArrow:
+		recvNode, err := b.parsePrefixChanRecv()
+		if err != nil {
+			return nil, err
+		}
+		b.Index++ // parsePrefixChanRecv leaves index on last consumed token
+		return recvNode, nil
+
 	case token.Type:
+		// chan int c  or  chan int c = chan(N)
+		if b.peek().Value.String == "chan" {
+			n, err := b.ParseChanDeclStatement()
+			if err != nil {
+				return nil, err
+			}
+			if n.Type == "decl" {
+				if err := b.ScopeTree.Declare(n); err != nil {
+					return nil, err
+				}
+			}
+			return n, nil
+		}
+
 		// Check if this is a special type keyword that represents a statement
 		// like `map m = { ... }` or `struct Point = { ... }`
 		// or `map string -> int scores = { ... }`

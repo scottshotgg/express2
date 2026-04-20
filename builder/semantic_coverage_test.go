@@ -1,6 +1,7 @@
 package builder_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/scottshotgg/express2/builder"
@@ -200,4 +201,98 @@ func main() { }`)
 			t.Error("expected error for unknown node type, got nil")
 		}
 	})
+}
+
+// runTypeResolver parses src and runs the TypeResolver pass, returning any error.
+func runTypeResolver(t *testing.T, src string) error {
+	t.Helper()
+	b, err := getBuilderFromString(src)
+	if err != nil {
+		t.Fatalf("lex error: %v", err)
+	}
+	prog, err := b.BuildAST()
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	checker := builder.NewChecker(prog, builder.NewTypeResolverWithScope(b.ScopeTree))
+	_, err = checker.Execute()
+	return err
+}
+
+func TestImmutableReassign(t *testing.T) {
+	err := runTypeResolver(t, "func main() {\n  int x = 5\n  x = 10\n}")
+	if err == nil {
+		t.Fatal("expected error for immutable reassign, got nil")
+	}
+	if !strings.Contains(err.Error(), "immutable binding") {
+		t.Errorf("error %q should contain 'immutable binding'", err.Error())
+	}
+}
+
+func TestMutableReassign(t *testing.T) {
+	err := runTypeResolver(t, "func main() {\n  var int x = 5\n  x = 10\n}")
+	if err != nil {
+		t.Fatalf("unexpected error for mutable reassign: %v", err)
+	}
+}
+
+func TestLetReassign(t *testing.T) {
+	err := runTypeResolver(t, "func main() {\n  let x = 5\n  x = 10\n}")
+	if err == nil {
+		t.Fatal("expected error for let reassign, got nil")
+	}
+	if !strings.Contains(err.Error(), "immutable binding") {
+		t.Errorf("error %q should contain 'immutable binding'", err.Error())
+	}
+}
+
+func TestChanImmutableReassign(t *testing.T) {
+	err := runTypeResolver(t, "func main() {\n  chan int c\n  c = c\n}")
+	if err == nil {
+		t.Fatal("expected error for chan immutable reassign, got nil")
+	}
+	if !strings.Contains(err.Error(), "immutable binding") {
+		t.Errorf("error %q should contain 'immutable binding'", err.Error())
+	}
+}
+
+func TestChanMutableReassign(t *testing.T) {
+	err := runTypeResolver(t, "func main() {\n  var chan int c\n  c = c\n}")
+	if err != nil {
+		t.Fatalf("unexpected error for mutable chan reassign: %v", err)
+	}
+}
+
+func TestUseBeforeDeclare(t *testing.T) {
+	err := runTypeResolver(t, "func main() {\n  let y = x\n}")
+	if err == nil {
+		t.Fatal("expected error for use-before-declare, got nil")
+	}
+	if !strings.Contains(err.Error(), "undeclared identifier") {
+		t.Errorf("error %q should contain 'undeclared identifier'", err.Error())
+	}
+}
+
+func TestUseAfterDeclare(t *testing.T) {
+	err := runTypeResolver(t, "func main() {\n  int x = 5\n  let y = x\n}")
+	if err != nil {
+		t.Fatalf("unexpected error for use-after-declare: %v", err)
+	}
+}
+
+func TestImmutableIncrement(t *testing.T) {
+	err := runTypeResolver(t, "func main() {\n  int x = 5\n  x++\n}")
+	if err == nil {
+		t.Fatal("expected error for immutable increment, got nil")
+	}
+	if !strings.Contains(err.Error(), "cannot apply") {
+		t.Errorf("error %q should contain 'cannot apply'", err.Error())
+	}
+}
+
+func TestMutableIncrement(t *testing.T) {
+	err := runTypeResolver(t, "func main() {\n  var int x = 5\n  x++\n}")
+	if err != nil {
+		t.Fatalf("unexpected error for mutable increment: %v", err)
+	}
 }
